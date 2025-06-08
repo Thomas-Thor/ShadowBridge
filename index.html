@@ -1,459 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShadowBridge - Elite Network Platform</title>
-    <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShadowBridge</title>
+  <link rel="stylesheet" href="styles.css">
+  
+  <style>
+    .cartel-link {
+      display: none;
+    }
+
+    #cartel-division {
+      display: none;
+    }
+  </style>
 </head>
 <body>
-    <!-- HEADER -->
-    <header class="header">
-        <nav class="nav">
-            <div class="logo">
-                <h1>ShadowBridge</h1>
-                <span class="tagline">Elite Network Platform</span>
-            </div>
-            <ul>
-                <li><a href="#about">Network</a></li>
-                <li><a href="#process">Process</a></li>
-                <li><a href="#access">Access</a></li>
-                <li><a href="#cartel-division">C.A.R.T.E.L. Division</a></li>
-                <li><a href="#" onclick="openRoleModal()" class="cta-button">Join Network</a></li>
-            </ul>
-            <div class="menu-toggle" onclick="toggleMenu()">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </nav>
-    </header>
 
-    <!-- LANDING PAGE CONTENT -->
-    <main id="landing-page">
-        
-        <!-- SECTION 1: HERO -->
-        <section class="hero">
-            <div class="hero-content">
-                <h1 class="hero-title">SOME NETWORKS CONNECT PEOPLE.<br>WE CONNECT POWER.</h1>
-                <h2 class="hero-subtitle">For strategists who think in continents, not countries.<br>For minds that prefer influence over exposure.</h2>
-                <p class="hero-text">
-                    We don't recruit. We select.<br>
-                    We don't promise success. We create systems.<br>
-                    We don't seek attention. We build power.<br><br>
-                    If you understand the difference, continue.<br>
-                    If not, this isn't for you.
-                </p>
-                <button class="cta-button" onclick="showRegistration()">REQUEST ASSESSMENT</button>
-                <p class="disclaimer">By invitation or exceptional qualification only.</p>
-            </div>
-            <div class="scroll-indicator">↓</div>
-        </section>
+  <!-- HEADER -->
+  <header class="header">
+    <nav class="nav">
+      <div class="logo">
+        <h1>ShadowBridge</h1>
+        <span class="tagline">Elite Network Platform</span>
+      </div>
+      <ul>
+        <li><a href="#about">Network</a></li>
+        <li><a href="#process">Process</a></li>
+        <li><a href="#access">Access</a></li>
+        <li><a href="#cartel-division" class="cartel-link">C.A.R.T.E.L. Division</a></li>
+        <li><a href="#" onclick="openRoleModal()" class="cta-button">Join Network</a></li>
+      </ul>
+      <div class="menu-toggle" onclick="toggleMenu()">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </nav>
+  </header>
 
-        <!-- SECTION 2: PROBLEM STATEMENT -->
-        <section class="problem-section">
-            <div class="container">
-                <h2>TIRED OF NETWORKS THAT DON'T NETWORK?</h2>
-                <div class="problem-content">
-                    <div class="problem-text">
-                        <p>You've been to the conferences. You've joined the "exclusive" groups. You've paid for the premium memberships.</p>
-                        <p>And what did you get?</p>
-                        <ul>
-                            <li>Surface-level connections that lead nowhere</li>
-                            <li>Theoretical knowledge without practical application</li>
-                            <li>Access to people who talk about deals, not make them</li>
-                            <li>Networks that promise global reach but deliver local limitations</li>
-                            <li>Communities that confuse activity with achievement</li>
-                        </ul>
-                        <p class="problem-conclusion">You know there's a different level. A place where serious professionals operate. Where conversations happen in private. Where real decisions are made.</p>
-                        <p class="problem-final">That place exists. But it's not advertised. It's not promoted. It's not for everyone.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
+  <!-- MAIN CONTENT -->
+  <main>
+    <section id="about">
+      <h2>About ShadowBridge</h2>
+      <p>Global B2B asset trading platform connecting elite suppliers, agents, and buyers across continents.</p>
+    </section>
 
-        <!-- SECTION 3: SOLUTION - 6 PILLARS -->
-        <section class="pillars-section">
-            <div class="container">
-                <h2>THE ARCHITECTURE OF INFLUENCE</h2>
-                <p class="pillars-intro">While others build networks, we build systems. While others chase opportunities, we create them. While others follow markets, we shape them.</p>
-                
-                <div class="pillars-grid">
-                    <div class="pillar">
-                        <div class="pillar-icon">💰</div>
-                        <h3>CAPITAL</h3>
-                        <p>Strategic resource allocation across multiple jurisdictions. Not just money. Access to the right money, at the right time, for the right opportunities.</p>
-                    </div>
-                    <div class="pillar">
-                        <div class="pillar-icon">🎯</div>
-                        <h3>ADVISORY</h3>
-                        <p>Strategic guidance from operators who've built, scaled, and exited at the highest levels. Beyond consulting. Beyond theory.</p>
-                    </div>
-                    <div class="pillar">
-                        <div class="pillar-icon">🌐</div>
-                        <h3>NETWORK</h3>
-                        <p>Curated connections across continents. Not networking events. Not business cards. Direct access to decision-makers who move markets.</p>
-                    </div>
-                    <div class="pillar">
-                        <div class="pillar-icon">📈</div>
-                        <h3>TRADING</h3>
-                        <p>Market intelligence and execution capabilities that go beyond traditional boundaries. Information flows where others see walls.</p>
-                    </div>
-                    <div class="pillar">
-                        <div class="pillar-icon">🚀</div>
-                        <h3>EXPANSION</h3>
-                        <p>Systematic market entry and scaling strategies. Not just international. Intercontinental. With infrastructure that works.</p>
-                    </div>
-                    <div class="pillar">
-                        <div class="pillar-icon">👑</div>
-                        <h3>LEADERSHIP</h3>
-                        <p>Development of strategic thinking and operational excellence. For those who don't just participate in markets. They create them.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
+    <section id="process">
+      <h2>Our Process</h2>
+      <p>We identify surplus inventory and underutilized assets, match them with high-demand regions, and facilitate confidential, secure transactions.</p>
+    </section>
 
-        <!-- SECTION 4: C.A.R.T.E.L. DIVISION -->
-        <section id="cartel-division" class="cartel-section">
-            <div class="container">
-                <div class="cartel-header">
-                    <h2>C.A.R.T.E.L. DIVISION</h2>
-                    <p class="cartel-subtitle">The Inner Circle</p>
-                </div>
-                
-                <div class="cartel-content">
-                    <div class="cartel-description">
-                        <p>Within ShadowBridge exists an even more exclusive tier. The C.A.R.T.E.L. Division represents the apex of our network - where the most sophisticated operators converge.</p>
-                        
-                        <div class="cartel-features">
-                            <div class="feature">
-                                <h4>Capital Allocation</h4>
-                                <p>Direct access to institutional-grade funding and investment opportunities</p>
-                            </div>
-                            <div class="feature">
-                                <h4>Asesoría Estratégica</h4>
-                                <p>Private advisory sessions with industry architects and market makers</p>
-                            </div>
-                            <div class="feature">
-                                <h4>Red Invisible</h4>
-                                <p>Connections that exist beyond public directories and professional networks</p>
-                            </div>
-                            <div class="feature">
-                                <h4>Trading Intelligence</h4>
-                                <p>Market insights and execution capabilities across multiple asset classes</p>
-                            </div>
-                            <div class="feature">
-                                <h4>Expansión Global</h4>
-                                <p>Systematic market entry strategies with established infrastructure</p>
-                            </div>
-                            <div class="feature">
-                                <h4>Liderazgo Operacional</h4>
-                                <p>Strategic development for those who shape industries, not just participate</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="cartel-access">
-                        <h3>Access Requirements</h3>
-                        <ul>
-                            <li>Proven track record in ShadowBridge network</li>
-                            <li>Demonstrated strategic thinking and execution</li>
-                            <li>Invitation by existing C.A.R.T.E.L. member</li>
-                            <li>Or exceptional qualification with access code</li>
-                        </ul>
-                        
-                        <div class="cartel-stats">
-                            <div class="stat">
-                                <span class="number">12</span>
-                                <span class="label">Active Members</span>
-                            </div>
-                            <div class="stat">
-                                <span class="number">€47M</span>
-                                <span class="label">Combined Influence</span>
-                            </div>
-                            <div class="stat">
-                                <span class="number">100%</span>
-                                <span class="label">Success Rate</span>
-                            </div>
-                        </div>
-                        
-                        <p class="cartel-note">C.A.R.T.E.L. Division membership is by invitation only. Current ShadowBridge agents may apply through their dashboard.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
+    <section id="access">
+      <h2>Access Protocol</h2>
+      <p>Only verified members can access the full dashboard. Select your role and begin the onboarding process.</p>
+    </section>
 
-        <!-- SECTION 5: SOCIAL PROOF -->
-        <section class="testimonials-section">
-            <div class="container">
-                <h2>WHAT THEY DON'T SAY PUBLICLY</h2>
-                <div class="testimonials-grid">
-                    <div class="testimonial">
-                        <p>"Three months. €2.4M in new business. The connections here don't just talk. They execute."</p>
-                        <cite>— Managing Director, European Investment Firm</cite>
-                    </div>
-                    <div class="testimonial">
-                        <p>"I've been in 'exclusive' networks for 15 years. This is the first one where the phone actually gets answered."</p>
-                        <cite>— Former Goldman Sachs Partner</cite>
-                    </div>
-                    <div class="testimonial">
-                        <p>"The level of strategic thinking here is unlike anything I've encountered. These aren't networking events. They're war rooms."</p>
-                        <cite>— CEO, Fortune 500 Technology Company</cite>
-                    </div>
-                </div>
-                
-                <div class="metrics">
-                    <div class="metric">
-                        <span class="metric-number">€180M+</span>
-                        <span class="metric-label">Deals Facilitated</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-number">47</span>
-                        <span class="metric-label">Active Members</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-number">12</span>
-                        <span class="metric-label">Countries</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-number">89%</span>
-                        <span class="metric-label">Success Rate</span>
-                    </div>
-                </div>
-            </div>
-        </section>
+    <!-- C.A.R.T.E.L. DIVISION - UKRYTA DOMYŚLNIE -->
+    <section id="cartel-division">
+      <h2>C.A.R.T.E.L. Division</h2>
+      <p>This restricted sector is accessible only to selected operatives. Strategic intelligence, black-level missions, and high-stakes trading ops are conducted here.</p>
+    </section>
+  </main>
 
-        <!-- SECTION 6: PROCESS -->
-        <section id="process" class="process-section">
-            <div class="container">
-                <h2>THE SELECTION PROCESS</h2>
-                <p class="process-intro">We don't accept applications. We conduct assessments. We don't review resumes. We evaluate potential. We don't make promises. We identify capability.</p>
-                
-                <div class="process-steps">
-                    <div class="step">
-                        <div class="step-number">01</div>
-                        <h3>INITIAL ASSESSMENT</h3>
-                        <p>Comprehensive evaluation of professional background, strategic thinking, and network value. 72-hour response time.</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">02</div>
-                        <h3>STRATEGIC INTERVIEW</h3>
-                        <p>Private conversation with network architects. Not about what you've done. About what you can do.</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">03</div>
-                        <h3>NETWORK INTEGRATION</h3>
-                        <p>Gradual introduction to relevant connections and opportunities. Immediate value creation expected.</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">04</div>
-                        <h3>OPERATIONAL EXCELLENCE</h3>
-                        <p>Continuous development and strategic positioning within the network. Performance-based advancement.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
+  <!-- MODAL ROLE JOINING -->
+  <div id="role-modal" class="modal hidden">
+    <!-- Modal content would go here -->
+  </div>
 
-        <!-- SECTION 7: ACCESS LEVELS -->
-        <section id="access" class="access-section">
-            <div class="container">
-                <h2>LEVELS OF INFLUENCE</h2>
-                <p class="access-intro">Not all access is equal. Not all members operate at the same level. Advancement is earned, not given.</p>
-                
-                <div class="access-levels">
-                    <div class="level">
-                        <h3>OBSERVER</h3>
-                        <p>Initial assessment phase. Limited network visibility. Evaluation period: 1-6 months.</p>
-                        <ul>
-                            <li>Market intelligence briefings</li>
-                            <li>Selected event invitations</li>
-                            <li>Basic network directory access</li>
-                        </ul>
-                    </div>
-                    <div class="level">
-                        <h3>ASPIRANT</h3>
-                        <p>Proven initial value. Expanded network access. Development phase: 3-12 months.</p>
-                        <ul>
-                            <li>Direct connection facilitation</li>
-                            <li>Strategic advisory access</li>
-                            <li>Regional opportunity flow</li>
-                        </ul>
-                    </div>
-                    <div class="level">
-                        <h3>INTEGRANTE</h3>
-                        <p>Full network member. Operational excellence demonstrated. Standard membership level.</p>
-                        <ul>
-                            <li>Global network access</li>
-                            <li>Deal flow participation</li>
-                            <li>Strategic project involvement</li>
-                        </ul>
-                    </div>
-                    <div class="level">
-                        <h3>OPERADOR</h3>
-                        <p>Network contributor. Strategic value creator. Leadership development track.</p>
-                        <ul>
-                            <li>Network expansion authority</li>
-                            <li>Strategic initiative leadership</li>
-                            <li>C.A.R.T.E.L. Division consideration</li>
-                        </ul>
-                    </div>
-                    <div class="level">
-                        <h3>ARQUITECTO</h3>
-                        <p>Network architect. Market maker. Strategic influence across multiple sectors.</p>
-                        <ul>
-                            <li>Network strategy input</li>
-                            <li>Cross-sector coordination</li>
-                            <li>C.A.R.T.E.L. Division access</li>
-                        </ul>
-                    </div>
-                    <div class="level elite">
-                        <h3>C.A.R.T.E.L. DIVISION</h3>
-                        <p>The inner circle. Where strategy becomes reality. Where influence becomes power.</p>
-                        <ul>
-                            <li>Institutional-grade opportunities</li>
-                            <li>Cross-continental coordination</li>
-                            <li>Market-making capabilities</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </section>
+  <script src="scripts/script.js"></script>
 
-        <!-- SECTION 8: FINAL CTA -->
-        <section class="final-cta-section">
-            <div class="container">
-                <h2>READY FOR ASSESSMENT?</h2>
-                <p>If you've read this far, you understand the difference between networking and network building. Between opportunity and capability. Between access and influence.</p>
-                
-                <div class="cta-options">
-                    <div class="cta-option">
-                        <h3>AGENT</h3>
-                        <p>Strategic operators who create value through connections and market intelligence.</p>
-                        <button onclick="selectRole('agent')" class="role-button">Request Agent Assessment</button>
-                    </div>
-                    <div class="cta-option">
-                        <h3>CLIENT</h3>
-                        <p>Organizations seeking strategic expansion and market entry capabilities.</p>
-                        <button onclick="selectRole('client')" class="role-button">Request Client Assessment</button>
-                    </div>
-                    <div class="cta-option">
-                        <h3>SUPPLIER</h3>
-                        <p>Premium service providers with institutional-grade capabilities.</p>
-                        <button onclick="selectRole('supplier')" class="role-button">Request Supplier Assessment</button>
-                    </div>
-                </div>
-                
-                <div class="final-considerations">
-                    <h3>BEFORE YOU PROCEED</h3>
-                    <ul>
-                        <li>We operate in confidence. Discretion is not optional.</li>
-                        <li>We expect immediate value creation. Passive membership doesn't exist.</li>
-                        <li>We maintain standards. Not everyone who applies is accepted.</li>
-                        <li>We think in years, not quarters. Short-term thinking is incompatible.</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-    </main>
+  <!-- DYNAMIC CARTEL VISIBILITY -->
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('access') === 'cartel') {
+      const cartelLink = document.querySelector('.cartel-link');
+      const cartelSection = document.getElementById('cartel-division');
+      if (cartelLink) cartelLink.style.display = 'inline-block';
+      if (cartelSection) cartelSection.style.display = 'block';
+    }
+  </script>
 
-    <!-- ROLE SELECTION MODAL -->
-    <div id="registration-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>SELECT YOUR ROLE</h2>
-                <button class="close-button" onclick="hideRegistration()">&times;</button>
-            </div>
-            <div class="role-options">
-                <div class="role-option" onclick="selectRole('agent')">
-                    <h3>AGENT</h3>
-                    <p>Strategic operators who create value through connections and market intelligence</p>
-                    <div class="role-requirements">
-                        <strong>Requirements:</strong>
-                        <ul>
-                            <li>Proven track record in strategic roles</li>
-                            <li>Existing high-value network</li>
-                            <li>Demonstrated value creation ability</li>
-                        </ul>
-                    </div>
-                </div>
-                <div class="role-option" onclick="selectRole('client')">
-                    <h3>CLIENT</h3>
-                    <p>Organizations seeking strategic expansion and market entry capabilities</p>
-                    <div class="role-requirements">
-                        <strong>Requirements:</strong>
-                        <ul>
-                            <li>Established business operations</li>
-                            <li>Strategic expansion objectives</li>
-                            <li>Investment capability for growth</li>
-                        </ul>
-                    </div>
-                </div>
-                <div class="role-option" onclick="selectRole('supplier')">
-                    <h3>SUPPLIER</h3>
-                    <p>Premium service providers with institutional-grade capabilities</p>
-                    <div class="role-requirements">
-                        <strong>Requirements:</strong>
-                        <ul>
-                            <li>Institutional-grade service delivery</li>
-                            <li>Proven client success stories</li>
-                            <li>Scalable operational capacity</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- FOOTER -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>ShadowBridge</h3>
-                    <p>Elite Network Platform</p>
-                    <p>Where influence meets opportunity.</p>
-                </div>
-                <div class="footer-section">
-                    <h4>Network</h4>
-                    <ul>
-                        <li><a href="#about">About</a></li>
-                        <li><a href="#process">Process</a></li>
-                        <li><a href="#access">Access Levels</a></li>
-                        <li><a href="#cartel-division">C.A.R.T.E.L. Division</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>Roles</h4>
-                    <ul>
-                        <li><a href="#" onclick="selectRole('agent')">Agent Assessment</a></li>
-                        <li><a href="#" onclick="selectRole('client')">Client Assessment</a></li>
-                        <li><a href="#" onclick="selectRole('supplier')">Supplier Assessment</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>Contact</h4>
-                    <p>By invitation only</p>
-                    <p>Assessment required</p>
-                    <p>Discretion expected</p>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2025 ShadowBridge. Elite Network Platform. All rights reserved.</p>
-                <p>Confidential and proprietary. Unauthorized access prohibited.</p>
-            </div>
-        </div>
-    </footer>
-
-    <script src="api-client.js"></script>
-    <script src="script-updated.js"></script>
 </body>
 </html>
-<script>
-  // Jeśli w URL pojawi się ?access=cartel, sekcja się odsłoni
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('access') === 'cartel') {
-    document.getElementById('cartel-division').style.display = 'block';
-  }
-</script>
-
