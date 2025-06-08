@@ -1,0 +1,157 @@
+ShadowBridge Platform v2.0
+Elite Network Platform with C.A.R.T.E.L. Division
+ShadowBridge is a sophisticated network platform designed for elite agents, strategic
+clients, and premium suppliers. The platform features a selective membership system
+with an exclusive inner circle known as the C.A.R.T.E.L. Division.
+Features
+Core Platform
+• Multi-role Registration: Agent, Client, Supplier with role-specific onboarding
+• JWT Authentication: Secure token-based authentication with 7-day expiration
+• Role-based Dashboards: Customized interfaces for each user type
+• Responsive Design: Mobile-first design with desktop optimization
+C.A.R.T.E.L. Division
+• Elite Inner Circle: Exclusive membership tier for top performers
+• Application System: Comprehensive application process with performance
+metrics
+• Access Control: Invitation-based or code-based access
+• Member Management: Full lifecycle management from application to
+membership
+Technical Stack
+• Frontend: HTML5, CSS3, JavaScript (ES6+)
+• Backend: Flask (Python) with SQLAlchemy ORM
+• Database: MySQL with automatic table creation
+• Authentication: JWT tokens with Flask-JWT-Extended
+• API: RESTful endpoints with CORS supportQuick Start
+Frontend Deployment
+1. Upload all files from /shadowbridge/ to your web server
+2. Update API endpoint in api-client.js if needed
+3. Ensure all files are accessible via HTTPS
+Backend Deployment
+1. Set up Python environment with Flask
+2. Configure database connection
+3. Run python src/main.py to start the API server
+4. API will be available at http://localhost:5001
+File Structure
+shadowbridge/
+├── index.html
+# Landing page
+├── agent-registration.html # Agent portal & dashboard
+├── client-registration.html # Client portal & dashboard
+├── supplier-registration.html # Supplier portal & dashboard
+├── styles.css
+# Main stylesheet
+├── dashboard.css
+# Dashboard-specific styles
+├── script-updated.js
+# Main JavaScript functions
+├── api-client.js
+# API communication layer
+├── agent-dashboard.js
+# Agent-specific functionality
+├── client-dashboard.js
+# Client-specific functionality
+└── supplier-dashboard.js
+# Supplier-specific functionality
+API Endpoints
+Authentication
+• POST /api/auth/register - User registration
+• POST /api/auth/login - User login
+• GET /api/auth/verify - Token verification
+• GET /api/auth/profile - User profileDashboards
+• GET /api/dashboard/agent/dashboard - Agent dashboard data
+• GET /api/dashboard/client/dashboard - Client dashboard data
+• GET /api/dashboard/supplier/dashboard - Supplier dashboard data
+C.A.R.T.E.L. Division
+• POST /api/cartel/apply - Submit C.A.R.T.E.L. application
+• GET /api/cartel/application/status - Check application status
+• GET /api/cartel/membership - Get membership details
+• GET /api/cartel/stats - Public statistics
+Admin (C.A.R.T.E.L. Management)
+• GET /api/cartel/admin/applications - List all applications
+• PUT /api/cartel/admin/applications/{id}/review - Review application
+• GET /api/cartel/admin/members - List all members
+Configuration
+Environment Variables
+DB_HOST=localhost
+DB_PORT=3306
+DB_USERNAME=root
+DB_PASSWORD=password
+DB_NAME=shadowbridge
+Security Settings
+• JWT Secret: Configure in main.py
+• CORS Origins: Update for production deployment
+• Database Credentials: Use environment variables
+User Roles & Access Levels
+Standard Roles
+1. Agent: Strategic operators and network builders
+2. Client: Organizations seeking expansion and advisory3. Supplier: Premium service providers
+ShadowBridge Hierarchy
+1. Observer: Initial assessment phase (1-6 months)
+2. Aspirant: Proven initial value (3-12 months)
+3. Integrante: Full network member
+4. Operador: Network contributor and leader
+5. Arquitecto: Network architect and market maker
+6. C.A.R.T.E.L. Division: Elite inner circle
+C.A.R.T.E.L. Division Application
+Requirements
+• Proven track record in ShadowBridge network
+• Demonstrated strategic thinking and execution
+• Invitation by existing C.A.R.T.E.L. member OR exceptional qualification with access
+code
+Application Process
+1. Performance Metrics: Revenue, success rate, client base, network size
+2. Strategic Capabilities: Achievements, vision, market expertise
+3. Access Credentials: Invitation code or referrer information
+4. Commitments: Discretion, performance, availability, network growth
+Review Process
+• Applications reviewed by existing C.A.R.T.E.L. members
+• 7-14 business day response time
+• Approved members receive unique member code
+• Access to exclusive opportunities and network
+Development
+Local Development
+# Backend
+cd cartel-backend/cartel-api
+python -m venv venvsource venv/bin/activate # Linux/Mac
+pip install -r requirements.txt
+python src/main.py
+# Frontend
+# Serve files via local web server
+python -m http.server 8000
+Testing
+# Test API health
+curl http://localhost:5001/api/health
+# Test registration
+curl -X POST http://localhost:5001/api/auth/register \
+-H "Content-Type: application/json" \
+-d '{"email":"test@test.com","password":"Test123","role":"agent"}'
+# Test C.A.R.T.E.L. stats
+curl http://localhost:5001/api/cartel/stats
+Security Considerations
+Production Deployment
+• Use HTTPS for all communications
+• Implement rate limiting on API endpoints
+• Configure CORS for specific domains only
+• Use strong JWT secrets and rotate regularly
+• Implement proper logging and monitoring
+Data Protection
+• All user data encrypted in transit and at rest
+• JWT tokens expire after 7 days
+• Password hashing with bcrypt
+• Input validation and sanitizationSupport & Maintenance
+Monitoring
+• API health endpoint: /api/health
+• Database connection status
+• JWT token validation
+• User registration and login metrics
+Backup & Recovery
+• Regular database backups
+• Configuration file versioning
+• API endpoint documentation
+• User data export capabilities
+License
+Proprietary software. All rights reserved.
+Contact
+For technical support or questions about the ShadowBridge platform, contact the
+development team.
+ShadowBridge Platform v2.0 - Where influence meets opportunity.
