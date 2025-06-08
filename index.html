@@ -449,4 +449,11 @@
     <script src="script-updated.js"></script>
 </body>
 </html>
+<script>
+  // Jeśli w URL pojawi się ?access=cartel, sekcja się odsłoni
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('access') === 'cartel') {
+    document.getElementById('cartel-division').style.display = 'block';
+  }
+</script>
 
