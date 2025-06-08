@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Registration - C.A.R.T.E.L.</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- HEADER -->
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <h1>C.A.R.T.E.L.</h1>
+                <p class="tagline">Supplier Registration</p>
+            </div>
+            <nav class="nav">
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="#" onclick="logout()">Logout</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- REGISTRATION FORM -->
+    <main class="registration-main" id="registration-form">
+        <div class="container">
+            <div class="registration-content">
+                <h1>SUPPLIER REGISTRATION</h1>
+                <p class="registration-subtitle">Service providers and solution architects delivering specialized capabilities</p>
+                
+                <form id="supplierRegistrationForm" class="registration-form">
+                    <!-- COMPANY INFORMATION -->
+                    <div class="form-section">
+                        <h2>Company Information</h2>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="companyName">Company/Organization Name *</label>
+                                <input type="text" id="companyName" name="companyName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="businessType">Business Type *</label>
+                                <select id="businessType" name="businessType" required>
+                                    <option value="">Select type</option>
+                                    <option value="consulting">Consulting Firm</option>
+                                    <option value="legal">Legal Services</option>
+                                    <option value="financial">Financial Services</option>
+                                    <option value="technology">Technology Provider</option>
+                                    <option value="logistics">Logistics & Supply Chain</option>
+                                    <option value="marketing">Marketing & Communications</option>
+                                    <option value="manufacturing">Manufacturing</option>
+                                    <option value="freelancer">Independent Professional</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="companySize">Team Size *</label>
+                                <select id="companySize" name="companySize" required>
+                                    <option value="">Select size</option>
+                                    <option value="solo">Solo practitioner</option>
+                                    <option value="small">Small team (2-10)</option>
+                                    <option value="medium">Medium firm (11-50)</option>
+                                    <option value="large">Large organization (50+)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="yearsInBusiness">Years in Business *</label>
+                                <select id="yearsInBusiness" name="yearsInBusiness" required>
+                                    <option value="">Select experience</option>
+                                    <option value="1-2">1-2 years</option>
+                                    <option value="3-5">3-5 years</option>
+                                    <option value="5-10">5-10 years</option>
+                                    <option value="10+">10+ years</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="headquarters">Headquarters Location *</label>
+                                <input type="text" id="headquarters" name="headquarters" required placeholder="City, Country">
+                            </div>
+                            <div class="form-group">
+                                <label for="serviceAreas">Service Areas</label>
+                                <input type="text" id="serviceAreas" name="serviceAreas" placeholder="Countries/regions where you provide services">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="companyDescription">Company Description *</label>
+                            <textarea id="companyDescription" name="companyDescription" rows="3" required 
+                                placeholder="Brief description of your company, core competencies, and unique value proposition..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- CONTACT INFORMATION -->
+                    <div class="form-section">
+                        <h2>Primary Contact Information</h2>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="contactName">Full Name *</label>
+                                <input type="text" id="contactName" name="contactName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="position">Position/Title *</label>
+                                <input type="text" id="position" name="position" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="email">Email Address *</label>
+                                <input type="email" id="email" name="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Phone Number *</label>
+                                <input type="tel" id="phone" name="phone" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="website">Website</label>
+                                <input type="url" id="website" name="website" placeholder="https://your-website.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="linkedin">LinkedIn Profile</label>
+                                <input type="url" id="linkedin" name="linkedin" placeholder="https://linkedin.com/in/yourprofile">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SERVICES & CAPABILITIES -->
+                    <div class="form-section">
+                        <h2>Services & Capabilities</h2>
+                        
+                        <div class="form-group">
+                            <label for="primaryServices">Primary Services Offered *</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" name="services" value="strategy"> Strategic Consulting</label>
+                                <label><input type="checkbox" name="services" value="legal"> Legal Advisory</label>
+                                <label><input type="checkbox" name="services" value="financial"> Financial Services</label>
+                                <label><input type="checkbox" name="services" value="technology"> Technology Solutions</label>
+                                <label><input type="checkbox" name="services" value="marketing"> Marketing & Branding</label>
+                                <label><input type="checkbox" name="services" value="operations"> Operations Optimization</label>
+                                <label><input type="checkbox" name="services" value="hr"> Human Resources</label>
+                                <label><input type="checkbox" name="services" value="logistics"> Logistics & Supply Chain</label>
+                                <label><input type="checkbox" name="services" value="research"> Market Research</label>
+                                <label><input type="checkbox" name="services" value="compliance"> Regulatory Compliance</label>
+                                <label><input type="checkbox" name="services" value="other"> Other Specialized Services</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="serviceDescription">Detailed Service Description *</label>
+                            <textarea id="serviceDescription" name="serviceDescription" rows="4" required 
+                                placeholder="Provide detailed description of your services, methodologies, and what makes your approach unique..."></textarea>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="industryExpertise">Industry Expertise *</label>
+                                <select id="industryExpertise" name="industryExpertise" required multiple>
+                                    <option value="technology">Technology</option>
+                                    <option value="finance">Financial Services</option>
+                                    <option value="healthcare">Healthcare</option>
+                                    <option value="manufacturing">Manufacturing</option>
+                                    <option value="energy">Energy</option>
+                                    <option value="retail">Retail</option>
+                                    <option value="real-estate">Real Estate</option>
+                                    <option value="consulting">Professional Services</option>
+                                    <option value="government">Government/Public Sector</option>
+                                    <option value="non-profit">Non-Profit</option>
+                                </select>
+                                <small>Hold Ctrl/Cmd to select multiple industries</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="clientSize">Typical Client Size *</label>
+                                <select id="clientSize" name="clientSize" required>
+                                    <option value="">Select client size</option>
+                                    <option value="startup">Startups</option>
+                                    <option value="small">Small Business (1-50 employees)</option>
+                                    <option value="medium">Medium Business (51-200 employees)</option>
+                                    <option value="large">Large Enterprise (200+ employees)</option>
+                                    <option value="all">All sizes</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="projectValue">Typical Project Value *</label>
+                                <select id="projectValue" name="projectValue" required>
+                                    <option value="">Select range</option>
+                                    <option value="5k-25k">€5k - €25k</option>
+                                    <option value="25k-50k">€25k - €50k</option>
+                                    <option value="50k-100k">€50k - €100k</option>
+                                    <option value="100k-250k">€100k - €250k</option>
+                                    <option value="250k+">€250k+</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="capacity">Current Capacity *</label>
+                                <select id="capacity" name="capacity" required>
+                                    <option value="">Select capacity</option>
+                                    <option value="full">At full capacity</option>
+                                    <option value="limited">Limited availability</option>
+                                    <option value="moderate">Moderate availability</option>
+                                    <option value="high">High availability</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EXPERIENCE & CREDENTIALS -->
+                    <div class="form-section">
+                        <h2>Experience & Credentials</h2>
+                        
+                        <div class="form-group">
+                            <label for="keyClients">Notable Clients/Projects *</label>
+                            <textarea id="keyClients" name="keyClients" rows="3" required 
+                                placeholder="Describe notable clients or projects (you may anonymize sensitive information)..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="certifications">Professional Certifications</label>
+                            <input type="text" id="certifications" name="certifications" 
+                                placeholder="List relevant certifications, licenses, or professional memberships">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="languages">Languages</label>
+                                <input type="text" id="languages" name="languages" placeholder="Languages you can provide services in">
+                            </div>
+                            <div class="form-group">
+                                <label for="timezone">Primary Timezone *</label>
+                                <select id="timezone" name="timezone" required>
+                                    <option value="">Select timezone</option>
+                                    <option value="UTC-8">Pacific Time (UTC-8)</option>
+                                    <option value="UTC-5">Eastern Time (UTC-5)</option>
+                                    <option value="UTC+0">GMT/UTC (UTC+0)</option>
+                                    <option value="UTC+1">Central European (UTC+1)</option>
+                                    <option value="UTC+8">Singapore/Hong Kong (UTC+8)</option>
+                                    <option value="UTC+9">Japan/Korea (UTC+9)</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="successStory">Describe Your Most Significant Success *</label>
+                            <textarea id="successStory" name="successStory" rows="4" required 
+                                placeholder="Share a specific example of exceptional results you've delivered for a client..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- BUSINESS MODEL -->
+                    <div class="form-section">
+                        <h2>Business Model & Pricing</h2>
+                        
+                        <div class="form-group">
+                            <label for="pricingModel">Pricing Model *</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" name="pricing" value="hourly"> Hourly Rate</label>
+                                <label><input type="checkbox" name="pricing" value="project"> Fixed Project Fee</label>
+                                <label><input type="checkbox" name="pricing" value="retainer"> Monthly Retainer</label>
+                                <label><input type="checkbox" name="pricing" value="performance"> Performance-Based</label>
+                                <label><input type="checkbox" name="pricing" value="equity"> Equity Participation</label>
+                                <label><input type="checkbox" name="pricing" value="hybrid"> Hybrid Model</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="rateRange">Rate Range (if applicable)</label>
+                                <select id="rateRange" name="rateRange">
+                                    <option value="">Select range</option>
+                                    <option value="100-250">€100-250/hour</option>
+                                    <option value="250-500">€250-500/hour</option>
+                                    <option value="500-1000">€500-1000/hour</option>
+                                    <option value="1000+">€1000+/hour</option>
+                                    <option value="project-based">Project-based only</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="paymentTerms">Preferred Payment Terms *</label>
+                                <select id="paymentTerms" name="paymentTerms" required>
+                                    <option value="">Select terms</option>
+                                    <option value="net-15">Net 15 days</option>
+                                    <option value="net-30">Net 30 days</option>
+                                    <option value="50-50">50% upfront, 50% completion</option>
+                                    <option value="milestone">Milestone-based</option>
+                                    <option value="monthly">Monthly billing</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="valueProposition">Unique Value Proposition *</label>
+                            <textarea id="valueProposition" name="valueProposition" rows="3" required 
+                                placeholder="What makes your services unique? Why should C.A.R.T.E.L. clients choose you over competitors?"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- NETWORK INTEGRATION -->
+                    <div class="form-section">
+                        <h2>Network Integration</h2>
+                        
+                        <div class="form-group">
+                            <label for="referralSource">How did you hear about C.A.R.T.E.L.? *</label>
+                            <select id="referralSource" name="referralSource" required>
+                                <option value="">Select source</option>
+                                <option value="referral">Referral from existing member</option>
+                                <option value="client">Referred by client</option>
+                                <option value="search">Online search</option>
+                                <option value="event">Industry event</option>
+                                <option value="partner">Business partner</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="networkValue">How can you contribute to the C.A.R.T.E.L. network? *</label>
+                            <textarea id="networkValue" name="networkValue" rows="4" required 
+                                placeholder="Describe how your expertise, network, or resources could benefit other C.A.R.T.E.L. members..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="collaboration">Interest in Collaboration *</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" name="collaboration" value="joint-projects"> Joint projects with other suppliers</label>
+                                <label><input type="checkbox" name="collaboration" value="referrals"> Referral partnerships</label>
+                                <label><input type="checkbox" name="collaboration" value="knowledge"> Knowledge sharing</label>
+                                <label><input type="checkbox" name="collaboration" value="mentoring"> Mentoring other suppliers</label>
+                                <label><input type="checkbox" name="collaboration" value="events"> Participating in network events</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AGREEMENTS -->
+                    <div class="form-section">
+                        <h2>Agreements & Commitments</h2>
+                        
+                        <div class="checkbox-group agreements">
+                            <label>
+                                <input type="checkbox" name="agreements" value="quality" required>
+                                I commit to delivering the highest quality of service and maintaining professional standards
+                            </label>
+                            <label>
+                                <input type="checkbox" name="agreements" value="discretion" required>
+                                I understand and agree to maintain strict confidentiality regarding client information and C.A.R.T.E.L. operations
+                            </label>
+                            <label>
+                                <input type="checkbox" name="agreements" value="availability" required>
+                                I will maintain reasonable availability and responsiveness to client needs
+                            </label>
+                            <label>
+                                <input type="checkbox" name="agreements" value="evaluation" required>
+                                I understand that supplier acceptance requires evaluation and ongoing performance monitoring
+                            </label>
+                            <label>
+                                <input type="checkbox" name="agreements" value="terms" required>
+                                I have read and agree to the Supplier Terms of Service and Privacy Policy
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="submit-button">SUBMIT APPLICATION</button>
+                        <p class="form-disclaimer">
+                            Your application will be reviewed within 7-14 business days. 
+                            Only qualified suppliers will receive a response.
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- SUPPLIER DASHBOARD (Hidden initially) -->
+    <main class="dashboard-main hidden" id="supplier-dashboard">
+        <div class="container">
+            <div class="dashboard-header">
+                <h1>Supplier Dashboard</h1>
+                <div class="user-info">
+                    <span id="supplier-name">Welcome, Supplier</span>
+                    <button onclick="logout()" class="logout-btn">Logout</button>
+                </div>
+            </div>
+
+            <!-- DASHBOARD OVERVIEW -->
+            <div class="dashboard-overview">
+                <div class="overview-card">
+                    <h3>Active Orders</h3>
+                    <div class="metric-number" id="active-orders">7</div>
+                    <div class="metric-change">2 new this week</div>
+                </div>
+                <div class="overview-card">
+                    <h3>Monthly Revenue</h3>
+                    <div class="metric-number" id="monthly-revenue">€28,500</div>
+                    <div class="metric-change">+22% vs last month</div>
+                </div>
+                <div class="overview-card">
+                    <h3>Client Satisfaction</h3>
+                    <div class="metric-number" id="satisfaction-rate">4.8/5</div>
+                    <div class="metric-change">Based on 24 reviews</div>
+                </div>
+                <div class="overview-card">
+                    <h3>Network Ranking</h3>
+                    <div class="metric-number" id="network-ranking">#3</div>
+                    <div class="metric-change">In your category</div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD TABS -->
+            <div class="dashboard-tabs">
+                <button class="tab-button active" onclick="showTab('services')">My Services</button>
+                <button class="tab-button" onclick="showTab('orders')">Orders</button>
+                <button class="tab-button" onclick="showTab('performance')">Performance</button>
+                <button class="tab-button" onclick="showTab('opportunities')">Opportunities</button>
+            </div>
+
+            <!-- SERVICES TAB -->
+            <div id="services-tab" class="tab-content active">
+                <div class="section-header">
+                    <h2>My Services</h2>
+                    <button class="add-button">+ Add New Service</button>
+                </div>
+                
+                <div class="services-grid">
+                    <div class="service-card">
+                        <div class="service-header">
+                            <h3>Strategic Business Consulting</h3>
+                            <span class="status-badge active">Active</span>
+                        </div>
+                        <div class="service-details">
+                            <p><strong>Category:</strong> Strategic Advisory</p>
+                            <p><strong>Pricing:</strong> €750/hour</p>
+                            <p><strong>Delivery Time:</strong> 4-6 weeks</p>
+                            <p><strong>Orders This Month:</strong> 3</p>
+                            <p><strong>Client Rating:</strong> 4.9/5</p>
+                        </div>
+                        <div class="service-description">
+                            <p>Comprehensive strategic planning and business optimization for international expansion.</p>
+                        </div>
+                        <div class="service-actions">
+                            <button class="action-btn">Edit Service</button>
+                            <button class="action-btn">View Analytics</button>
+                            <button class="action-btn">Client Feedback</button>
+                        </div>
+                    </div>
+
+                    <div class="service-card">
+                        <div class="service-header">
+                            <h3>Market Research & Analysis</h3>
+                            <span class="status-badge active">Active</span>
+                        </div>
+                        <div class="service-details">
+                            <p><strong>Category:</strong> Research & Analytics</p>
+                            <p><strong>Pricing:</strong> €5,000/project</p>
+                            <p><strong>Delivery Time:</strong> 2-3 weeks</p>
+                            <p><strong>Orders This Month:</strong> 2</p>
+                            <p><strong>Client Rating:</strong> 4.7/5</p>
+                        </div>
+                        <div class="service-description">
+                            <p>In-depth market analysis and competitive intelligence for new market entry.</p>
+                        </div>
+                        <div class="service-actions">
+                            <button class="action-btn">Edit Service</button>
+                            <button class="action-btn">View Analytics</button>
+                            <button class="action-btn">Client Feedback</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ORDERS TAB -->
+            <div id="orders-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>Current Orders</h2>
+                    <div class="filter-controls">
+                        <select id="order-filter">
+                            <option value="all">All Orders</option>
+                            <option value="active">Active</option>
+                            <option value="pending">Pending</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="orders-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Client</th>
+                                <th>Service</th>
+                                <th>Value</th>
+                                <th>Status</th>
+                                <th>Deadline</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>#ORD-2025-001</td>
+                                <td>TechCorp Ltd</td>
+                                <td>Strategic Consulting</td>
+                                <td>€15,000</td>
+                                <td><span class="status-badge active">In Progress</span></td>
+                                <td>Feb 15, 2025</td>
+                                <td>
+                                    <button class="action-btn small">Update</button>
+                                    <button class="action-btn small">Contact</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#ORD-2025-002</td>
+                                <td>Global Trading Inc</td>
+                                <td>Market Research</td>
+                                <td>€5,000</td>
+                                <td><span class="status-badge pending">Pending Review</span></td>
+                                <td>Feb 28, 2025</td>
+                                <td>
+                                    <button class="action-btn small">Submit</button>
+                                    <button class="action-btn small">Contact</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PERFORMANCE TAB -->
+            <div id="performance-tab" class="tab-content">
+                <h2>Performance Analytics</h2>
+                
+                <div class="performance-grid">
+                    <div class="performance-card">
+                        <h3>This Month</h3>
+                        <div class="performance-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Orders Completed</span>
+                                <span class="metric-value">5</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Revenue Generated</span>
+                                <span class="metric-value">€28,500</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Average Rating</span>
+                                <span class="metric-value">4.8/5</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="performance-card">
+                        <h3>Year to Date</h3>
+                        <div class="performance-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Total Orders</span>
+                                <span class="metric-value">23</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Total Revenue</span>
+                                <span class="metric-value">€142,000</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Repeat Clients</span>
+                                <span class="metric-value">68%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="client-feedback-section">
+                    <h3>Recent Client Feedback</h3>
+                    <div class="feedback-list">
+                        <div class="feedback-item">
+                            <div class="feedback-rating">⭐⭐⭐⭐⭐</div>
+                            <p>"Exceptional strategic insights and professional delivery. Highly recommended."</p>
+                            <cite>— TechCorp Ltd, Strategic Consulting</cite>
+                        </div>
+                        <div class="feedback-item">
+                            <div class="feedback-rating">⭐⭐⭐⭐⭐</div>
+                            <p>"Thorough market analysis that directly contributed to our successful expansion."</p>
+                            <cite>— Global Trading Inc, Market Research</cite>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OPPORTUNITIES TAB -->
+            <div id="opportunities-tab" class="tab-content">
+                <h2>New Opportunities</h2>
+                
+                <div class="opportunities-grid">
+                    <div class="opportunity-card">
+                        <div class="opportunity-header">
+                            <h3>European Expansion Strategy</h3>
+                            <span class="opportunity-value">€25,000 - €40,000</span>
+                        </div>
+                        <div class="opportunity-details">
+                            <p><strong>Client:</strong> Confidential (Technology Sector)</p>
+                            <p><strong>Timeline:</strong> 8-10 weeks</p>
+                            <p><strong>Requirements:</strong> EU market expertise, regulatory knowledge</p>
+                            <p><strong>Deadline to Apply:</strong> February 20, 2025</p>
+                        </div>
+                        <div class="opportunity-description">
+                            <p>Comprehensive market entry strategy for European markets including regulatory compliance and partnership identification.</p>
+                        </div>
+                        <div class="opportunity-actions">
+                            <button class="action-btn primary">Submit Proposal</button>
+                            <button class="action-btn">Request Details</button>
+                        </div>
+                    </div>
+
+                    <div class="opportunity-card">
+                        <div class="opportunity-header">
+                            <h3>Digital Transformation Assessment</h3>
+                            <span class="opportunity-value">€15,000 - €25,000</span>
+                        </div>
+                        <div class="opportunity-details">
+                            <p><strong>Client:</strong> Confidential (Manufacturing)</p>
+                            <p><strong>Timeline:</strong> 4-6 weeks</p>
+                            <p><strong>Requirements:</strong> Industry 4.0 expertise, change management</p>
+                            <p><strong>Deadline to Apply:</strong> February 25, 2025</p>
+                        </div>
+                        <div class="opportunity-description">
+                            <p>Technology assessment and digital transformation roadmap for traditional manufacturing company.</p>
+                        </div>
+                        <div class="opportunity-actions">
+                            <button class="action-btn primary">Submit Proposal</button>
+                            <button class="action-btn">Request Details</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+    <script src="supplier-dashboard.js"></script>
+</body>
+</html>
+
