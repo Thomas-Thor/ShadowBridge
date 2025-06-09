@@ -101,7 +101,7 @@ body {
 .hero h1, .hero p {
   margin: 0;
   line-height: 1.2;
-  font-size: clamp(18px, 4vw, 48px);
+  font-size: clamp(32px, 4vw, 16px);
 }
 
 @media screen and (max-width: 768px) {
