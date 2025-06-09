@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShadowBridge Agent Portal</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="dashboard-header">
+        <div class="header-content">
+            <div class="logo">
+                <h1>ShadowBridge</h1>
+                <span class="portal-type">Agent Portal</span>
+            </div>
+            <div class="header-actions">
+                <span id="agent-name">Welcome, Agent</span>
+                <button onclick="logout()" class="logout-btn">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- REGISTRATION FORM -->
+    <main class="registration-main" id="registration-form">
+        <div class="container">
+            <div class="registration-content">
+                <h1>AGENT REGISTRATION</h1>
+                <p class="registration-subtitle">Strategic operators and business developers</p>
+                
+                <form id="agentRegistrationForm" class="registration-form">
+                    <!-- PERSONAL INFORMATION -->
+                    <div class="form-section">
+                        <h2>Personal Information</h2>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="firstName">First Name *</label>
+                                <input type="text" id="firstName" name="firstName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="lastName">Last Name *</label>
+                                <input type="text" id="lastName" name="lastName" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="email">Email Address *</label>
+                                <input type="email" id="email" name="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Phone Number *</label>
+                                <input type="tel" id="phone" name="phone" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="location">Location (City, Country) *</label>
+                                <input type="text" id="location" name="location" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="languages">Languages Spoken</label>
+                                <input type="text" id="languages" name="languages" placeholder="e.g., English, Spanish, German">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PROFESSIONAL BACKGROUND -->
+                    <div class="form-section">
+                        <h2>Professional Background</h2>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="experience">Years of Business Experience *</label>
+                                <select id="experience" name="experience" required>
+                                    <option value="">Select experience level</option>
+                                    <option value="3-5">3-5 years</option>
+                                    <option value="5-10">5-10 years</option>
+                                    <option value="10-15">10-15 years</option>
+                                    <option value="15+">15+ years</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="industry">Primary Industry *</label>
+                                <select id="industry" name="industry" required>
+                                    <option value="">Select industry</option>
+                                    <option value="finance">Financial Services</option>
+                                    <option value="technology">Technology</option>
+                                    <option value="trading">International Trading</option>
+                                    <option value="consulting">Consulting</option>
+                                    <option value="real-estate">Real Estate</option>
+                                    <option value="manufacturing">Manufacturing</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="currentRole">Current Role/Position *</label>
+                            <input type="text" id="currentRole" name="currentRole" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="achievements">Key Professional Achievements *</label>
+                            <textarea id="achievements" name="achievements" rows="4" required 
+                                placeholder="Describe your most significant professional achievements, deals closed, or projects completed..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- BUSINESS CAPABILITIES -->
+                    <div class="form-section">
+                        <h2>Business Capabilities</h2>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="networkReach">Geographic Network Reach *</label>
+                                <select id="networkReach" name="networkReach" required>
+                                    <option value="">Select reach</option>
+                                    <option value="local">Local/Regional</option>
+                                    <option value="national">National</option>
+                                    <option value="international">International</option>
+                                    <option value="global">Global</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="dealSize">Typical Deal/Project Size *</label>
+                                <select id="dealSize" name="dealSize" required>
+                                    <option value="">Select range</option>
+                                    <option value="10k-50k">€10k - €50k</option>
+                                    <option value="50k-100k">€50k - €100k</option>
+                                    <option value="100k-500k">€100k - €500k</option>
+                                    <option value="500k-1m">€500k - €1M</option>
+                                    <option value="1m+">€1M+</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="specializations">Areas of Specialization</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" name="specializations" value="capital"> Capital & Investment</label>
+                                <label><input type="checkbox" name="specializations" value="advisory"> Strategic Advisory</label>
+                                <label><input type="checkbox" name="specializations" value="trading"> International Trading</label>
+                                <label><input type="checkbox" name="specializations" value="expansion"> Market Expansion</label>
+                                <label><input type="checkbox" name="specializations" value="technology"> Technology Solutions</label>
+                                <label><input type="checkbox" name="specializations" value="legal"> Legal & Compliance</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="networkValue">Describe Your Professional Network *</label>
+                            <textarea id="networkValue" name="networkValue" rows="3" required 
+                                placeholder="Describe the quality and reach of your professional network, key relationships, and how they could benefit C.A.R.T.E.L..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- COMMITMENT & AVAILABILITY -->
+                    <div class="form-section">
+                        <h2>Commitment & Availability</h2>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="availability">Weekly Availability *</label>
+                                <select id="availability" name="availability" required>
+                                    <option value="">Select availability</option>
+                                    <option value="10-20">10-20 hours/week</option>
+                                    <option value="20-30">20-30 hours/week</option>
+                                    <option value="30-40">30-40 hours/week</option>
+                                    <option value="40+">40+ hours/week (Full-time)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="startDate">Preferred Start Date *</label>
+                                <input type="date" id="startDate" name="startDate" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="motivation">Why C.A.R.T.E.L.? *</label>
+                            <textarea id="motivation" name="motivation" rows="4" required 
+                                placeholder="Explain why you want to join C.A.R.T.E.L. and what you hope to achieve..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- ASSESSMENT QUESTIONS -->
+                    <div class="form-section">
+                        <h2>Strategic Assessment</h2>
+                        
+                        <div class="form-group">
+                            <label for="businessPhilosophy">Your Business Philosophy *</label>
+                            <textarea id="businessPhilosophy" name="businessPhilosophy" rows="4" required 
+                                placeholder="Describe your approach to business, risk management, and building long-term relationships..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="challengeExample">Describe a Complex Challenge You've Overcome *</label>
+                            <textarea id="challengeExample" name="challengeExample" rows="4" required 
+                                placeholder="Provide a specific example of a complex business challenge you've successfully navigated..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- AGREEMENTS -->
+                    <div class="form-section">
+                        <h2>Agreements & Commitments</h2>
+                        
+                        <div class="checkbox-group agreements">
+                            <label>
+                                <input type="checkbox" name="agreements" value="discretion" required>
+                                I understand and commit to maintaining absolute discretion regarding C.A.R.T.E.L. operations and member information
+                            </label>
+                            <label>
+                                <input type="checkbox" name="agreements" value="standards" required>
+                                I agree to uphold the highest standards of professional ethics and operational excellence
+                            </label>
+                            <label>
+                                <input type="checkbox" name="agreements" value="evaluation" required>
+                                I understand that acceptance requires a comprehensive evaluation process that may take 3-12 months
+                            </label>
+                            <label>
+                                <input type="checkbox" name="agreements" value="performance" required>
+                                I acknowledge that continued membership depends on demonstrated performance and results
+                            </label>
+                            <label>
+                                <input type="checkbox" name="agreements" value="terms" required>
+                                I have read and agree to the Terms of Access and Privacy Policy
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="submit-button">SUBMIT APPLICATION</button>
+                        <p class="form-disclaimer">
+                            Your application will be reviewed within 7-14 business days. 
+                            Only qualified candidates will receive a response.
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- AGENT DASHBOARD (Hidden initially) -->
+    <main class="dashboard-main hidden" id="agent-dashboard">
+        <div class="container">
+            <div class="dashboard-header">
+                <h1>Agent Dashboard</h1>
+                <div class="user-info">
+                    <span id="agent-name">Welcome, Agent</span>
+                    <button onclick="logout()" class="logout-btn">Logout</button>
+                </div>
+            </div>
+
+            <!-- DASHBOARD OVERVIEW                    <div class="overview-card">
+                        <h3>Active Clients</h3>
+                        <div class="metric-value" id="active-clients">3</div>
+                        <div class="metric-change positive">+1 this month</div>
+                    </div>
+                    <div class="overview-card">
+                        <h3>Pipeline Value</h3>
+                        <div class="metric-value" id="pipeline-value">€45,000</div>
+                        <div class="metric-change positive">+12% this quarter</div>
+                    </div>
+                    <div class="overview-card">
+                        <h3>Month Commission</h3>
+                        <div class="metric-value" id="month-commission">€3,200</div>
+                        <div class="metric-change positive">+8% vs last month</div>
+                    </div>
+                    <div class="overview-card">
+                        <h3>Success Rate</h3>
+                        <div class="metric-value" id="success-rate">68%</div>
+                        <div class="metric-change neutral">Industry avg: 45%</div>
+                    </div>
+                </div>
+                
+                <!-- C.A.R.T.E.L. Division Application -->
+                <div class="cartel-application-section">
+                    <div class="cartel-banner">
+                        <div class="cartel-banner-content">
+                            <h3>C.A.R.T.E.L. Division</h3>
+                            <p>Ready to join the inner circle? Apply for exclusive access to our elite trading and advisory division.</p>
+                            <button onclick="openCartelApplication()" class="cartel-apply-btn">Apply to C.A.R.T.E.L. Division</button>
+                        </div>
+                        <div class="cartel-banner-stats">
+                            <div class="stat">
+                                <span class="number">12</span>
+                                <span class="label">Members</span>
+                            </div>
+                            <div class="stat">
+                                <span class="number">€47M</span>
+                                <span class="label">Combined Influence</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>dashboard-tabs">
+                <button class="tab-button active" onclick="showTab('clients')">My Clients</button>
+                <button class="tab-button" onclick="showTab('offers')">My Offers</button>
+                <button class="tab-button" onclick="showTab('performance')">Performance</button>
+                <button class="tab-button" onclick="showTab('resources')">Resources</button>
+            </div>
+
+            <!-- CLIENTS TAB -->
+            <div id="clients-tab" class="tab-content active">
+                <div class="section-header">
+                    <h2>My Clients</h2>
+                    <button class="add-button">+ Add New Client</button>
+                </div>
+                
+                <div class="clients-grid">
+                    <div class="client-card">
+                        <div class="client-header">
+                            <h3>TechCorp Ltd</h3>
+                            <span class="status-badge active">Active</span>
+                        </div>
+                        <div class="client-details">
+                            <p><strong>Industry:</strong> Technology</p>
+                            <p><strong>Location:</strong> Berlin, Germany</p>
+                            <p><strong>Pipeline Value:</strong> €75,000</p>
+                            <p><strong>Last Contact:</strong> 2 days ago</p>
+                            <p><strong>Next Task:</strong> Presentation scheduled</p>
+                        </div>
+                        <div class="client-actions">
+                            <button class="action-btn">Contact</button>
+                            <button class="action-btn">Notes</button>
+                            <button class="action-btn">History</button>
+                        </div>
+                    </div>
+
+                    <div class="client-card">
+                        <div class="client-header">
+                            <h3>Global Trading Inc</h3>
+                            <span class="status-badge negotiation">Negotiation</span>
+                        </div>
+                        <div class="client-details">
+                            <p><strong>Industry:</strong> International Trade</p>
+                            <p><strong>Location:</strong> Singapore</p>
+                            <p><strong>Pipeline Value:</strong> €120,000</p>
+                            <p><strong>Last Contact:</strong> 5 days ago</p>
+                            <p><strong>Next Task:</strong> Follow-up on proposal</p>
+                        </div>
+                        <div class="client-actions">
+                            <button class="action-btn">Contact</button>
+                            <button class="action-btn">Notes</button>
+                            <button class="action-btn">History</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OFFERS TAB -->
+            <div id="offers-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>My Offers</h2>
+                    <button class="add-button">+ Create New Offer</button>
+                </div>
+                
+                <div class="offers-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Offer ID</th>
+                                <th>Client</th>
+                                <th>Value</th>
+                                <th>Commission</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>#2025-001</td>
+                                <td>TechCorp Ltd</td>
+                                <td>€85,000</td>
+                                <td>€8,500 (10%)</td>
+                                <td><span class="status-badge pending">Pending Approval</span></td>
+                                <td>
+                                    <button class="action-btn small">Edit</button>
+                                    <button class="action-btn small">Cancel</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>#2025-002</td>
+                                <td>Global Trading Inc</td>
+                                <td>€150,000</td>
+                                <td>€18,000 (12%)</td>
+                                <td><span class="status-badge active">With Client</span></td>
+                                <td>
+                                    <button class="action-btn small">Track</button>
+                                    <button class="action-btn small">Notes</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PERFORMANCE TAB -->
+            <div id="performance-tab" class="tab-content">
+                <h2>Performance Analytics</h2>
+                
+                <div class="performance-grid">
+                    <div class="performance-card">
+                        <h3>This Month</h3>
+                        <div class="performance-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Closed Deals</span>
+                                <span class="metric-value">3</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Total Value</span>
+                                <span class="metric-value">€180,000</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Commission Earned</span>
+                                <span class="metric-value">€19,500</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="performance-card">
+                        <h3>Pipeline Forecast</h3>
+                        <div class="performance-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Active Offers</span>
+                                <span class="metric-value">8</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Potential Value</span>
+                                <span class="metric-value">€650,000</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Expected Commission</span>
+                                <span class="metric-value">€71,500</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ranking-section">
+                    <h3>Team Ranking</h3>
+                    <p>You are currently ranked <strong>#2 of 15 agents</strong> this month</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 76%"></div>
+                    </div>
+                    <p>76% of monthly target achieved</p>
+                </div>
+            </div>
+
+            <!-- RESOURCES TAB -->
+            <div id="resources-tab" class="tab-content">
+                <h2>Agent Resources</h2>
+                
+                <div class="resources-grid">
+                    <div class="resource-section">
+                        <h3>Training Materials</h3>
+                        <ul class="resource-list">
+                            <li><a href="#">International Business Fundamentals</a></li>
+                            <li><a href="#">Cross-Cultural Negotiation</a></li>
+                            <li><a href="#">Risk Management Strategies</a></li>
+                            <li><a href="#">Advanced Sales Techniques</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="resource-section">
+                        <h3>Market Intelligence</h3>
+                        <ul class="resource-list">
+                            <li><a href="#">Q1 2025 Market Report</a></li>
+                            <li><a href="#">Regulatory Updates</a></li>
+                            <li><a href="#">Competitive Analysis</a></li>
+                            <li><a href="#">Emerging Opportunities</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="resource-section">
+                        <h3>Tools & Templates</h3>
+                        <ul class="resource-list">
+                            <li><a href="#">Proposal Templates</a></li>
+                            <li><a href="#">Contract Templates</a></li>
+                            <li><a href="#">Presentation Decks</a></li>
+                            <li><a href="#">ROI Calculators</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="resource-section">
+                        <h3>Support Contacts</h3>
+                        <ul class="resource-list">
+                            <li>Operations Manager: ops@shadowbridge.network</li>
+                            <li>Technical Support: tech@shadowbridge.network</li>
+                            <li>Legal Advisory: legal@shadowbridge.network</li>
+                            <li>Emergency Hotline: +1-800-CARTEL</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="api-client.js"></script>
+    <script src="dashboard.css"></script>
+    <script src="agent-dashboard.js"></script>ody>
+</html>
+
+
+    <!-- C.A.R.T.E.L. Division Application Modal -->
+    <div id="cartel-application-modal" class="modal" style="display: none;">
+        <div class="modal-content cartel-modal">
+            <div class="modal-header">
+                <h2>C.A.R.T.E.L. Division Application</h2>
+                <button class="close-button" onclick="closeCartelApplication()">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="cartel-intro">
+                    <p>The C.A.R.T.E.L. Division represents the apex of our network. Membership is reserved for agents who demonstrate exceptional strategic thinking, proven results, and the ability to operate at the highest levels of influence.</p>
+                </div>
+                
+                <form id="cartelApplicationForm" onsubmit="submitCartelApplication(event)">
+                    <div class="form-section">
+                        <h3>Personal Information</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cartel-first-name">First Name *</label>
+                                <input type="text" id="cartel-first-name" name="firstName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="cartel-last-name">Last Name *</label>
+                                <input type="text" id="cartel-last-name" name="lastName" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="cartel-current-level">Current ShadowBridge Level</label>
+                            <select id="cartel-current-level" name="currentLevel" required>
+                                <option value="">Select your current level</option>
+                                <option value="aspirant">Aspirant</option>
+                                <option value="integrante">Integrante</option>
+                                <option value="operador">Operador</option>
+                                <option value="arquitecto">Arquitecto</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>Performance Metrics</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cartel-total-revenue">Total Revenue Generated (€)</label>
+                                <input type="number" id="cartel-total-revenue" name="totalRevenue" placeholder="e.g., 250000">
+                            </div>
+                            <div class="form-group">
+                                <label for="cartel-success-rate">Success Rate (%)</label>
+                                <input type="number" id="cartel-success-rate" name="successRate" min="0" max="100" placeholder="e.g., 85">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cartel-active-clients">Active High-Value Clients</label>
+                                <input type="number" id="cartel-active-clients" name="activeClients" placeholder="e.g., 12">
+                            </div>
+                            <div class="form-group">
+                                <label for="cartel-network-size">Network Size (Key Contacts)</label>
+                                <input type="number" id="cartel-network-size" name="networkSize" placeholder="e.g., 150">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>Strategic Capabilities</h3>
+                        <div class="form-group">
+                            <label for="cartel-achievements">Key Achievements & Results *</label>
+                            <textarea id="cartel-achievements" name="achievements" rows="4" required 
+                                placeholder="Describe your most significant achievements in the ShadowBridge network. Include specific deals, strategic initiatives, and measurable outcomes."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="cartel-strategic-vision">Strategic Vision & Motivation *</label>
+                            <textarea id="cartel-strategic-vision" name="strategicVision" rows="4" required 
+                                placeholder="Explain your strategic vision for operating within the C.A.R.T.E.L. Division. What unique value would you bring to the inner circle?"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="cartel-market-expertise">Market Expertise & Specialization</label>
+                            <textarea id="cartel-market-expertise" name="marketExpertise" rows="3" 
+                                placeholder="Describe your specialized knowledge, market insights, and areas of expertise that would benefit the C.A.R.T.E.L. Division."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>Access Credentials</h3>
+                        <div class="form-group">
+                            <label for="cartel-access-code">Invitation Code (if applicable)</label>
+                            <input type="text" id="cartel-access-code" name="accessCode" 
+                                placeholder="Enter invitation code from existing C.A.R.T.E.L. member">
+                        </div>
+                        <div class="form-group">
+                            <label for="cartel-referrer">Referring C.A.R.T.E.L. Member (if applicable)</label>
+                            <input type="text" id="cartel-referrer" name="referrer" 
+                                placeholder="Name of C.A.R.T.E.L. member who referred you">
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>Commitment & Understanding</h3>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="commitments" value="discretion" required>
+                                I understand that C.A.R.T.E.L. Division operations require absolute discretion and confidentiality
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="commitments" value="performance" required>
+                                I commit to maintaining exceptional performance standards and contributing to division objectives
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="commitments" value="availability" required>
+                                I am available for strategic initiatives and time-sensitive opportunities
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="commitments" value="network-growth" required>
+                                I will actively contribute to the growth and influence of the C.A.R.T.E.L. Division
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" onclick="closeCartelApplication()" class="secondary-button">Cancel</button>
+                        <button type="submit" class="primary-button">Submit Application</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
