@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Join ShadowBridge</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <section class="register-section">
+        <div class="form-container">
+            <h2>Join ShadowBridge Network</h2>
+            <form id="quickRegistrationForm">
+                <label for="name">Full Name*</label>
+                <input type="text" id="name" name="name" required>
+
+                <label for="email">Email*</label>
+                <input type="email" id="email" name="email" required>
+
+                <label for="phone">Phone Number (optional)</label>
+                <input type="tel" id="phone" name="phone">
+
+                <label for="country">Country*</label>
+                <input type="text" id="country" name="country" required>
+
+                <label for="interest">Why do you want to join?*</label>
+                <textarea id="interest" name="interest" rows="4" required></textarea>
+
+                <button type="submit" class="cta-button">Join Now</button>
+            </form>
+        </div>
+    </section>
+
+    <script>
+        document.getElementById('quickRegistrationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Application submitted. Welcome to the ShadowBridge network.');
+            // Tu potem doda się zapis do bazy / webhook
+        });
+    </script>
+</body>
+</html>
