@@ -1175,3 +1175,42 @@ body {
 .cta-button:hover {
     background-color: #0cc;
 }
+<!--ostatnia zmiana-->
+/* Fix for scaling on smaller screens */
+body {
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+.cta-button {
+    position: relative;
+    z-index: 2;
+    display: block;
+    margin: 0 auto;
+    padding: 1em 2em;
+    font-size: 1.2em;
+}
+
+@media screen and (max-width: 768px) {
+    .cta-button {
+        font-size: 1em;
+        padding: 0.8em 1.5em;
+    }
+
+    .header, .hero-section, .problem-section {
+        padding: 20px;
+        text-align: center;
+    }
+
+    .nav ul {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .nav ul li {
+        margin: 10px 0;
+    }
+}
+
+
