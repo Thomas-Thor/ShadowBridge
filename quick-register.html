@@ -1,0 +1,48 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Join ShadowBridge</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <section class="register-section">
+        <div class="form-container">
+            <h2>Join ShadowBridge Network</h2>
+            <form id="quickRegistrationForm">
+                <label for="name">Full Name*</label>
+                <input type="text" id="name" name="name" required>
+
+                <label for="email">Email*</label>
+                <input type="email" id="email" name="email" required>
+
+                <label for="phone">Phone Number (optional)</label>
+                <input type="tel" id="phone" name="phone">
+
+                <label for="country">Country*</label>
+                <input type="text" id="country" name="country" required>
+
+                <label for="strengths">What are you good at?*</label>
+                <textarea id="strengths" name="strengths" rows="3" required></textarea>
+
+                <label for="resourcefulness">Can you find gold in the noise — and convince the right people to move when it matters?*</label>
+                <textarea id="resourcefulness" name="resourcefulness" rows="3" required></textarea>
+
+                <label for="mutual-value">What can you offer ShadowBridge — and what do you expect us to offer in return?*</label>
+                <textarea id="mutual-value" name="mutual-value" rows="4" required></textarea>
+
+                <button type="submit" class="cta-button">Join Now</button>
+            </form>
+        </div>
+    </section>
+
+    <script>
+        document.getElementById('quickRegistrationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Application submitted. Welcome to the ShadowBridge network.');
+            // TODO: Send data to database / webhook
+        });
+    </script>
+</body>
+</html>
