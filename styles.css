@@ -89,10 +89,14 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 100px 20px 50px; /* top padding to move content down */
+  align-items: center; /* <-- wyrównanie poziome */
+  padding: 100px 20px 50px;
   box-sizing: border-box;
   text-align: center;
+  max-width: 1200px;     /* <-- ograniczenie szerokości na duże ekrany */
+  margin: 0 auto;        /* <-- wycentrowanie */
 }
+
 
 .hero h1, .hero p {
   margin: 0;
