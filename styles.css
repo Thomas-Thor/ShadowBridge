@@ -85,17 +85,32 @@ body {
 
 /* ===== HERO SECTION ===== */
 .hero {
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 60px 20px;
-    box-sizing: border-box;
-    background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-    overflow: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 100px 20px 50px; /* top padding to move content down */
+  box-sizing: border-box;
+  text-align: center;
 }
+
+.hero h1, .hero p {
+  margin: 0;
+  line-height: 1.2;
+  font-size: clamp(18px, 4vw, 48px);
+}
+
+@media screen and (max-width: 768px) {
+  .hero {
+    padding-top: 140px; /* więcej przestrzeni na górze dla telefonów */
+  }
+
+  .hero button {
+    margin-top: 20px;
+    font-size: 16px;
+  }
+}
+
 
 .hero::before {
     content: '';
