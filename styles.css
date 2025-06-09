@@ -1,3 +1,10 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow-x: hidden;
+}
+
 /* ===== GLOBAL STYLES ===== */
 * {
     margin: 0;
@@ -83,15 +90,16 @@ body {
 }
 
 /* ===== HERO SECTION ===== */
+
 .hero {
     height: 100vh;
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
+    padding: 100px 20px 60px 20px;
+    box-sizing: border-box;
     text-align: center;
-    background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
     position: relative;
-    overflow: hidden;
 }
 
 .hero::before {
