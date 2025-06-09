@@ -142,6 +142,8 @@ body {
     line-height: 1.8;
     color: #cccccc;
 }
+border: 3px dashed lime;
+
 
 .cta-button {
     background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
