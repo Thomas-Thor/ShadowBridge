@@ -85,13 +85,15 @@ body {
 
 /* ===== HERO SECTION ===== */
 .hero {
-    height: 100vh;
+    height: 100dvh;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
+    align-items: center;
     text-align: center;
+    padding: 60px 20px;
+    box-sizing: border-box;
     background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-    position: relative;
     overflow: hidden;
 }
 
@@ -1153,17 +1155,4 @@ CopyEdit
 .cta-button:hover {
     background-color: #00a87a;
 }
-css
-CopyEdit
-.hero {
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 60px 20px;
-    box-sizing: border-box;
-    background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-    overflow: hidden;
-}
+
