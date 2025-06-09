@@ -24,7 +24,7 @@ body {
 .header {
     position: fixed;
     top: 0;
-    width: 80%;
+    width: 40%;
     background: rgba(0, 0, 0, 0.95);
     backdrop-filter: blur(10px);
     z-index: 1000;
