@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /cartel/
+
+Sitemap: https://shadow-bridge.eu/sitemap.xml

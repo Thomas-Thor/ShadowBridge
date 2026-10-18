@@ -1,0 +1,21 @@
+[
+  {
+    "package": "@fontsource/instrument-serif",
+    "version": "5.3.0",
+    "license": "OFL-1.1",
+    "integrity": "sha512-mDiaIg0u67sYV59fie92Wz4sM8UiVlbL7fLxnFPCKkX15DMASEnQTREbaP5S5/3DCcsoAOcQ0sV9E4AeY4QqYQ==",
+    "files": [
+      "instrument-serif-latin-400-normal.woff2",
+      "instrument-serif-latin-400-italic.woff2"
+    ]
+  },
+  {
+    "package": "@fontsource-variable/dm-sans",
+    "version": "5.3.0",
+    "license": "OFL-1.1",
+    "integrity": "sha512-BpUG5bqePiDFMBM4ZtLSlPdAIOM990uB1dlXzIf4aw21yQR7BmykedLXXXMqGWsR18aMLOsbWccwJNh3ztTQaA==",
+    "files": [
+      "dm-sans-latin-wght-normal.woff2"
+    ]
+  }
+]

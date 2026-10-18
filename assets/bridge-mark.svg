@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <title>ShadowBridge — bridge across a globe</title>
+  <g stroke="#c5a17a" stroke-width="1.6">
+    <circle cx="40" cy="40" r="33" />
+    <ellipse cx="40" cy="40" rx="15" ry="33" opacity=".5" />
+    <path d="M9 29h62M9 51h62M7 40h66" opacity=".4" />
+    <path d="M9 48h62M22 49V23h4v26m28 0V23h4v26" stroke-width="2.5" />
+    <path
+      d="M9 43 22 27m4 0c8 19 20 19 28 0m4 0 13 16M32 37v10m8-6v6m8-10v10M15 36v11m50-11v11"
+    />
+  </g>
+</svg>
