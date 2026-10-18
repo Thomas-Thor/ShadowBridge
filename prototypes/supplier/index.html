@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#101211" />
+    <title>Supplier workspace — ShadowBridge design prototype</title>
+    <link rel="icon" type="image/svg+xml" href="../../assets/bridge-mark.svg" />
+    <link rel="stylesheet" href="../../assets/styles.css" />
+    <link rel="stylesheet" href="../../assets/prototypes.css" />
+    <script defer src="../../assets/prototypes.js"></script>
+  </head>
+  <body class="proto-body">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="proto-banner">Design prototype · fictional data only · no authentication or storage</div>
+    <header class="proto-header"><a class="proto-brand" href="../../"><img src="../../assets/bridge-mark.svg" width="36" height="36" alt="" /><span>SHADOWBRIDGE</span></a><a class="proto-header-link" href="../">All workspace designs</a></header>
+    <div class="proto-layout">
+      <aside class="proto-sidebar"><p class="proto-label">Workspace design</p><nav aria-label="Design examples"><a href="../buyer/">View buyer design</a><a href="./" aria-current="page">View supplier design</a><a href="../partner/">View partner design</a></nav><p class="proto-sidebar-note">Design switching only. No account, session or role permissions are active.</p></aside>
+      <main id="main" tabindex="-1" class="proto-main">
+        <div class="proto-heading"><div><p class="proto-label">Supplier workspace · illustrative</p><h1>Commercial precision.<br /><em>Considered distribution.</em></h1><p>Prepare your own offers for ShadowBridge review. Publication and each buyer's access require explicit approval.</p></div><span class="proto-badge">Fictional supplier view · not signed in</span></div>
+        <div class="proto-metrics" aria-label="Fictional workspace overview"><div class="proto-metric"><p>Own sample draft</p><strong>01</strong><p class="proto-fineprint">Editable only in future secure system</p></div><div class="proto-metric"><p>Sample offer under review</p><strong>01</strong><p class="proto-fineprint">Not visible to buyers</p></div><div class="proto-metric"><p>Sample approved summary</p><strong>01</strong><p class="proto-fineprint">Anonymous and individually assigned</p></div></div>
+        <div class="proto-notice">Buyer identities, private buyer requirements and unrelated enquiries are excluded. All introductions and enquiries pass through ShadowBridge. Internal approval is required before any non-identifying offer summary may be shared.</div>
+        <div class="proto-grid">
+          <section class="proto-panel" aria-labelledby="offer-title"><p class="proto-label">Structured commercial terms</p><h2 id="offer-title">Prepare an offer draft.</h2><p>Disabled layout only. No real offer, document or contact can be entered, uploaded or submitted.</p>
+            <fieldset class="proto-fieldset" disabled><legend>Disabled offer design · secure backend required</legend><div class="proto-fields">
+              <label class="proto-field proto-field-wide">Product or category<input type="text" data-proto-field="product" placeholder="Fictional template available below" /></label>
+              <label class="proto-field proto-field-wide">Technical specifications<textarea data-proto-field="specifications" placeholder="Product specifications without business identifiers"></textarea></label>
+              <label class="proto-field">Available quantity and unit<input type="text" data-proto-field="quantity" placeholder="Illustrative quantity" /></label><label class="proto-field">Price and pricing unit<input type="text" data-proto-field="price" placeholder="Illustrative price per unit" /></label>
+              <label class="proto-field">Currency<input type="text" data-proto-field="currency" placeholder="Illustrative currency" /></label><label class="proto-field">Minimum order quantity<input type="text" data-proto-field="moq" placeholder="Illustrative MOQ and unit" /></label>
+              <label class="proto-field">Incoterms and version<input type="text" data-proto-field="incoterms" placeholder="Illustrative commercial term" /></label><label class="proto-field">Availability<input type="text" data-proto-field="availability" placeholder="Illustrative availability" /></label>
+              <label class="proto-field proto-field-wide">Delivery terms<textarea data-proto-field="delivery" placeholder="Delivery conditions; exact collection details remain private"></textarea></label>
+              <label class="proto-field proto-field-wide">Supporting documents · unavailable<input type="file" aria-describedby="file-policy" /><small id="file-policy">Upload disabled. The prototype never reads files. Future uploads must be quarantined, scanned and sanitised before human approval.</small></label>
+            </div></fieldset>
+            <div class="proto-actions"><button class="proto-button" type="button" data-proto-template="supplier" disabled>Display fictional offer template</button><button class="proto-button proto-button-secondary" type="button" data-proto-reset disabled>Clear fictional template</button></div>
+            <p class="proto-feedback" role="status" data-proto-feedback>Nothing is saved, sent, uploaded or submitted.</p><noscript><p class="proto-fineprint">JavaScript is off. The static layout remains visible; fictional template controls are unavailable.</p></noscript>
+          </section>
+          <div>
+            <section class="proto-panel" aria-labelledby="offers-title"><p class="proto-label">Own commercial records only</p><h2 id="offers-title">My sample offers</h2><div class="proto-filter"><label for="supplier-filter">Show fictional offers</label><select id="supplier-filter" data-proto-filter="offers" disabled><option value="all">All own sample offers</option><option value="draft">Draft</option><option value="review">Under review</option><option value="approved">Approved summary</option></select></div><p class="proto-fineprint" role="status" data-proto-filter-feedback="offers">3 fictional items shown.</p>
+              <article class="proto-record" data-proto-group="offers" data-proto-status="draft"><div class="proto-record-head"><span class="proto-record-id">SB-DEMO-OF-002</span><span class="proto-status">Own draft · demo</span></div><h3>Industrial packaging film</h3><p>Fictional draft · terms incomplete. Draft editing will require authenticated ownership checks; it is unavailable in this prototype.</p></article>
+              <article class="proto-record" data-proto-group="offers" data-proto-status="review"><div class="proto-record-head"><span class="proto-record-id">SB-DEMO-OF-003</span><span class="proto-status">Under review · demo</span></div><h3>Paper-based protective packaging</h3><p>Fictional review state · not visible to buyers. Description and documents would require identity screening.</p></article>
+              <article class="proto-record" data-proto-group="offers" data-proto-status="approved"><div class="proto-record-head"><span class="proto-record-id">SB-DEMO-OF-004</span><span class="proto-status">Approved summary · demo</span></div><h3>Reusable industrial containers</h3><p>Fictional non-identifying summary. Approval does not publish it to an open catalogue or reveal buyer assignments.</p></article>
+            </section>
+            <section class="proto-panel" aria-labelledby="approval-title"><p class="proto-label">Future controlled workflow</p><h2 id="approval-title">Before distribution</h2><ol class="proto-timeline"><li><strong>1 · Own private draft</strong>Only the submitting supplier and authorised ShadowBridge personnel may access the original record.</li><li><strong>2 · Confidentiality review</strong>Remove company names, contacts, logos, metadata and identifying details from the proposed summary and document derivatives.</li><li><strong>3 · Management approval</strong>Approve a specific non-identifying version and explicitly assign it to selected buyers.</li><li><strong>4 · ShadowBridge introduction</strong>Coordinate commercial interest, agreements and any authorised identity disclosure.</li></ol></section>
+          </div>
+        </div>
+      </main>
+    </div>
+    <footer class="proto-footer"><p>Fictional design only. No buyer directory, real documents, confidential records or submission endpoint are present.</p><a class="proto-back" href="../">All workspace designs</a></footer>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#101211" />
+    <title>Buyer workspace — ShadowBridge design prototype</title>
+    <link rel="icon" type="image/svg+xml" href="../../assets/bridge-mark.svg" />
+    <link rel="stylesheet" href="../../assets/styles.css" />
+    <link rel="stylesheet" href="../../assets/prototypes.css" />
+    <script defer src="../../assets/prototypes.js"></script>
+  </head>
+  <body class="proto-body">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="proto-banner">Design prototype · fictional data only · no authentication or storage</div>
+    <header class="proto-header"><a class="proto-brand" href="../../"><img src="../../assets/bridge-mark.svg" width="36" height="36" alt="" /><span>SHADOWBRIDGE</span></a><a class="proto-header-link" href="../">All workspace designs</a></header>
+    <div class="proto-layout">
+      <aside class="proto-sidebar"><p class="proto-label">Workspace design</p><nav aria-label="Design examples"><a href="./" aria-current="page">View buyer design</a><a href="../supplier/">View supplier design</a><a href="../partner/">View partner design</a></nav><p class="proto-sidebar-note">Design switching only. No account, session or role permissions are active.</p></aside>
+      <main id="main" tabindex="-1" class="proto-main">
+        <div class="proto-heading"><div><p class="proto-label">Buyer workspace · illustrative</p><h1>Clarity before<br /><em>connection.</em></h1><p>A considered space for your requirements, ShadowBridge communications and selected anonymous opportunities.</p></div><span class="proto-badge">Fictional buyer view · not signed in</span></div>
+        <div class="proto-metrics" aria-label="Fictional workspace overview"><div class="proto-metric"><p>Own sample requests</p><strong>02</strong><p class="proto-fineprint">Illustrative records only</p></div><div class="proto-metric"><p>Individually approved sample opportunities</p><strong>01</strong><p class="proto-fineprint">No unrestricted catalogue</p></div><div class="proto-metric"><p>ShadowBridge sample communications</p><strong>02</strong><p class="proto-fineprint">No direct supplier contact</p></div></div>
+        <div class="proto-notice">Supplier identities, websites, direct contacts and identifying documents are excluded from this view. In the future platform, access must be enforced by the server and limited to specifically approved opportunities.</div>
+        <div class="proto-grid">
+          <section class="proto-panel" aria-labelledby="rfq-title"><p class="proto-label">Purchase requirements</p><h2 id="rfq-title">Outline a new RFQ.</h2><p>Form layout only. Fields are disabled so no real requirement can be entered. Display a fictional template to review the design.</p>
+            <fieldset class="proto-fieldset" disabled><legend>Disabled RFQ design · secure backend required</legend><div class="proto-fields">
+              <label class="proto-field proto-field-wide">Product or category<input data-proto-field="product" type="text" placeholder="Fictional template available below" /></label>
+              <label class="proto-field proto-field-wide">Technical requirements<textarea data-proto-field="specifications" placeholder="Specifications, grades and quality requirements"></textarea></label>
+              <label class="proto-field">Quantity and unit<input data-proto-field="quantity" type="text" placeholder="Illustrative quantity" /></label><label class="proto-field">Budget and currency<input data-proto-field="budget" type="text" placeholder="Illustrative budget range" /></label>
+              <label class="proto-field">Delivery country<input data-proto-field="country" type="text" placeholder="Illustrative destination" /></label><label class="proto-field">Required timeline<input data-proto-field="timeline" type="text" placeholder="Illustrative timeline" /></label>
+            </div></fieldset>
+            <div class="proto-actions"><button class="proto-button" type="button" data-proto-template="buyer" disabled>Display fictional RFQ template</button><button class="proto-button proto-button-secondary" type="button" data-proto-reset disabled>Clear fictional template</button></div>
+            <p class="proto-feedback" role="status" data-proto-feedback>Nothing is saved, sent or submitted.</p><noscript><p class="proto-fineprint">JavaScript is off. The static layout remains visible; fictional template controls are unavailable.</p></noscript>
+          </section>
+          <div>
+            <section class="proto-panel" aria-labelledby="requests-title"><p class="proto-label">Only your own requirements</p><h2 id="requests-title">My sample requests</h2><div class="proto-filter"><label for="buyer-filter">Show fictional requests</label><select id="buyer-filter" data-proto-filter="requests" disabled><option value="all">All own sample requests</option><option value="review">Under review</option><option value="clarification">Clarification required</option></select></div><p class="proto-fineprint" role="status" data-proto-filter-feedback="requests">2 fictional items shown.</p>
+              <article class="proto-record" data-proto-group="requests" data-proto-status="review"><div class="proto-record-head"><span class="proto-record-id">SB-DEMO-RFQ-001</span><span class="proto-status">Under review · demo</span></div><h3>Recycled aluminium sheet</h3><p>Fictional own request · 20 metric tonnes · Germany · indicative 8-week timeline.</p></article>
+              <article class="proto-record" data-proto-group="requests" data-proto-status="clarification"><div class="proto-record-head"><span class="proto-record-id">SB-DEMO-RFQ-002</span><span class="proto-status">Clarification required · demo</span></div><h3>Reusable transport packaging</h3><p>Fictional own request · technical dimensions awaiting clarification through ShadowBridge.</p></article>
+            </section>
+            <section class="proto-panel" aria-labelledby="messages-title"><p class="proto-label">Coordinated communication</p><h2 id="messages-title">From ShadowBridge</h2><ol class="proto-timeline"><li><strong>SB-DEMO-RFQ-001 · sample review note</strong>Technical requirements are being assessed. Any commercial introduction would be arranged by ShadowBridge.</li><li><strong>SB-DEMO-RFQ-002 · sample clarification</strong>Please clarify the required packaging dimensions in the future secure enquiry workflow.</li></ol><p class="proto-fineprint">These are fictional read-only messages. No inbox or messaging service is connected.</p></section>
+          </div>
+        </div>
+        <section class="proto-panel" aria-labelledby="opportunity-title"><p class="proto-label">Individually approved · anonymous</p><h2 id="opportunity-title">Selected opportunity</h2><p>This fictional card illustrates a sanitised offer explicitly approved for one buyer. Verification alone will not unlock all offers.</p><article class="proto-record"><div class="proto-record-head"><span class="proto-record-id">SB-DEMO-OF-001</span><span class="proto-status">Approved for this demo buyer</span></div><h3>Recycled aluminium sheet · illustrative commercial summary</h3><p>Product-only information. The supplier identity, exact facility, contacts, website and original documents are intentionally absent.</p><dl><div><dt>Specification</dt><dd>EN AW-1050A · 2 mm · demo</dd></div><div><dt>Indicative availability</dt><dd>20 metric tonnes · demo</dd></div><div><dt>Indicative terms</dt><dd>EUR quotation after review</dd></div><div><dt>Introduction route</dt><dd>Exclusively through ShadowBridge</dd></div></dl></article><p class="proto-fineprint">Future action: request a ShadowBridge review of interest. No direct counterparty contact or identity-reveal control will be available here.</p></section>
+      </main>
+    </div>
+    <footer class="proto-footer"><p>Fictional design only. No confidential fields, private records, sign-in service or submission endpoint are present.</p><a class="proto-back" href="../">All workspace designs</a></footer>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#101211" />
+    <title>B2B partner workspace — ShadowBridge design prototype</title>
+    <link rel="icon" type="image/svg+xml" href="../../assets/bridge-mark.svg" />
+    <link rel="stylesheet" href="../../assets/styles.css" />
+    <link rel="stylesheet" href="../../assets/prototypes.css" />
+    <script defer src="../../assets/prototypes.js"></script>
+  </head>
+  <body class="proto-body">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="proto-banner">Design prototype · fictional data only · no authentication or storage</div>
+    <header class="proto-header"><a class="proto-brand" href="../../"><img src="../../assets/bridge-mark.svg" width="36" height="36" alt="" /><span>SHADOWBRIDGE</span></a><a class="proto-header-link" href="../">All workspace designs</a></header>
+    <div class="proto-layout">
+      <aside class="proto-sidebar"><p class="proto-label">Workspace design</p><nav aria-label="Design examples"><a href="../buyer/">View buyer design</a><a href="../supplier/">View supplier design</a><a href="./" aria-current="page">View partner design</a></nav><p class="proto-sidebar-note">Design switching only. No account, session or role permissions are active.</p></aside>
+      <main id="main" tabindex="-1" class="proto-main">
+        <div class="proto-heading"><div><p class="proto-label">B2B partner workspace · illustrative</p><h1>Opportunity with<br /><em>accountability.</em></h1><p>A dedicated view of your submitted opportunities, specifically assigned projects and individually agreed cooperation terms.</p></div><span class="proto-badge">Fictional partner view · not signed in</span></div>
+        <div class="proto-metrics" aria-label="Fictional workspace overview"><div class="proto-metric"><p>Own sample opportunity</p><strong>01</strong><p class="proto-fineprint">For ShadowBridge assessment</p></div><div class="proto-metric"><p>Specifically assigned sample projects</p><strong>02</strong><p class="proto-fineprint">No wider CRM access</p></div><div class="proto-metric"><p>Illustrative commission agreement</p><strong>01</strong><p class="proto-fineprint">Not a payment or entitlement</p></div></div>
+        <div class="proto-notice">Partner status grants no access to buyer or supplier identities, unrestricted opportunities, other partners' terms or the Command Center. Every assignment and any exceptional identity disclosure require explicit server-enforced authorisation.</div>
+        <div class="proto-grid">
+          <section class="proto-panel" aria-labelledby="opportunity-form-title"><p class="proto-label">Develop a commercial lead</p><h2 id="opportunity-form-title">Outline an opportunity.</h2><p>Disabled layout only. Do not enter real company identities or confidential leads. Use the fictional template to review the design.</p>
+            <fieldset class="proto-fieldset" disabled><legend>Disabled opportunity design · secure backend required</legend><div class="proto-fields">
+              <label class="proto-field proto-field-wide">Opportunity title<input type="text" data-proto-field="opportunity" placeholder="Fictional template available below" /></label>
+              <label class="proto-field proto-field-wide">Non-identifying summary<textarea data-proto-field="description" placeholder="Commercial context without counterparty identities"></textarea></label>
+              <label class="proto-field">Region<input type="text" data-proto-field="region" placeholder="Illustrative region" /></label><label class="proto-field">Indicative volume<input type="text" data-proto-field="volume" placeholder="Illustrative volume" /></label>
+              <label class="proto-field proto-field-wide">Proposed cooperation scope<textarea data-proto-field="scope" placeholder="Illustrative contribution and scope"></textarea></label>
+            </div></fieldset>
+            <div class="proto-actions"><button class="proto-button" type="button" data-proto-template="partner" disabled>Display fictional opportunity template</button><button class="proto-button proto-button-secondary" type="button" data-proto-reset disabled>Clear fictional template</button></div>
+            <p class="proto-feedback" role="status" data-proto-feedback>Nothing is saved, sent or submitted.</p><noscript><p class="proto-fineprint">JavaScript is off. The static layout remains visible; fictional template controls are unavailable.</p></noscript>
+          </section>
+          <div>
+            <section class="proto-panel" aria-labelledby="projects-title"><p class="proto-label">Specifically assigned to this demo partner</p><h2 id="projects-title">Sample cooperation</h2><div class="proto-filter"><label for="partner-filter">Show fictional items</label><select id="partner-filter" data-proto-filter="projects" disabled><option value="all">All assigned sample items</option><option value="assessment">Opportunity assessment</option><option value="active">Active assignment</option><option value="agreement">Agreement review</option></select></div><p class="proto-fineprint" role="status" data-proto-filter-feedback="projects">3 fictional items shown.</p>
+              <article class="proto-record" data-proto-group="projects" data-proto-status="assessment"><div class="proto-record-head"><span class="proto-record-id">SB-DEMO-OP-001</span><span class="proto-status">Assessment · demo</span></div><h3>Regional packaging requirement</h3><p>Fictional own opportunity. ShadowBridge assesses fit and counterparties before any introduction.</p></article>
+              <article class="proto-record" data-proto-group="projects" data-proto-status="active"><div class="proto-record-head"><span class="proto-record-id">SB-DEMO-PR-001</span><span class="proto-status">Assigned · demo</span></div><h3>Product capability research</h3><p>Fictional assignment: prepare a non-identifying product capability overview. No direct counterparty contact is provided.</p></article>
+              <article class="proto-record" data-proto-group="projects" data-proto-status="agreement"><div class="proto-record-head"><span class="proto-record-id">SB-DEMO-PR-002</span><span class="proto-status">Agreement review · demo</span></div><h3>Commercial introduction scope</h3><p>Fictional assignment awaiting agreed scope and commission documentation. No introduction has taken place.</p></article>
+            </section>
+            <section class="proto-panel" aria-labelledby="commission-title"><p class="proto-label">Individually agreed terms</p><h2 id="commission-title">Commission design</h2><article class="proto-record"><div class="proto-record-head"><span class="proto-record-id">SB-DEMO-CA-001</span><span class="proto-status">Fictional agreement example</span></div><h3>Assigned project SB-DEMO-PR-001</h3><dl><div><dt>Illustrative commission</dt><dd>1.5% · fictional design value</dd></div><div><dt>Calculation basis</dt><dd>Defined by signed agreement</dd></div><div><dt>Illustrative trigger</dt><dd>Cleared transaction proceeds</dd></div><div><dt>Payment status</dt><dd>No real payment or entitlement</dd></div></dl></article><p class="proto-fineprint">This is not a standard rate or commercial promise. Actual scope, basis, conditions, currency and settlement are individually agreed and visible only to authorised participants.</p></section>
+          </div>
+        </div>
+        <section class="proto-panel" aria-labelledby="introductions-title"><p class="proto-label">Controlled commercial cooperation</p><h2 id="introductions-title">Introduction history & safeguards</h2><p>Future records will track management approval, agreed scope, applicable commission and non-circumvention agreements before a controlled introduction. Partners will see only their authorised assignment milestones; confidential counterparty mappings remain inside the Command Center.</p><ol class="proto-timeline"><li><strong>Fictional milestone · opportunity received</strong>Non-identifying scope reviewed by ShadowBridge.</li><li><strong>Fictional milestone · cooperation terms under review</strong>Introduction remains pending. No identity or private document is revealed.</li></ol><p class="proto-fineprint">C.A.R.T.E.L. invitation is a separate process and provides no administrative privileges.</p></section>
+      </main>
+    </div>
+    <footer class="proto-footer"><p>Fictional design only. No real commissions, counterparties, private documents or submission endpoint are present.</p><a class="proto-back" href="../">All workspace designs</a></footer>
+  </body>
+</html>
