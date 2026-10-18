@@ -17,7 +17,8 @@ function showTab(tabName) {
     }
     
     // Add active class to clicked button
-    event.target.classList.add('active');
+    const button = Array.from(tabButtons).find(item => item.getAttribute('onclick') === "showTab('" + tabName + "')");
+    if (button) button.classList.add('active');
 }
 
 // Agent Registration Form Handler
@@ -41,6 +42,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function handleAgentRegistration() {
+    return window.CartelApp.handleRegistration();
+    // Historical registration flow below remains disabled until real backend integration.
     try {
         const formData = new FormData(document.getElementById('agentRegistrationForm'));
         const result = await window.CartelApp.handleRegistration(formData, 'agent');
@@ -56,6 +59,7 @@ async function handleAgentRegistration() {
 }
 
 function showAgentDashboard() {
+    if (!window.CartelApp.isDashboardPreview()) return window.CartelApp.handleRegistration();
     // Hide registration form
     const registrationForm = document.getElementById('registration-form');
     if (registrationForm) {
@@ -71,7 +75,7 @@ function showAgentDashboard() {
 }
 
 async function loadAgentData() {
-    const user = window.cartelAPI ? window.cartelAPI.getCurrentUser() : null;
+    const user = window.CartelApp.getPreviewUser('agent');
     
     if (user && user.role === 'agent') {
         // Update agent name
@@ -121,56 +125,56 @@ function loadAgentOffers(offers) {
 
 // Client Management Functions
 function addNewClient() {
-    window.CartelApp.showNotification('Add New Client functionality would open a modal form', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function contactClient(clientId) {
-    window.CartelApp.showNotification(`Contacting client ${clientId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function viewClientNotes(clientId) {
-    window.CartelApp.showNotification(`Viewing notes for client ${clientId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function viewClientHistory(clientId) {
-    window.CartelApp.showNotification(`Viewing history for client ${clientId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Offer Management Functions
 function createNewOffer() {
-    window.CartelApp.showNotification('Create New Offer functionality would open a modal form', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function editOffer(offerId) {
-    window.CartelApp.showNotification(`Editing offer ${offerId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function cancelOffer(offerId) {
     if (confirm('Are you sure you want to cancel this offer?')) {
-        window.CartelApp.showNotification(`Offer ${offerId} cancelled`, 'success');
+        window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
     }
 }
 
 function trackOffer(offerId) {
-    window.CartelApp.showNotification(`Tracking offer ${offerId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Performance Functions
 function downloadPerformanceReport() {
-    window.CartelApp.showNotification('Performance report download started', 'success');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function viewDetailedAnalytics() {
-    window.CartelApp.showNotification('Detailed analytics view would open', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Resource Functions
 function accessTrainingMaterial(materialId) {
-    window.CartelApp.showNotification(`Accessing training material: ${materialId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function downloadTemplate(templateId) {
-    window.CartelApp.showNotification(`Downloading template: ${templateId}`, 'success');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Export functions for global access
@@ -202,7 +206,7 @@ function openCartelApplication() {
         document.body.style.overflow = 'hidden';
         
         // Pre-fill user data if available
-        const user = window.cartelAPI ? window.cartelAPI.getCurrentUser() : null;
+        const user = window.CartelApp.getPreviewUser('agent');
         if (user) {
             document.getElementById('cartel-first-name').value = user.first_name || '';
             document.getElementById('cartel-last-name').value = user.last_name || '';
@@ -223,7 +227,8 @@ function closeCartelApplication() {
 
 async function submitCartelApplication(event) {
     event.preventDefault();
-    
+    return window.CartelApp.handleRegistration();
+    // Historical application simulation below is retained but cannot submit or log personal data.
     try {
         window.CartelApp.showLoading();
         
@@ -263,12 +268,12 @@ async function submitCartelApplication(event) {
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         window.CartelApp.hideLoading();
-        window.CartelApp.showNotification('C.A.R.T.E.L. Division application submitted successfully! You will receive a response within 7-14 business days.', 'success');
+        window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
         
         closeCartelApplication();
         
         // Log application data for development
-        console.log('C.A.R.T.E.L. Application Data:', applicationData);
+        // Removed from execution to protect personal data: console.log('C.A.R.T.E.L. Application Data:', applicationData);
         
     } catch (error) {
         window.CartelApp.hideLoading();

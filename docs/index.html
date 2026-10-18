@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ShadowBridge - Elite Network Platform</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="legacy-support.css">
     <link rel="stylesheet" href="modal-simplified.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -23,11 +24,11 @@
                 <li><a href="#cartel-division" id="cartel-menu-link" style="display: none;">C.A.R.T.E.L. Division</a></li>
                 <li><a href="#" onclick="openRoleModal()" class="cta-button">Join Network</a></li>
             </ul>
-            <div class="menu-toggle" onclick="toggleMenu()">
+            <button type="button" class="menu-toggle" onclick="toggleMenu()" aria-label="Toggle navigation" aria-expanded="false">
                 <span></span>
                 <span></span>
                 <span></span>
-            </div>
+            </button>
         </nav>
     </header>
 
@@ -75,7 +76,7 @@
         </section>
 
         <!-- SECTION 3: SOLUTION - 6 PILLARS -->
-        <section class="pillars-section">
+        <section class="pillars-section" id="about">
             <div class="container">
                 <h2>THE ARCHITECTURE OF INFLUENCE</h2>
                 <p class="pillars-intro">While others build networks, we build systems. While others chase opportunities, we create them. While others follow markets, we shape them.</p>
@@ -363,7 +364,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>SELECT YOUR ROLE</h2>
-                <button class="close-button" onclick="hideRegistration()">&times;</button>
+                <button class="close-button" aria-label="Close role selection" onclick="hideRegistration()">&times;</button>
             </div>
             <div class="role-options">
                 <div class="role-option" onclick="selectRole('agent')">
@@ -446,10 +447,10 @@
         </div>
     </footer>
 
-    <script src="api-client.js"></script>
+    <script src="legacy-support.js"></script>
     <script src="script-simplified.js"></script>
     <script>
-        // ===== C.A.R.T.E.L. ACCESS CONTROL =====
+        // ===== LEGACY SECTION VISIBILITY ONLY — NOT AUTHORIZATION =====
         function checkCartelAccess() {
             const urlParams = new URLSearchParams(window.location.search);
             const accessParam = urlParams.get('access');
@@ -471,7 +472,7 @@
                 document.body.classList.add('cartel-access-granted');
                 
                 // Optional: Add subtle notification
-                console.log('🔥 C.A.R.T.E.L. Division access granted');
+                console.info('Legacy section preview only; this URL parameter does not grant authorization.');
             }
         }
         

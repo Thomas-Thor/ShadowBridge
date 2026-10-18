@@ -2,12 +2,15 @@
 
 class CartelAPI {
     constructor() {
-        this.baseURL = 'https://5001-i67bptdsnmqnf1l2ebh9u-8351b936.manusvm.computer/api';
-        this.token = localStorage.getItem('cartel_token');
+        // Historic development endpoint is intentionally disabled pending backend review.
+        this.baseURL = null;
+        this.token = null;
     }
 
     // Set authorization header
     getHeaders(includeAuth = true) {
+        throw new Error("Backend unavailable: authentication and registration are disabled in this static preview.");
+        // Preserved adapter logic below is unreachable until a separately approved integration.
         const headers = {
             'Content-Type': 'application/json'
         };
@@ -155,14 +158,17 @@ class CartelAPI {
         this.token = null;
         localStorage.removeItem('cartel_token');
         localStorage.removeItem('cartel_user');
-        window.location.href = '/';
+        window.location.href = new URL('index.html', window.ShadowBridgeLegacy.repositoryRoot).href;
     }
 
     isAuthenticated() {
-        return !!this.token;
+        return false; // Local tokens are not accepted as authenticated sessions.
     }
 
+    checkAuth() { return false; }
+
     getCurrentUser() {
+        return null; // Do not expose cached user details as an authenticated identity.
         const userStr = localStorage.getItem('cartel_user');
         return userStr ? JSON.parse(userStr) : null;
     }

@@ -4,19 +4,17 @@ let currentRole = null;
 
 // ===== NAVIGATION FUNCTIONS =====
 function toggleMenu() {
-    const nav = document.querySelector('.nav ul');
-    nav.style.display = nav.style.display === 'flex' ? 'none' : 'flex';
+    const nav = document.querySelector('.header .nav');
+    if (nav) window.ShadowBridgeLegacy.setMenu(!nav.classList.contains('active'));
 }
 
 // ===== MODAL FUNCTIONS =====
 function showRegistration() {
-    document.getElementById('registration-modal').style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    window.ShadowBridgeLegacy.openModal(document.getElementById('registration-modal'));
 }
 
 function hideRegistration() {
-    document.getElementById('registration-modal').style.display = 'none';
-    document.body.style.overflow = 'auto';
+    window.ShadowBridgeLegacy.closeModal(document.getElementById('registration-modal'));
 }
 
 // ===== ROLE SELECTION =====
@@ -24,16 +22,18 @@ function selectRole(role) {
     currentRole = role;
     hideRegistration();
     
+    return window.ShadowBridgeLegacy.navigateRole(role);
+    // Preserved legacy routing below is superseded by the checked, base-aware route above.
     // Redirect to appropriate registration form
     switch(role) {
         case 'agent':
             window.location.href = 'agent-registration.html';
             break;
         case 'client':
-            window.location.href = 'client-registration.html';
+            window.location.href = 'clients/client-registration.html';
             break;
         case 'supplier':
-            window.location.href = 'supplier-registration.html';
+            window.location.href = 'suppliers/supplier-registration.html';
             break;
     }
 }
@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             
             const targetId = this.getAttribute('href');
+            if (!targetId || targetId === '#') return;
             const targetSection = document.querySelector(targetId);
             
             if (targetSection) {
@@ -99,8 +100,10 @@ function observeElements() {
     });
 }
 
-// ===== USER AUTHENTICATION SIMULATION =====
+// ===== RETAINED LEGACY AUTHENTICATION INTERFACE (DISABLED) =====
 function simulateLogin(email, password, role) {
+    return Promise.resolve(window.ShadowBridgeLegacy.notify());
+    // Historical simulation retained below for review; unreachable and never used for authentication.
     // Simulate API call
     return new Promise((resolve) => {
         setTimeout(() => {
@@ -122,10 +125,12 @@ function simulateLogin(email, password, role) {
 function logout() {
     currentUser = null;
     localStorage.removeItem('cartelUser');
-    window.location.href = 'index.html';
+    window.location.href = new URL('index.html', window.ShadowBridgeLegacy.repositoryRoot).href;
 }
 
 function checkAuth() {
+    return false; // Browser storage is never proof of an authenticated server session.
+    // Historical local-storage check below is unreachable.
     const stored = localStorage.getItem('cartelUser');
     if (stored) {
         currentUser = JSON.parse(stored);
@@ -167,13 +172,13 @@ function validateForm(formData) {
 function loadDashboard(role) {
     switch(role) {
         case 'agent':
-            loadAgentDashboard();
+            return loadAgentDashboard();
             break;
         case 'client':
-            loadClientDashboard();
+            return loadClientDashboard();
             break;
         case 'supplier':
-            loadSupplierDashboard();
+            return loadSupplierDashboard();
             break;
     }
 }
@@ -351,6 +356,11 @@ window.CartelApp = {
     simulateLogin,
     logout,
     checkAuth,
+    validateEmail,
+    validatePhone,
+    handleRegistration,
+    isDashboardPreview,
+    getPreviewUser,
     validateForm,
     loadDashboard,
     showNotification,
@@ -360,3 +370,39 @@ window.CartelApp = {
     formatDate
 };
 
+
+
+// Compatibility names used by the original pages.
+function openRoleModal() { showRegistration(); }
+function handleRegistration() {
+    return window.ShadowBridgeLegacy.notify();
+}
+function isDashboardPreview() {
+    return new URLSearchParams(window.location.search).get('preview') === '1';
+}
+function getPreviewUser(role) {
+    return isDashboardPreview() ? { role, name: 'Sample user', first_name: 'Sample', last_name: 'user' } : null;
+}
+document.addEventListener('DOMContentLoaded', function () {
+    const roles = { agent: 'agent', client: 'client', supplier: 'supplier' };
+    Object.keys(roles).forEach(role => {
+        const form = document.getElementById(role + 'RegistrationForm');
+        if (!form) return;
+        const preview = document.createElement('a');
+        preview.className = 'legacy-preview-link';
+        preview.href = '?preview=1';
+        preview.textContent = 'Inspect preserved dashboard — sample data only';
+        form.before(preview);
+        if (!isDashboardPreview()) return;
+        window.ShadowBridgeLegacy.notify('Dashboard preview: all names, metrics and business records below are sample data. This is not an authenticated account. No business actions are performed.');
+        const show = window['show' + role.charAt(0).toUpperCase() + role.slice(1) + 'Dashboard'];
+        if (typeof show === 'function') show();
+        const dashboard = document.getElementById(role + '-dashboard');
+        if (dashboard) {
+            const notice = document.createElement('p');
+            notice.className = 'legacy-notice';
+            notice.textContent = 'PRESERVED DASHBOARD PREVIEW — sample data only. Authentication, business actions and downloads are unavailable.';
+            dashboard.prepend(notice);
+        }
+    });
+});

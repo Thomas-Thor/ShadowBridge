@@ -6,9 +6,11 @@
     <title>ShadowBridge Agent Portal</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="docs/legacy-support.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body class="legacy-form-page">
+    <noscript><p class="legacy-notice">Registration is unavailable. These preserved forms require JavaScript for local preview checks; they cannot create an account.</p></noscript>
     <header class="dashboard-header">
         <div class="header-content">
             <div class="logo">
@@ -231,7 +233,7 @@
                     </div>
 
                     <div class="form-actions">
-                        <button type="submit" class="submit-button">SUBMIT APPLICATION</button>
+                        <button type="submit" disabled class="submit-button">SUBMIT APPLICATION</button>
                         <p class="form-disclaimer">
                             Your application will be reviewed within 7-14 business days. 
                             Only qualified candidates will receive a response.
@@ -497,10 +499,10 @@
         </div>
     </main>
 
+    <script src="docs/legacy-support.js"></script>
     <script src="api-client.js"></script>
-    <script src="dashboard.css"></script>
-    <script src="agent-dashboard.js"></script>ody>
-</html>
+    <script src="scripts/script.js"></script>
+    <script src="agent-dashboard.js"></script>
 
 
     <!-- C.A.R.T.E.L. Division Application Modal -->
@@ -508,6 +510,7 @@
         <div class="modal-content cartel-modal">
             <div class="modal-header">
                 <h2>C.A.R.T.E.L. Division Application</h2>
+                <p class="legacy-notice">Preview only. Applications cannot be submitted until a verified backend is connected.</p>
                 <button class="close-button" onclick="closeCartelApplication()">&times;</button>
             </div>
             
@@ -622,10 +625,13 @@
                     
                     <div class="form-actions">
                         <button type="button" onclick="closeCartelApplication()" class="secondary-button">Cancel</button>
-                        <button type="submit" class="primary-button">Submit Application</button>
+                        <button type="submit" disabled class="primary-button">Submit Application</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
+
+</body>
+</html>

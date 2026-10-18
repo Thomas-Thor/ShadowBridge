@@ -1,0 +1,188 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="760"
+  height="680"
+  viewBox="0 0 760 680"
+  fill="none"
+>
+  <title>A bridge between continents</title>
+  <desc>
+    An original metallic suspension bridge in front of a softly lit globe,
+    connecting the two horizons.
+  </desc>
+  <defs>
+    <radialGradient id="globe" cx=".34" cy=".25" r=".8">
+      <stop stop-color="#30332e" />
+      <stop offset=".55" stop-color="#20241f" />
+      <stop offset="1" stop-color="#101411" />
+    </radialGradient>
+    <linearGradient
+      id="edge"
+      x1="210"
+      y1="70"
+      x2="590"
+      y2="560"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#d5bf99" stop-opacity=".58" />
+      <stop offset=".5" stop-color="#81745c" stop-opacity=".2" />
+      <stop offset="1" stop-color="#b59d75" stop-opacity=".12" />
+    </linearGradient>
+    <linearGradient
+      id="metal"
+      x1="50"
+      y1="230"
+      x2="690"
+      y2="420"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#68503a" />
+      <stop offset=".3" stop-color="#d3b58c" />
+      <stop offset=".55" stop-color="#a8835c" />
+      <stop offset=".8" stop-color="#ddc3a0" />
+      <stop offset="1" stop-color="#735a40" />
+    </linearGradient>
+    <linearGradient
+      id="land"
+      x1="240"
+      y1="130"
+      x2="570"
+      y2="500"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#a4916a" stop-opacity=".44" />
+      <stop offset="1" stop-color="#7b795b" stop-opacity=".12" />
+    </linearGradient>
+    <radialGradient id="halo">
+      <stop stop-color="#a4865d" stop-opacity=".13" />
+      <stop offset="1" stop-color="#a4865d" stop-opacity="0" />
+    </radialGradient>
+    <clipPath id="sphere"><circle cx="400" cy="315" r="235" /></clipPath>
+    <filter id="soft"><feGaussianBlur stdDeviation="9" /></filter>
+  </defs>
+  <ellipse cx="398" cy="335" rx="335" ry="310" fill="url(#halo)" />
+  <ellipse
+    cx="407"
+    cy="579"
+    rx="210"
+    ry="18"
+    fill="#000"
+    opacity=".35"
+    filter="url(#soft)"
+  />
+  <g stroke="#9e8867" stroke-width=".7" opacity=".19">
+    <ellipse
+      cx="400"
+      cy="315"
+      rx="323"
+      ry="119"
+      transform="rotate(-25 400 315)"
+    />
+    <path d="M113 119h40m-20-20v40M650 503h28m-14-14v28" />
+    <circle cx="400" cy="315" r="265" stroke-dasharray="1 9" />
+  </g>
+  <circle
+    cx="400"
+    cy="315"
+    r="235"
+    fill="url(#globe)"
+    stroke="url(#edge)"
+    stroke-width="1.5"
+  />
+  <g clip-path="url(#sphere)">
+    <g
+      fill="url(#land)"
+      stroke="#b29d74"
+      stroke-opacity=".17"
+      stroke-width=".7"
+    >
+      <path
+        d="m178 207 25-38 35-17 15-27 37-17 24 7 9 22-18 20 12 16-20 20-3 18-22 7-12 24-19 3-8 20 19 20-3 15 15 13-5 18-17-8-13-29-27-12-11-28-22-16Z"
+      />
+      <path
+        d="m271 310 24 4 9 18 27 7 16 20-4 21-19 17-4 26-16 22-8 36-13 19-8-15 6-31-9-28 1-28-14-23 2-24-14-16Z"
+      />
+      <path d="m299 117 30-14 18 12-5 30-26 23-15-18Z" />
+      <path
+        d="m404 202 16-23 17 1 9-21 17 1 12 17-12 14 19 7-1 18-23 3-5 14-28-5-8 13-18-8 3-16-14 1 1-12Z"
+      />
+      <path
+        d="m396 251 29-14 35 8 18 21 25 8-2 23-20 23-5 31-23 38-15 1-13-26-3-34-20-15-12-28-16-6 1-17Z"
+      />
+      <path
+        d="m480 176 9-32 39-10 23 14 31-7 30 20 30 3 11 32-14 19 9 24-16 13-17-12-16 10-7 26-26-4-13 21-20-8-7-26-26-12 5-19-22-8 9-18Z"
+      />
+      <path d="m511 275 16 9 12 31 20 18-7 14-18-12-7-21-15-15Z" />
+      <path d="m554 361 31-16 20 9 20-2 16 23-5 25-25 6-22-11-28 5-13-20Z" />
+      <path d="m483 377 9-7 7 18-7 23-8-2Z" />
+      <path d="m597 271 8-12 8 6-6 19-7 1Z" />
+      <path d="m416 171-8-10 5-17 6 2 2 14Z" />
+    </g>
+    <g stroke="#c1b28d" stroke-opacity=".13" stroke-width=".8">
+      <ellipse cx="400" cy="315" rx="170" ry="235" />
+      <ellipse cx="400" cy="315" rx="82" ry="235" />
+      <path d="M400 80v470M165 315h470" />
+      <ellipse cx="400" cy="315" rx="235" ry="73" />
+      <ellipse cx="400" cy="315" rx="235" ry="153" />
+      <path d="M198 195c120 47 284 47 404 0M197 435c121-47 285-47 406 0" />
+    </g>
+  </g>
+  <path
+    d="M188 505c120 59 308 45 413-65"
+    stroke="#ab946e"
+    stroke-opacity=".3"
+    stroke-width=".8"
+  />
+  <circle cx="593" cy="449" r="3" fill="#bba07b" />
+  <circle cx="204" cy="174" r="2" fill="#bba07b" opacity=".6" />
+  <!-- The deck, towers, suspension cables and hangers form a real bridge silhouette. -->
+  <g stroke="url(#metal)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m66 387 634-18-1 13-633 18Z" fill="#3b3026" stroke-width="1.2" />
+    <path d="m66 387 634-18" stroke-width="3" />
+    <path d="m67 400 632-18" stroke-width="2" />
+    <path
+      d="M259 405V191h12v213m7 0V191h12v212M259 204h31M259 225h31M259 343h31"
+      stroke-width="2.5"
+      fill="#29271f"
+    />
+    <path
+      d="M513 398V180h11v218m8-1V180h11v217M513 194h30M513 216h30M513 337h30"
+      stroke-width="2.5"
+      fill="#29271f"
+    />
+    <path d="M266 191h17m236-11h18" stroke-width="5" />
+    <path
+      d="M69 383c63-28 130-89 196-183M285 199c77 199 158 184 234-9M541 188c50 92 104 147 155 177"
+      stroke-width="2.7"
+    />
+    <path
+      d="M69 391c62-29 130-90 196-183M285 207c77 199 158 184 234-9M541 196c50 92 104 147 155 177"
+      stroke-width=".8"
+      opacity=".55"
+    />
+    <g stroke-width="1" opacity=".9">
+      <path
+        d="M103 365v20m29-38v37m29-58v57m29-85v84m28-120v119m27-156v155M309 251v129m25-93v92m25-67v66m25-53v52m25-52v51m25-66v65m25-99v98m25-139v138M562 225v147m25-101v100m25-65v64m25-37v37m25-19v18"
+      />
+    </g>
+    <path
+      d="m72 395 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7 14-8 14 7"
+      stroke-width=".65"
+      opacity=".55"
+    />
+  </g>
+  <g stroke="#c0a27b" stroke-width=".8" opacity=".55">
+    <path d="M64 437v23h112M618 148h65v48" />
+    <circle cx="64" cy="437" r="2" fill="#c0a27b" />
+    <circle cx="618" cy="148" r="2" fill="#c0a27b" />
+  </g>
+  <g
+    fill="#b5a68c"
+    font-family="Arial,sans-serif"
+    font-size="8"
+    letter-spacing="2.6"
+  >
+    <text x="84" y="478">CONNECTING CONTINENTS</text>
+    <text x="538" y="130">GLOBAL OUTLOOK</text>
+  </g>
+</svg>

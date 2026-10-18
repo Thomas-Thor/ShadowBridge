@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check if user is already logged in as client
     if (window.CartelApp && window.CartelApp.checkAuth()) {
-        const user = JSON.parse(localStorage.getItem('cartelUser'));
+        const user = window.CartelApp.getPreviewUser('client');
         if (user && user.role === 'client') {
             showClientDashboard();
         }
@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function handleClientRegistration() {
+    return window.CartelApp.handleRegistration();
+    // Historical simulation below is retained but unreachable; it must not create accounts.
     window.CartelApp.showLoading();
     
     // Collect form data
@@ -67,7 +69,7 @@ function handleClientRegistration() {
         };
         
         localStorage.setItem('cartelUser', JSON.stringify(clientUser));
-        window.CartelApp.showNotification('Registration submitted successfully! You will receive a response within 7-14 business days.', 'success');
+        window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
         
         // Redirect to dashboard after 2 seconds
         setTimeout(() => {
@@ -143,6 +145,7 @@ function validateClientForm(data) {
 }
 
 function showClientDashboard() {
+    if (!window.CartelApp.isDashboardPreview()) return window.CartelApp.handleRegistration();
     // Hide registration form
     const registrationForm = document.getElementById('registration-form');
     if (registrationForm) {
@@ -158,7 +161,7 @@ function showClientDashboard() {
 }
 
 function loadClientData() {
-    const user = JSON.parse(localStorage.getItem('cartelUser'));
+    const user = window.CartelApp.getPreviewUser('client');
     
     if (user && user.role === 'client') {
         // Update client name
@@ -208,67 +211,67 @@ function loadClientOffers(offers) {
 
 // Project Management Functions
 function requestNewProject() {
-    window.CartelApp.showNotification('Request New Project functionality would open a modal form', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function viewProjectDetails(projectId) {
-    window.CartelApp.showNotification(`Viewing details for project ${projectId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function contactAgent(agentName) {
-    window.CartelApp.showNotification(`Contacting agent: ${agentName}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function viewProjectReports(projectId) {
-    window.CartelApp.showNotification(`Viewing reports for project ${projectId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Offer Management Functions
 function requestOfferDetails(offerId) {
-    window.CartelApp.showNotification(`Requesting details for offer ${offerId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function contactOfferAgent(agentName) {
-    window.CartelApp.showNotification(`Contacting agent: ${agentName}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function filterOffers() {
     const filter = document.getElementById('offer-filter').value;
-    window.CartelApp.showNotification(`Filtering offers by: ${filter}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Report Functions
 function downloadFullReport(reportType) {
-    window.CartelApp.showNotification(`Downloading ${reportType} report`, 'success');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function viewDetailedReport(reportType) {
-    window.CartelApp.showNotification(`Viewing detailed ${reportType} report`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Support Functions
 function scheduleMeeting() {
-    window.CartelApp.showNotification('Meeting scheduling functionality would open calendar', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function requestProjectUpdate() {
-    window.CartelApp.showNotification('Project update request sent', 'success');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function scheduleStrategyCall() {
-    window.CartelApp.showNotification('Strategy call scheduling functionality would open', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function accessKnowledgeBase() {
-    window.CartelApp.showNotification('Knowledge base would open in new window', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function submitFeedback() {
-    window.CartelApp.showNotification('Feedback form would open', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function accessResource(resourceName) {
-    window.CartelApp.showNotification(`Accessing resource: ${resourceName}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Tab Management (shared with other dashboards)
@@ -288,7 +291,8 @@ function showTab(tabName) {
     }
     
     // Add active class to clicked button
-    event.target.classList.add('active');
+    const button = Array.from(tabButtons).find(item => item.getAttribute('onclick') === "showTab('" + tabName + "')");
+    if (button) button.classList.add('active');
 }
 
 // Export functions for global access

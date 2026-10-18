@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check if user is already logged in as supplier
     if (window.CartelApp && window.CartelApp.checkAuth()) {
-        const user = JSON.parse(localStorage.getItem('cartelUser'));
+        const user = window.CartelApp.getPreviewUser('supplier');
         if (user && user.role === 'supplier') {
             showSupplierDashboard();
         }
@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function handleSupplierRegistration() {
+    return window.CartelApp.handleRegistration();
+    // Historical simulation below is retained but unreachable; it must not create accounts.
     window.CartelApp.showLoading();
     
     // Collect form data
@@ -67,7 +69,7 @@ function handleSupplierRegistration() {
         };
         
         localStorage.setItem('cartelUser', JSON.stringify(supplierUser));
-        window.CartelApp.showNotification('Registration submitted successfully! You will receive a response within 7-14 business days.', 'success');
+        window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
         
         // Redirect to dashboard after 2 seconds
         setTimeout(() => {
@@ -139,6 +141,7 @@ function validateSupplierForm(data) {
 }
 
 function showSupplierDashboard() {
+    if (!window.CartelApp.isDashboardPreview()) return window.CartelApp.handleRegistration();
     // Hide registration form
     const registrationForm = document.getElementById('registration-form');
     if (registrationForm) {
@@ -154,7 +157,7 @@ function showSupplierDashboard() {
 }
 
 function loadSupplierData() {
-    const user = JSON.parse(localStorage.getItem('cartelUser'));
+    const user = window.CartelApp.getPreviewUser('supplier');
     
     if (user && user.role === 'supplier') {
         // Update supplier name
@@ -204,98 +207,98 @@ function loadSupplierOrders(orders) {
 
 // Service Management Functions
 function addNewService() {
-    window.CartelApp.showNotification('Add New Service functionality would open a modal form', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function editService(serviceId) {
-    window.CartelApp.showNotification(`Editing service ${serviceId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function viewServiceAnalytics(serviceId) {
-    window.CartelApp.showNotification(`Viewing analytics for service ${serviceId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function viewClientFeedback(serviceId) {
-    window.CartelApp.showNotification(`Viewing client feedback for service ${serviceId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Order Management Functions
 function updateOrder(orderId) {
-    window.CartelApp.showNotification(`Updating order ${orderId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function contactOrderClient(orderId) {
-    window.CartelApp.showNotification(`Contacting client for order ${orderId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function submitOrderDeliverable(orderId) {
-    window.CartelApp.showNotification(`Submitting deliverable for order ${orderId}`, 'success');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function filterOrders() {
     const filter = document.getElementById('order-filter').value;
-    window.CartelApp.showNotification(`Filtering orders by: ${filter}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Performance Functions
 function downloadPerformanceReport() {
-    window.CartelApp.showNotification('Performance report download started', 'success');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function viewDetailedAnalytics() {
-    window.CartelApp.showNotification('Detailed analytics view would open', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function exportPerformanceData() {
-    window.CartelApp.showNotification('Performance data export started', 'success');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Opportunity Functions
 function submitProposal(opportunityId) {
-    window.CartelApp.showNotification(`Submitting proposal for opportunity ${opportunityId}`, 'success');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function requestOpportunityDetails(opportunityId) {
-    window.CartelApp.showNotification(`Requesting details for opportunity ${opportunityId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function contactOpportunityAgent(opportunityId) {
-    window.CartelApp.showNotification(`Contacting agent for opportunity ${opportunityId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function filterOpportunities() {
     const filter = document.getElementById('opportunity-filter').value;
-    window.CartelApp.showNotification(`Filtering opportunities by: ${filter}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Profile and Settings Functions
 function updateProfile() {
-    window.CartelApp.showNotification('Profile update functionality would open', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function updateServicePricing(serviceId) {
-    window.CartelApp.showNotification(`Updating pricing for service ${serviceId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function manageAvailability() {
-    window.CartelApp.showNotification('Availability management would open', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function viewNetworkStats() {
-    window.CartelApp.showNotification('Network statistics view would open', 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Communication Functions
 function sendMessage(recipientId) {
-    window.CartelApp.showNotification(`Sending message to ${recipientId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function scheduleCall(clientId) {
-    window.CartelApp.showNotification(`Scheduling call with client ${clientId}`, 'info');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 function joinNetworkEvent(eventId) {
-    window.CartelApp.showNotification(`Joining network event ${eventId}`, 'success');
+    window.CartelApp.showNotification('Preview only: this action is unavailable. Nothing has been submitted, changed or downloaded.', 'info');
 }
 
 // Tab Management (shared with other dashboards)
@@ -315,7 +318,8 @@ function showTab(tabName) {
     }
     
     // Add active class to clicked button
-    event.target.classList.add('active');
+    const button = Array.from(tabButtons).find(item => item.getAttribute('onclick') === "showTab('" + tabName + "')");
+    if (button) button.classList.add('active');
 }
 
 // Export functions for global access

@@ -1,30 +1,31 @@
 // ===== SIMPLIFIED REGISTRATION MODAL =====
 function openRoleModal() {
-    // Uproszczony modal - bezpośrednie przekierowanie do rejestracji
+    if (document.querySelector('.modal-overlay')) return;
+    // Retained legacy role selector; forms are unavailable for actual registration.
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.innerHTML = `
         <div class="modal-content simple-registration">
-            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <button type="button" class="close-modal" aria-label="Close role selection" onclick="closeModal()">&times;</button>
             <h2>Join ShadowBridge Network</h2>
-            <p class="modal-subtitle">Select your role to get started</p>
+            <p class="modal-subtitle">Inspect the original role forms. Registration is unavailable; no account will be created.</p>
             
             <div class="role-selection-simple">
-                <div class="role-card" onclick="redirectToRegistration('agent')">
+                <div class="role-card" role="button" tabindex="0" onclick="redirectToRegistration('agent')">
                     <div class="role-icon">🎯</div>
                     <h3>Agent</h3>
                     <p>Strategic operators and network builders</p>
                     <div class="role-button">Join as Agent</div>
                 </div>
                 
-                <div class="role-card" onclick="redirectToRegistration('client')">
+                <div class="role-card" role="button" tabindex="0" onclick="redirectToRegistration('client')">
                     <div class="role-icon">🏢</div>
                     <h3>Client</h3>
                     <p>Organizations seeking expansion</p>
                     <div class="role-button">Join as Client</div>
                 </div>
                 
-                <div class="role-card" onclick="redirectToRegistration('supplier')">
+                <div class="role-card" role="button" tabindex="0" onclick="redirectToRegistration('supplier')">
                     <div class="role-icon">⚡</div>
                     <h3>Supplier</h3>
                     <p>Premium service providers</p>
@@ -33,13 +34,16 @@ function openRoleModal() {
             </div>
             
             <div class="modal-footer">
-                <p class="note">Quick registration - start building your network today</p>
+                <p class="note">Static preview only — authentication and database backend not connected.</p>
             </div>
         </div>
     `;
     
     document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
+    window.ShadowBridgeLegacy.openModal(modal);
+    modal.querySelectorAll('.role-card').forEach(card => card.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); card.click(); }
+    }));
     
     // Animation
     setTimeout(() => {
@@ -48,11 +52,13 @@ function openRoleModal() {
 }
 
 function redirectToRegistration(role) {
+    return window.ShadowBridgeLegacy.navigateRole(role);
+    // Superseded historical route table retained below for review.
     // Bezpośrednie przekierowanie do odpowiedniej strony rejestracji
     const pages = {
-        'agent': 'agent-registration.html',
-        'client': 'client-registration.html', 
-        'supplier': 'supplier-registration.html'
+        'agent': '../agent-registration.html',
+        'client': '../clients/client-registration.html',
+        'supplier': '../suppliers/supplier-registration.html'
     };
     
     if (pages[role]) {
@@ -64,6 +70,7 @@ function closeModal() {
     const modal = document.querySelector('.modal-overlay');
     if (modal) {
         modal.classList.remove('active');
+        window.ShadowBridgeLegacy.closeModal(modal);
         setTimeout(() => {
             modal.remove();
             document.body.style.overflow = 'auto';
@@ -81,6 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             
             const targetId = this.getAttribute('href');
+            if (!targetId || targetId === '#') return;
             const targetElement = document.querySelector(targetId);
             
             if (targetElement) {
@@ -99,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const menuToggle = document.querySelector('.menu-toggle');
     const nav = document.querySelector('.nav');
     
-    if (menuToggle && nav) {
+    if (menuToggle && nav && !menuToggle.hasAttribute('onclick')) {
         menuToggle.addEventListener('click', function() {
             nav.classList.toggle('active');
             this.classList.toggle('active');
@@ -159,7 +167,7 @@ function checkCartelAccess() {
         document.body.classList.add('cartel-access-granted');
         
         // Optional: Add subtle notification
-        console.log('🔥 C.A.R.T.E.L. Division access granted');
+        console.info('Legacy section preview only; URL parameters do not grant authorization.');
     }
 }
 
@@ -174,3 +182,15 @@ window.addEventListener('load', setViewportHeight);
 window.addEventListener('resize', setViewportHeight);
 window.addEventListener('orientationchange', setViewportHeight);
 
+
+
+// Compatibility aliases used by existing inline buttons.
+function showRegistration() { openRoleModal(); }
+function hideRegistration() { closeModal(); }
+function selectRole(role) { return redirectToRegistration(role); }
+function toggleMenu() {
+    const nav = document.querySelector('.header .nav');
+    if (nav) window.ShadowBridgeLegacy.setMenu(!nav.classList.contains('active'));
+}
+document.addEventListener('keydown', event => { if (event.key === 'Escape') closeModal(); });
+document.addEventListener('click', event => { if (event.target.matches('.modal-overlay')) closeModal(); });

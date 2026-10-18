@@ -1,0 +1,43 @@
+/* Compatibility fixes shared by the preserved legacy pages. */
+.legacy-notice {
+    padding: 16px 20px;
+    margin: 20px auto;
+    max-width: 1100px;
+    border: 1px solid #b48b52;
+    background: #211b13;
+    color: #f2dfc2;
+    line-height: 1.6;
+}
+.legacy-preview-link { display: inline-block; margin: 0 0 20px; color: #d4af37; }
+.header > .nav { max-width: 1200px; margin: auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.header .menu-toggle { display: none; background: transparent; border: 1px solid #b48b52; padding: 9px; color: white; cursor: pointer; }
+.header .menu-toggle span { display: block; width: 24px; height: 2px; margin: 5px 0; background: #d4af37; }
+.modal { overflow-y: auto; }
+.close-button { background: transparent; border: 0; color: #d4af37; font-size: 2rem; cursor: pointer; float: right; }
+.role-option { cursor: pointer; padding: 20px; border: 1px solid #786233; border-radius: 8px; text-align: center; }
+.role-option h3 { color: #d4af37; }
+.role-option ul { list-style-position: inside; text-align: left; }
+.role-option:hover, .role-option:focus-visible { border-color: #d4af37; }
+:focus-visible { outline: 2px solid #d4af37; outline-offset: 4px; }
+section[id] { scroll-margin-top: 110px; }
+.notification { max-width: min(460px, calc(100vw - 40px)); }
+@media (max-width: 768px) {
+    .header > .nav { position: static; width: auto; height: auto; flex-direction: row; padding: 0 20px; background: transparent; backdrop-filter: none; }
+    .header .logo h1 { font-size: 21px; }
+    .header .menu-toggle { display: block; flex-shrink: 0; }
+    .header .nav ul { display: none; position: absolute; top: 100%; left: 0; right: 0; padding: 24px; margin: 0; flex-direction: column; gap: 16px; background: #080808; max-height: calc(100dvh - 100px); overflow-y: auto; }
+    .header .nav.active ul { display: flex; }
+    .header .nav a { display: block; font-size: 1rem; padding: 8px; }
+    .header .menu-toggle.active span { transform: none; opacity: 1; }
+    .hero { height: auto; min-height: 100svh; padding: 140px 20px 70px; }
+    .role-selection { grid-template-columns: minmax(0, 1fr); }
+    .modal-content { max-width: 100%; margin: 20px auto; padding: 24px; }
+    .legacy-form-page .header .nav ul { display: flex; position: static; flex-direction: row; gap: 8px; padding: 0; background: transparent; max-height: none; }
+    .legacy-form-page .header .nav a { padding: 4px; font-size: .9rem; }
+    .registration-form input, .registration-form select, .registration-form textarea { max-width: 100%; min-width: 0; }
+    .header .tagline { font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

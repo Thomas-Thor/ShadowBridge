@@ -3,10 +3,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Join ShadowBridge</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="docs/legacy-support.css">
 </head>
-<body>
+<body class="legacy-form-page">
+    <noscript><p class="legacy-notice">Registration is unavailable. These preserved forms require JavaScript for local preview checks; they cannot create an account.</p></noscript>
     <section class="register-section">
         <div class="form-container">
             <h2>Join ShadowBridge Network</h2>
@@ -32,16 +35,17 @@
                 <label for="mutual-value">What can you offer ShadowBridge — and what do you expect us to offer in return?*</label>
                 <textarea id="mutual-value" name="mutual-value" rows="4" required></textarea>
 
-                <button type="submit" class="cta-button">Join Now</button>
+                <button type="submit" disabled class="cta-button">Join Now</button>
             </form>
         </div>
     </section>
 
+    <script src="docs/legacy-support.js"></script>
     <script>
         document.getElementById('quickRegistrationForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            alert('Application submitted. Welcome to the ShadowBridge network.');
-            // TODO: Send data to database / webhook
+            window.ShadowBridgeLegacy.notify();
+            // Backend submission remains disabled until real authentication and persistence are approved and tested.
         });
     </script>
 </body>

@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supplier Registration - C.A.R.T.E.L.</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../dashboard.css">
+    <link rel="stylesheet" href="../docs/legacy-support.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 </head>
-<body>
+<body class="legacy-form-page">
+    <noscript><p class="legacy-notice">Registration is unavailable. These preserved forms require JavaScript for local preview checks; they cannot create an account.</p></noscript>
     <!-- HEADER -->
     <header class="header">
         <div class="container">
@@ -18,7 +20,7 @@
             </div>
             <nav class="nav">
                 <ul>
-                    <li><a href="index.html">Home</a></li>
+                    <li><a href="../index.html">Home</a></li>
                     <li><a href="#" onclick="logout()">Logout</a></li>
                 </ul>
             </nav>
@@ -375,7 +377,7 @@
                     </div>
 
                     <div class="form-actions">
-                        <button type="submit" class="submit-button">SUBMIT APPLICATION</button>
+                        <button type="submit" disabled class="submit-button">SUBMIT APPLICATION</button>
                         <p class="form-disclaimer">
                             Your application will be reviewed within 7-14 business days. 
                             Only qualified suppliers will receive a response.
@@ -649,7 +651,8 @@
         </div>
     </main>
 
-    <script src="script.js"></script>
+    <script src="../docs/legacy-support.js"></script>
+    <script src="../scripts/script.js"></script>
     <script src="supplier-dashboard.js"></script>
 </body>
 </html>
