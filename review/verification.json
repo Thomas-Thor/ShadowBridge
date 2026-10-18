@@ -1,0 +1,44 @@
+{
+  "sourceCommit": "d6eabed1e6774b8e1140ca335e00f906341664b5",
+  "browser": "Chromium",
+  "mode": "HTTP single-file export, zero additional network resources, compared with source",
+  "fileNavigation": "Managed browser blocks file://; direct file opening must be checked on the reviewer device.",
+  "results": [
+    {
+      "width": 1440,
+      "pixelIdentical": true,
+      "menuAndTabs": true,
+      "role": true,
+      "localDownload": true,
+      "additionalRequests": 0,
+      "errors": 0
+    },
+    {
+      "width": 768,
+      "pixelIdentical": true,
+      "menuAndTabs": true,
+      "role": true,
+      "localDownload": true,
+      "additionalRequests": 0,
+      "errors": 0
+    },
+    {
+      "width": 390,
+      "pixelIdentical": true,
+      "menuAndTabs": true,
+      "role": true,
+      "localDownload": true,
+      "additionalRequests": 0,
+      "errors": 0
+    },
+    {
+      "width": 320,
+      "pixelIdentical": true,
+      "menuAndTabs": true,
+      "role": true,
+      "localDownload": true,
+      "additionalRequests": 0,
+      "errors": 0
+    }
+  ]
+}
