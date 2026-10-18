@@ -1,27 +1,20 @@
 # ShadowBridge V2 — podgląd offline
 
-Źródłowy commit: `d6eabed1e6774b8e1140ca335e00f906341664b5` na `feature/shadowbridge-v2`.
+1. Pobierz ZIP gałęzi feature/shadowbridge-v2 i rozpakuj go na swoim komputerze.
+2. Otwórz review/ShadowBridge-V2.html w Firefox, Chrome lub Edge.
+3. Sprawdź menu, branże, wybór roli, formularz i stronę informacyjną Cartel.
+4. Widok telefonu w Chrome/Edge: F12, Ctrl+Shift+M, szerokość 390 lub 320 px.
 
-1. Pobierz i rozpakuj cały ZIP gałęzi na swoim komputerze.
-2. Wejdź do folderu `review`.
-3. Otwórz `ShadowBridge-V2.html` dwuklikiem w Chrome, Edge lub Firefox.
-4. Przewiń wszystkie sekcje. Sprawdź menu, wybór branży, ścieżki buyer/supplier/agent i formularz pobierający lokalny brief.
-5. Aby sprawdzić układ telefonu w Chrome/Edge: F12 → pasek urządzeń (Ctrl+Shift+M, na macOS Cmd+Shift+M), szerokość390 lub320px, następnie odśwież.
+Oba pliki HTML zawierają fonty, grafiki i style; główna strona zawiera również JavaScript. Strona Cartel nie udostępnia logowania ani paneli. Formularz może otworzyć wiadomość do shadowbridge.trade@gmail.com w Twojej aplikacji pocztowej, pobrać brief lub skopiować jego treść. W aplikacji pocztowej sam sprawdzasz wiadomość i naciskasz Wyślij (Send). Strona sama nie wysyła wiadomości i nie tworzy kont. Jeśli zakodowany adres mailto przekracza 2000 znaków, użyj pobrania briefu lub kopiowania i przygotuj wiadomość ręcznie. Przy otwieraniu z dysku schowek i obsługa mailto zależą od przeglądarki oraz lokalnej aplikacji pocztowej.
 
-Ten plik ma osadzone fonty, grafiki, CSS i JavaScript. Nie wymaga Pythona, npm, serwera, kluczy API ani dostępu do sieci. To eksport istniejącego V2, bez zmiany projektu. Metadane i treść pochodzą z wersji źródłowej.
-
-Eksport sprawdzono w Chromium po HTTP: wygląd identyczny piksel w piksel ze źródłowym V2 przy1440/768/390/320px; menu, branże, wybór roli i pobranie briefu działają, bez dodatkowych żądań sieciowych. Zarządzana przeglądarka tego środowiska blokuje adresy `file://`, więc bezpośrednie otwarcie pliku z dysku nie zostało tu zweryfikowane. Jeżeli również Twoja przeglądarka firmowa blokuje pliki lokalne, uruchom poniższe polecenie w pobranym folderze `review`:
+Zarządzana przeglądarka środowiska Codex blokuje file://; bezpośrednie otwarcie dwuklikiem pozostaje tu niezweryfikowane. Testowany jest podgląd przez lokalny serwer. Jeżeli przeglądarka blokuje pliki lokalne, otwórz terminal w katalogu review i uruchom:
 
 ```sh
 python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
-Na Windows z Python Launcher użyj `py -m http.server 8000 --bind 127.0.0.1`. W swojej przeglądarce otwórz `http://127.0.0.1:8000/ShadowBridge-V2.html`. Jest to serwer na Twoim komputerze, nie niedostępny adres środowiska Codex. Zatrzymanie: Ctrl+C. Nie wykonuje publikacji w Internecie.
+Otwórz http://127.0.0.1:8000/ShadowBridge-V2.html na swoim komputerze. Zatrzymanie serwera: Ctrl+C. Nie publikuje to strony w Internecie. Nie są wymagane npm, klucze API ani backend.
 
-Formularz wyłącznie pobiera lub kopiuje lokalny brief. Niczego nie wysyła i nie rejestruje kont. Dostęp do schowka przy otwarciu pliku z dysku zależy od przeglądarki; w razie odmowy użyj pobrania briefu. Zmiany w formularzu nie są zapisywane po zamknięciu strony.
+SOURCE-MANIFEST.json zawiera SHA256 źródeł i wygenerowanych plików HTML. Pole baseCommit wskazuje commit bazowy; workingTreeExport informuje o eksporcie z niezacommitowanymi zmianami. Dokładne eksportowane bajty identyfikują hashe źródeł. Eksport należy regenerować po zmianach źródeł poleceniem npm run export:review w v2.
 
-`desktop.png` i `mobile.png` to rzeczywiste zrzuty z przeglądarki, a nie wygenerowane wizualizacje. Dołączony `FONT-LICENSES.txt` zawiera licencje fontów. Nie oddzielaj go od eksportu przy dalszym przekazywaniu.
-
-Eksport nie zawiera paneli. Pełne źródła i testy są w pozostałych folderach repozytorium. Otwieranie `v2/index.html` bez serwera nie zastępuje tego samowystarczalnego eksportu.
-
-Nie uruchamia to publikacji na `shadow-bridge.eu` i nie wymaga zmian DNS.
+FONT-LICENSES.txt należy zachować przy przekazywaniu eksportu. Eksporter nie usuwa plików PNG; desktop.png i mobile.png należy odświeżyć osobnym testem przeglądarkowym po zmianie wyglądu. Podgląd ma noindex/nofollow i nie wykonuje żądań API.

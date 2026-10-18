@@ -1,44 +1,279 @@
 {
-  "sourceCommit": "d6eabed1e6774b8e1140ca335e00f906341664b5",
+  "format": "shadowbridge-v2-verification-v2",
   "browser": "Chromium",
-  "mode": "HTTP single-file export, zero additional network resources, compared with source",
-  "fileNavigation": "Managed browser blocks file://; direct file opening must be checked on the reviewer device.",
-  "results": [
-    {
-      "width": 1440,
-      "pixelIdentical": true,
-      "menuAndTabs": true,
-      "role": true,
-      "localDownload": true,
-      "additionalRequests": 0,
-      "errors": 0
+  "sourceIdentity": {
+    "manifest": "SOURCE-MANIFEST.json",
+    "manifestSha256": "f7fbfd1935c17e573fa294e59742496cf8035299ef4be8bd39723e0e9c68a461",
+    "baseCommit": "d0ac38a6ed1fa10beca0533cc0777630a14b46ca",
+    "workingTreeExport": true,
+    "identityExplanation": "The baseCommit identifies the checked-out baseline only. SOURCE-MANIFEST.json SHA256 values identify the actual exported source and output bytes, including changes that were not committed when exported.",
+    "sourceHashes": {
+      "v2/index.html": "7282ba075a77fadb2736d552a7d4e29f0c591fa2f3601ec1fa005071d42079a5",
+      "v2/cartel/index.html": "fea5817165a6693cdd79b0a5880065a7ac9d2fd0885639573fed942c2994636d",
+      "v2/assets/app.js": "6dbe136aeb7b413abca95cea84b5d8a02697b106548a193df4125a600127c7f4",
+      "v2/assets/bridge-mark.svg": "b4de42f328adfbab421a5d6281a303a29d4057ed595255c052335ef0313a3a70",
+      "v2/assets/cartel.css": "07306a0237cb63b3c513ce5a669c9f91a280fba50f8bfb54aa60db9fab4e9f5c",
+      "v2/assets/content.en.js": "95ef405e6da45bdeeeab80c0bfa6469406a7e55f09ee6bd975bad946e86fb0a6",
+      "v2/assets/fonts/dm-sans-LICENSE.txt": "6fbd040a29c2037a765dfb9f2561e9965b5c95c6dcb5dce516089d63d5f17af7",
+      "v2/assets/fonts/dm-sans-latin-wght-normal.woff2": "9fea608a947e67020c33cad9a6fe3d60c54119dfb8cff87768a8117a15ed7543",
+      "v2/assets/fonts/instrument-serif-LICENSE.txt": "b6106a757902d2d412e09d94dc4a226fe3da80485208a98003969f1b8b6b1d74",
+      "v2/assets/fonts/instrument-serif-latin-400-italic.woff2": "5a51946dfffa82972bc98745359c46761515641fda557c25116459a9f83da4a7",
+      "v2/assets/fonts/instrument-serif-latin-400-normal.woff2": "5eb09b5ac0e28b67c2f041c8ba6d244604ca0c0980d65912ab2d47fed84ddc31",
+      "v2/assets/fonts/sources.json": "efd157291841e73e786d11138f924245b0fffed917d6b426b29078e7fae08965",
+      "v2/assets/global-bridge.svg": "631445011a5736a904ecdcf2d256d5090bed83dc33c4ec8819dbaca3bb2d2e6d",
+      "v2/assets/styles.css": "7356302041a87fa5cdcdc5b7c1dca84a59cf94ca6b0fc2e57aa9480a66bcf501"
     },
-    {
-      "width": 768,
-      "pixelIdentical": true,
-      "menuAndTabs": true,
-      "role": true,
-      "localDownload": true,
-      "additionalRequests": 0,
-      "errors": 0
-    },
-    {
-      "width": 390,
-      "pixelIdentical": true,
-      "menuAndTabs": true,
-      "role": true,
-      "localDownload": true,
-      "additionalRequests": 0,
-      "errors": 0
-    },
-    {
-      "width": 320,
-      "pixelIdentical": true,
-      "menuAndTabs": true,
-      "role": true,
-      "localDownload": true,
-      "additionalRequests": 0,
-      "errors": 0
+    "reviewOutputHashes": {
+      "ShadowBridge-V2.html": "6f30b50960f66608e4007680303332a77ed9cb5c96daf040eb7870b8b00e39f8",
+      "cartel/index.html": "ea6a349f167611a39eca77e81e031ecdbae97c0add804763e85004b76b846388",
+      "robots.txt": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+      "FONT-LICENSES.txt": "20cb9576c6c3d702b71d4a0d1b504823b0aa877020b2b1b6874870d9f34e23de",
+      "README-PL.md": "92916511610ac670cce0011ca8e9d46cc058b1483391dba633031700e8e2496e"
     }
-  ]
+  },
+  "sourceAndLegacySuite": {
+    "command": "npm --prefix v2 test",
+    "viewports": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "publicScenarios": 76,
+    "legacyScenarios": 12,
+    "total": 88,
+    "passed": 88,
+    "failed": 0,
+    "automatedAccessibility": {
+      "pages": [
+        "public homepage",
+        "C.A.R.T.E.L. information page"
+      ],
+      "viewports": [
+        1440,
+        768,
+        390,
+        320
+      ],
+      "axeViolations": 0,
+      "standard": "Applicable axe WCAG 2.0, 2.1 and 2.2 A/AA rules; not a complete conformance certification."
+    },
+    "coverage": [
+      "every actual header, footer and homepage link clicked",
+      "keyboard navigation and skip link",
+      "all five industry tabs",
+      "all enquiry roles",
+      "native form validation",
+      "static confirmed email without JavaScript",
+      "Unicode and multiline email body encoding",
+      "fixed recipient with no additional recipient parameters",
+      "long enquiry full download fallback",
+      "stale draft invalidation after field, role and sector edits",
+      "actual brief download and clipboard write",
+      "clipboard permission-denied fallback",
+      "no storage writes or actual enquiry transmission",
+      "preserved legacy pages and guarded registration",
+      "forged legacy storage does not authenticate",
+      "explicit legacy dashboard previews"
+    ]
+  },
+  "artifactChecks": {
+    "command": "node v2/tests/check-exports.cjs",
+    "transport": "Temporary HTTP servers bound only to 127.0.0.1. All were closed after verification.",
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "results": [
+      {
+        "artifact": "production",
+        "width": 1440,
+        "passed": true,
+        "checks": [
+          "local assets",
+          "no JavaScript errors",
+          "no horizontal overflow",
+          "navigation and industry tabs",
+          "confirmed email contact",
+          "fixed-recipient encoded mailto draft",
+          "complete downloaded brief",
+          "restricted information page",
+          "unchanged restricted page with legacy access parameters",
+          "return to homepage"
+        ],
+        "browserErrors": 0,
+        "assetFailures": 0,
+        "unexpectedExternalRequests": 0,
+        "enquiryTransmissions": 0,
+        "metadata": {
+          "homepage": "index, follow; canonical https://shadow-bridge.eu/",
+          "restrictedPage": "noindex, nofollow; canonical https://shadow-bridge.eu/cartel/",
+          "previewLabelsRemoved": true
+        }
+      },
+      {
+        "artifact": "production",
+        "width": 390,
+        "passed": true,
+        "checks": [
+          "local assets",
+          "no JavaScript errors",
+          "no horizontal overflow",
+          "navigation and industry tabs",
+          "confirmed email contact",
+          "fixed-recipient encoded mailto draft",
+          "complete downloaded brief",
+          "restricted information page",
+          "unchanged restricted page with legacy access parameters",
+          "return to homepage"
+        ],
+        "browserErrors": 0,
+        "assetFailures": 0,
+        "unexpectedExternalRequests": 0,
+        "enquiryTransmissions": 0,
+        "metadata": {
+          "homepage": "index, follow; canonical https://shadow-bridge.eu/",
+          "restrictedPage": "noindex, nofollow; canonical https://shadow-bridge.eu/cartel/",
+          "previewLabelsRemoved": true
+        }
+      },
+      {
+        "artifact": "review",
+        "width": 1440,
+        "passed": true,
+        "checks": [
+          "local assets",
+          "no JavaScript errors",
+          "no horizontal overflow",
+          "navigation and industry tabs",
+          "confirmed email contact",
+          "fixed-recipient encoded mailto draft",
+          "complete downloaded brief",
+          "restricted information page",
+          "unchanged restricted page with legacy access parameters",
+          "return to homepage"
+        ],
+        "browserErrors": 0,
+        "assetFailures": 0,
+        "unexpectedExternalRequests": 0,
+        "enquiryTransmissions": 0,
+        "metadata": {
+          "homepage": "noindex, nofollow",
+          "restrictedPage": "noindex, nofollow"
+        }
+      },
+      {
+        "artifact": "review",
+        "width": 390,
+        "passed": true,
+        "checks": [
+          "local assets",
+          "no JavaScript errors",
+          "no horizontal overflow",
+          "navigation and industry tabs",
+          "confirmed email contact",
+          "fixed-recipient encoded mailto draft",
+          "complete downloaded brief",
+          "restricted information page",
+          "unchanged restricted page with legacy access parameters",
+          "return to homepage"
+        ],
+        "browserErrors": 0,
+        "assetFailures": 0,
+        "unexpectedExternalRequests": 0,
+        "enquiryTransmissions": 0,
+        "metadata": {
+          "homepage": "noindex, nofollow",
+          "restrictedPage": "noindex, nofollow"
+        }
+      },
+      {
+        "artifact": "preview",
+        "width": 1440,
+        "passed": true,
+        "checks": [
+          "local assets",
+          "no JavaScript errors",
+          "no horizontal overflow",
+          "navigation and industry tabs",
+          "confirmed email contact",
+          "fixed-recipient encoded mailto draft",
+          "complete downloaded brief",
+          "restricted information page",
+          "unchanged restricted page with legacy access parameters",
+          "return to homepage"
+        ],
+        "browserErrors": 0,
+        "assetFailures": 0,
+        "unexpectedExternalRequests": 0,
+        "enquiryTransmissions": 0,
+        "metadata": {
+          "homepage": "noindex, nofollow",
+          "restrictedPage": "noindex, nofollow",
+          "robotsDisallowAll": true,
+          "canonicalAbsent": true,
+          "sitemapAbsent": true
+        }
+      },
+      {
+        "artifact": "preview",
+        "width": 390,
+        "passed": true,
+        "checks": [
+          "local assets",
+          "no JavaScript errors",
+          "no horizontal overflow",
+          "navigation and industry tabs",
+          "confirmed email contact",
+          "fixed-recipient encoded mailto draft",
+          "complete downloaded brief",
+          "restricted information page",
+          "unchanged restricted page with legacy access parameters",
+          "return to homepage"
+        ],
+        "browserErrors": 0,
+        "assetFailures": 0,
+        "unexpectedExternalRequests": 0,
+        "enquiryTransmissions": 0,
+        "metadata": {
+          "homepage": "noindex, nofollow",
+          "restrictedPage": "noindex, nofollow",
+          "robotsDisallowAll": true,
+          "canonicalAbsent": true,
+          "sitemapAbsent": true
+        }
+      }
+    ]
+  },
+  "screenshots": [
+    {
+      "file": "desktop.png",
+      "width": 1440,
+      "height": 6342,
+      "sha256": "b3f5bdd5ec4fd19efc0516e35b6c14b8b67429c5362687fd901255d88a86875a"
+    },
+    {
+      "file": "mobile.png",
+      "width": 390,
+      "height": 8087,
+      "sha256": "950859b200590c4352f3154382ca2f1ba6c2db5546dcb87aae57ce0b767b668c"
+    },
+    {
+      "file": "cartel-desktop.png",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "387414fe3014214d30649888172e640f06cc8a5e86528197f770c4c3b60e40eb"
+    },
+    {
+      "file": "cartel-mobile.png",
+      "width": 390,
+      "height": 844,
+      "sha256": "f259081be3963cc79b8d0460ce69a66bc3eac56eb0e7b4fbb2baae40a717048b"
+    }
+  ],
+  "limitations": {
+    "fileNavigation": "Managed Chromium returned ERR_BLOCKED_BY_ADMINISTRATOR for file:// navigation. No browser-policy bypass was attempted. Direct double-click opening must be checked on the reviewer device; loopback HTTP is the verified fallback.",
+    "emailDelivery": "Tests captured and cancelled actual mailto anchor clicks. Draft URLs and complete contents were verified without launching an email application. No real email delivery was performed; sending depends on the reviewer email application and their explicit Send action.",
+    "pixelComparison": "Pixel identity with the source was not rechecked in this revision; no claim of pixel identity is made.",
+    "scope": "No production deployment, DNS or hosting change, merge, push, backend activation or account registration was performed by these checks."
+  }
 }

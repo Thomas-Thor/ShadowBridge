@@ -59,6 +59,7 @@ function selectIndustry(tab, focus = false) {
   const content = industries[key];
   if (!content) return;
   selectedIndustry = key;
+  invalidatePreparedDraft();
   tabs.forEach((item) => {
     const selected = item === tab;
     item.setAttribute("aria-selected", String(selected));
@@ -92,11 +93,19 @@ tabs.forEach((tab, index) => {
 
 const form = document.querySelector("#enquiry-form");
 form.querySelector("button[type=submit]").disabled = false;
+document.querySelector("#download-brief").disabled = false;
 document.querySelector("#copy-brief").disabled = false;
 const roleSelect = document.querySelector("#enquiry-role");
 const status = document.querySelector("#enquiry-status");
+const draftLink = document.querySelector("#email-draft-link");
+function invalidatePreparedDraft() {
+  draftLink.hidden = true;
+  draftLink.removeAttribute("href");
+}
+form.addEventListener("input", invalidatePreparedDraft);
 document.querySelectorAll("[data-enquiry-role]").forEach((link) =>
   link.addEventListener("click", () => {
+    invalidatePreparedDraft();
     roleSelect.value = link.dataset.enquiryRole;
     status.textContent = `Enquiry path selected: ${roleLabels[roleSelect.value]}. Complete your brief below.`;
   }),
@@ -127,12 +136,31 @@ function prepareBrief() {
     "OPPORTUNITY",
     value("message"),
     "",
-    "Prepared locally in the ShadowBridge website preview. This brief has not been submitted.",
+    "Prepared using the ShadowBridge business enquiry form.",
   ].join("\n");
 }
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
+  const brief = prepareBrief();
+  if (!brief) return;
+  const subject = `ShadowBridge business enquiry — ${roleLabels[roleSelect.value]}`;
+  const href = `mailto:${publicContact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(brief)}`;
+  // Mail clients have different URL limits. Never truncate commercial details.
+  if (href.length > 2000) {
+    draftLink.hidden = true;
+    draftLink.removeAttribute("href");
+    status.textContent = `For a long enquiry, download or copy your complete brief and email it to ${publicContact.email} from your email app. This website has not sent a message.`;
+    return;
+  }
+  draftLink.href = href;
+  draftLink.hidden = false;
+  status.textContent =
+    "Email draft prepared. Your email app will open if one is configured. Review the draft and send it there. It has not been sent to ShadowBridge by this website.";
+  draftLink.click();
+});
+
+document.querySelector("#download-brief").addEventListener("click", () => {
   const brief = prepareBrief();
   if (!brief) return;
   const url = URL.createObjectURL(
@@ -161,13 +189,7 @@ document.querySelector("#copy-brief").addEventListener("click", async () => {
   }
 });
 
-// A confirmed address enables a visible contact link, never automatic submission.
-if (publicContact.email) {
-  const link = document.createElement("a");
-  link.href = `mailto:${publicContact.email}`;
-  link.textContent = publicContact.email;
-  document.querySelector("#business-contact").replaceChildren(link);
-}
+// The confirmed contact link is also present in HTML for visitors without JS.
 document.querySelector("#copyright-year").textContent = String(
   new Date().getFullYear(),
 );

@@ -1,8 +1,8 @@
 // Public, non-secret content only. Add a separate locale module and translated
 // HTML entry point for each future language; keep SEO copy in the HTML.
 export const publicContact = Object.freeze({
-  // Set only after the company confirms a public business address.
-  email: null,
+  // Confirmed by the owner; this is a public contact address, not a credential.
+  email: "shadowbridge.trade@gmail.com",
   legalName: null,
   phone: null,
 });

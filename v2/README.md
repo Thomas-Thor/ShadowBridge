@@ -1,4 +1,4 @@
-# ShadowBridge V2 — lokalny prototyp
+# ShadowBridge V2 — podgląd i przygotowanie publikacji
 
 Publiczny frontend w języku angielskim, odizolowany w `v2/`. Nie zastępuje obecnej strony głównej. Nie wdrożono go na `shadow-bridge.eu`, nie zmieniono DNS ani ustawień GitHub Pages. Gałąź robocza: `feature/shadowbridge-v2`.
 
@@ -20,12 +20,14 @@ Nie jest potrzebny build, instalowanie zależności ani zewnętrzne API. Moduły
 - Układ desktop/tablet/mobile, menu z obsługą klawiatury i Escape, pominięcie nawigacji, dostępne zakładki branż oraz ograniczenie animacji przy `prefers-reduced-motion`.
 - Ścieżki buyer/supplier/agent wybierają odpowiednią rolę zapytania. Wybrana branża może zostać dołączona do briefu.
 - Walidacja formularza, pobranie rzeczywistego pliku `.txt` i kopiowanie briefu do schowka z obsługą odmowy uprawnień.
-- Żadne zapytanie nie jest wysyłane, zapisywane w bazie ani utrwalane w `localStorage`. Pobrany lub skopiowany dokument zawiera wyraźną informację, że nie został wysłany.
-- Bez JavaScript treści i nawigacja pozostają dostępne, a przyciski eksportu są wyłączone. Formularz nie udaje wysyłki.
+- Potwierdzony publiczny kontakt `shadowbridge.trade@gmail.com` jest klikalny i widoczny także bez JavaScript. „Prepare email” tworzy wiadomość `mailto` zawierającą dane formularza, rolę i wybraną branżę. Użytkownik musi ją sprawdzić i sam wysłać w swoim programie pocztowym; witryna nie potwierdza dostarczenia.
+- Długie briefy nie są obcinane. Gdy zakodowany link przekracza ostrożny limit 2000 znaków, interfejs wskazuje pobranie lub skopiowanie pełnej treści i wysłanie jej przez własny program pocztowy.
+- Zapytania nie są wysyłane przez serwer strony, zapisywane w bazie ani utrwalane w `localStorage`. Bez JavaScript treści, nawigacja i bezpośredni e-mail pozostają dostępne; generowanie briefu jest wyłączone.
+- Dyskretny link w stopce prowadzi do osobnej strony `cartel/` z informacją o sieci dostępnej wyłącznie na zaproszenie. Nie ma tam logowania, formularza rejestracji, danych członków ani kontroli dostępu opartej na parametrach URL.
 
 ## Brakujące dane i zależności
 
-Właściciel musi potwierdzić publiczny adres e-mail i ewentualne dane prawne firmy. Nie wymyślano danych kontaktowych. Do tego czasu strona uczciwie opisuje brak potwierdzonego kanału kontaktu. `assets/content.en.js` zawiera tylko publiczną konfigurację; wpisanie zatwierdzonego adresu pokaże link `mailto`, bez automatycznej wysyłki.
+Właściciel potwierdził publiczny e-mail `shadowbridge.trade@gmail.com`. Nie dodano niepotwierdzonego telefonu, adresu, numerów rejestrowych ani nazwy osoby prawnej. `assets/content.en.js` zawiera tylko publiczną konfigurację. Obsługa `mailto` zależy od programu pocztowego i konfiguracji przeglądarki użytkownika; pobieranie i kopiowanie briefu pozostają alternatywą. Działanie linku nie jest potwierdzeniem dostarczenia wiadomości ani weryfikacją skrzynki odbiorczej.
 
 Rejestracja kont, logowanie, odzyskiwanie hasła, e-mail weryfikacyjny, uprawnienia i rzeczywiste dane paneli nie są wdrożone. Propozycja następnego etapu: [architektura rejestracji i hostingu](../docs/shadowbridge-v2-architecture.md).
 
@@ -34,18 +36,23 @@ Rejestracja kont, logowanie, odzyskiwanie hasła, e-mail weryfikacyjny, uprawnie
 ```text
 v2/
   index.html                 treść, semantyka, metadane, statyczne SEO
+  cartel/index.html          strona informacyjna sieci na zaproszenie
   assets/styles.css          lokalne fonty, tokeny, komponenty, breakpointy
   assets/app.js              menu, zakładki, role i lokalny eksport briefu
   assets/content.en.js       publiczna konfiguracja i dynamiczne teksty EN
   assets/bridge-mark.svg     oryginalny znak do przyszłej sygnatury/pieczęci
   assets/global-bridge.svg   oryginalna ilustracja hero
+  assets/cartel.css          wygląd strony C.A.R.T.E.L. Division
   assets/fonts/              WOFF2, licencje OFL i źródła z integrity
   tests/                     Playwright i axe
+  scripts/                   lokalne przygotowanie paczek i eksportu podglądu
 ```
 
 Dla przyszłych języków utworzyć osobne, semantyczne wejścia HTML i moduły treści, poprawne `lang`, tytuły oraz po publikacji canonical/hreflang. Nie pobierać prywatnej konfiguracji z publicznego modułu treści. Integracje CRM i klucze API należą wyłącznie do przyszłego backendu.
 
-Prototyp ma celowo `noindex, nofollow`. Usunięcie tej dyrektywy, ustawienie produkcyjnego canonical, formularza kontaktowego, polityk prywatności i publikacja wymagają osobnego etapu oraz akceptacji. Pliki `package.json`, testy i `node_modules` służą wyłącznie lokalnym narzędziom, nie są artefaktami produkcyjnymi.
+Źródłowy podgląd i eksport `review` zachowują `noindex, nofollow`. `npm --prefix v2 run build:production` przygotowuje odrębny katalog poza checkoutem: zatwierdzony V2 jako `/index.html`, stronę `/cartel/`, zasoby, canonical `https://shadow-bridge.eu/`, produkcyjne indeksowanie homepage oraz robots/sitemap. Strona sieci prywatnej pozostaje nieindeksowana i informacyjna. Produkcja nie zawiera oznaczeń DESIGN PREVIEW, starych paneli, testów ani zależności narzędziowych. Skrypt niczego nie wdraża. Procedura, ograniczenia i parametry: [RELEASE-BUILD.md](RELEASE-BUILD.md); ustalenia hostingu i kroki wymagające osobnej zgody: [plan publikacji](../docs/shadowbridge-v2-release.md).
+
+`npm --prefix v2 run export:review` odświeża oba samowystarczalne HTML w katalogu `review`. Na własnym Linuxie można rozpakować ZIP gałęzi i otworzyć `review/ShadowBridge-V2.html`; link w stopce otworzy `review/cartel/index.html`. Zachowaj cały katalog, aby działał powrót pomiędzy stronami.
 
 Fonty Instrument Serif 5.3.0 i DM Sans Variable 5.3.0 pochodzą z Fontsource, mają licencję OFL-1.1. Archiwa sprawdzono względem SHA-512 z rejestru npm. Licencje i metadane są dołączone. Obie grafiki SVG przygotowano na potrzeby tego prototypu; nie korzystają ze stockowych obrazów.
 

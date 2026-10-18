@@ -1,5 +1,7 @@
 # ShadowBridge V2 — raport pierwszej implementacji
 
+Ten dokument opisuje historyczny etap pierwszej implementacji. Aktualne poprawki kontaktu, C.A.R.T.E.L. Division i przygotowania publikacji opisuje [plan publikacji](shadowbridge-v2-release.md); dawne braki kontaktu wymienione poniżej nie opisują już bieżącego V2.
+
 Gałąź: `feature/shadowbridge-v2`, punkt wyjścia `6db80adf54a2793bb5c792c9829b2683dca8f2a3`. Zmiany są lokalne. Nie wykonano push, merge, publikacji, migracji hostingu ani zmian DNS. Referencja `origin/main` pozostaje na punkcie wyjścia. Nie utworzono płatnych usług ani backendu.
 
 ## Nowy publiczny frontend

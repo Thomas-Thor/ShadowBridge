@@ -1,9 +1,8 @@
 <!doctype html>
-<!-- Offline review export of ShadowBridge V2, source commit d6eabed1e6774b8e1140ca335e00f906341664b5. No hosting or registration enabled. Font license notices accompany this file in FONT-LICENSES.txt. -->
 <html lang="en" class="no-js">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="connect-src 'none'; object-src 'none'; base-uri 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
@@ -11,6 +10,18 @@
     />
     <meta name="theme-color" content="#101211" />
     <meta name="robots" content="noindex, nofollow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ShadowBridge" />
+    <meta property="og:locale" content="en_GB" />
+    <meta
+      property="og:title"
+      content="ShadowBridge — International Trade &amp; Partnerships"
+    />
+    <meta
+      property="og:description"
+      content="Independent international B2B brokerage. Sourcing, supplier identification and commercial introductions built around your business requirements."
+    />
+    <meta name="twitter:card" content="summary" />
     <title>ShadowBridge — Connecting markets. Creating possibility.</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSI+CiAgPHRpdGxlPlNoYWRvd0JyaWRnZSDigJQgYnJpZGdlIGFjcm9zcyBhIGdsb2JlPC90aXRsZT4KICA8ZyBzdHJva2U9IiNjNWExN2EiIHN0cm9rZS13aWR0aD0iMS42Ij4KICAgIDxjaXJjbGUgY3g9IjQwIiBjeT0iNDAiIHI9IjMzIiAvPgogICAgPGVsbGlwc2UgY3g9IjQwIiBjeT0iNDAiIHJ4PSIxNSIgcnk9IjMzIiBvcGFjaXR5PSIuNSIgLz4KICAgIDxwYXRoIGQ9Ik05IDI5aDYyTTkgNTFoNjJNNyA0MGg2NiIgb3BhY2l0eT0iLjQiIC8+CiAgICA8cGF0aCBkPSJNOSA0OGg2Mk0yMiA0OVYyM2g0djI2bTI4IDBWMjNoNHYyNiIgc3Ryb2tlLXdpZHRoPSIyLjUiIC8+CiAgICA8cGF0aAogICAgICBkPSJNOSA0MyAyMiAyN200IDBjOCAxOSAyMCAxOSAyOCAwbTQgMCAxMyAxNk0zMiAzN3YxMG04LTZ2Nm04LTEwdjEwTTE1IDM2djExbTUwLTExdjExIgogICAgLz4KICA8L2c+Cjwvc3ZnPgo=" />
 
@@ -1834,6 +1845,61 @@ p {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Release additions preserve the approved layout and visual tokens. */
+.brief-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 12px;
+}
+.brief-actions .copy-button {
+  margin: 0;
+  padding: 7px 0;
+}
+.email-draft-link {
+  margin-top: 16px;
+  color: var(--bronze-light);
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.email-draft-link[hidden] {
+  display: none;
+}
+.footer-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 25px;
+  padding-bottom: 25px;
+}
+.footer-navigation a {
+  font-size: 10px;
+  color: var(--muted);
+}
+.footer-navigation a:hover {
+  color: var(--bronze-light);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.footer-navigation .cartel-footer-link {
+  margin-left: auto;
+  color: var(--bronze);
+}
+@media (max-width: 700px) {
+  .brief-actions {
+    justify-content: flex-start;
+  }
+  .footer-navigation {
+    gap: 12px 22px;
+  }
+  .footer-navigation .cartel-footer-link {
+    margin-left: 0;
+    flex-basis: 100%;
+    margin-top: 6px;
+  }
+}
 @media (max-width: 1000px) {
   .no-js .site-header {
     height: auto;
@@ -1893,6 +1959,7 @@ p {
         </button>
         <nav id="primary-nav" class="primary-nav" aria-label="Main navigation">
           <a href="#about">About</a><a href="#services">Our expertise</a
+          ><a href="#industries">Industries</a
           ><a href="#approach">Our approach</a
           ><a href="#network">Global outlook</a>
           <a class="nav-contact" href="#contact"
@@ -2443,7 +2510,7 @@ p {
           </div>
           <p class="small-note role-note">
             These paths prepare a business enquiry. Account registration and
-            access to private dashboards are not available in this preview.
+            access to private dashboards are not available on this website.
           </p>
         </div>
       </section>
@@ -2465,19 +2532,26 @@ p {
           <div class="contact-details">
             <p class="eyebrow">BUSINESS ENQUIRIES</p>
             <p id="business-contact">
-              Public contact details are awaiting confirmation.
+              <a href="mailto:shadowbridge.trade@gmail.com"
+                >shadowbridge.trade@gmail.com</a
+              >
             </p>
             <span class="contact-domain">shadow-bridge.eu</span>
           </div>
           <div class="preview-note">
-            <span class="preview-label">DESIGN PREVIEW</span>
+            <span class="preview-label">SEND WITH YOUR EMAIL APP</span>
             <p id="contact-explanation">
-              This form prepares a downloadable enquiry brief. Nothing is sent,
-              submitted or stored on a server.
+              Prepare your enquiry here, then review and send it through your
+              own email app. This website does not send email or store your
+              enquiry.
             </p>
           </div>
         </div>
-        <form id="enquiry-form" class="enquiry-form">
+        <form
+          id="enquiry-form"
+          class="enquiry-form"
+          aria-describedby="contact-explanation"
+        >
           <div class="field-row">
             <div class="field">
               <label for="enquiry-name"
@@ -2541,20 +2615,38 @@ p {
           </div>
           <div class="form-bottom">
             <p>
-              Fields marked * are required.<br />Your brief stays in your
-              browser until you download or copy it.
+              Fields marked * are required.<br />Your email app handles sending.
+              You can also download or copy your brief.
             </p>
-            <button class="button button-bronze" type="submit" disabled>
-              Download enquiry brief
+            <button
+              id="prepare-email"
+              class="button button-bronze"
+              type="submit"
+              disabled
+            >
+              Prepare email
               <span aria-hidden="true"
                 ><svg class="arrow-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 4v16m-6-6 6 6 6-6" /></svg
+                  <path d="M6 18 18 6M6 6h12v12" /></svg
               ></span>
             </button>
           </div>
-          <button id="copy-brief" disabled type="button" class="copy-button">
-            Copy brief instead
-          </button>
+          <div class="brief-actions">
+            <button
+              id="download-brief"
+              disabled
+              type="button"
+              class="copy-button"
+            >
+              Download enquiry brief
+            </button>
+            <button id="copy-brief" disabled type="button" class="copy-button">
+              Copy brief instead
+            </button>
+          </div>
+          <a id="email-draft-link" class="text-link email-draft-link" hidden
+            >Open the prepared email again</a
+          >
           <p
             id="enquiry-status"
             class="form-status"
@@ -2563,8 +2655,9 @@ p {
           ></p>
           <noscript
             ><p class="notice">
-              Downloading a brief requires JavaScript. Enquiry delivery is not
-              connected in this preview.
+              Preparing a draft or downloading a brief requires JavaScript. You
+              can still contact us using the email link above and send your
+              enquiry directly from your own email app.
             </p></noscript
           >
         </form>
@@ -2592,18 +2685,26 @@ p {
               <path d="M12 20V4m-6 6 6-6 6 6" /></svg></span
         ></a>
       </div>
+      <nav class="shell footer-navigation" aria-label="Footer navigation">
+        <a href="#about">About</a><a href="#services">Services</a>
+        <a href="#industries">Industries</a><a href="#approach">Approach</a>
+        <a href="#network">Network</a><a href="#contact">Contact</a>
+        <a class="cartel-footer-link" href="cartel/index.html">C.A.R.T.E.L. Division</a>
+      </nav>
       <div class="shell footer-bottom">
         <p>© <span id="copyright-year">2026</span> ShadowBridge</p>
         <p>International B2B brokerage & trade partnerships</p>
-        <span class="preview-label">V2 · DESIGN PREVIEW</span>
+        <span class="preview-label" data-preview-only>V2 · DESIGN PREVIEW</span>
       </div>
     </footer>
-  <script type="module">
+  <script>
+(() => {
+"use strict";
 // Public, non-secret content only. Add a separate locale module and translated
 // HTML entry point for each future language; keep SEO copy in the HTML.
 const publicContact = Object.freeze({
-  // Set only after the company confirms a public business address.
-  email: null,
+  // Confirmed by the owner; this is a public contact address, not a credential.
+  email: "shadowbridge.trade@gmail.com",
   legalName: null,
   phone: null,
 });
@@ -2707,6 +2808,7 @@ function selectIndustry(tab, focus = false) {
   const content = industries[key];
   if (!content) return;
   selectedIndustry = key;
+  invalidatePreparedDraft();
   tabs.forEach((item) => {
     const selected = item === tab;
     item.setAttribute("aria-selected", String(selected));
@@ -2740,11 +2842,19 @@ tabs.forEach((tab, index) => {
 
 const form = document.querySelector("#enquiry-form");
 form.querySelector("button[type=submit]").disabled = false;
+document.querySelector("#download-brief").disabled = false;
 document.querySelector("#copy-brief").disabled = false;
 const roleSelect = document.querySelector("#enquiry-role");
 const status = document.querySelector("#enquiry-status");
+const draftLink = document.querySelector("#email-draft-link");
+function invalidatePreparedDraft() {
+  draftLink.hidden = true;
+  draftLink.removeAttribute("href");
+}
+form.addEventListener("input", invalidatePreparedDraft);
 document.querySelectorAll("[data-enquiry-role]").forEach((link) =>
   link.addEventListener("click", () => {
+    invalidatePreparedDraft();
     roleSelect.value = link.dataset.enquiryRole;
     status.textContent = `Enquiry path selected: ${roleLabels[roleSelect.value]}. Complete your brief below.`;
   }),
@@ -2775,12 +2885,31 @@ function prepareBrief() {
     "OPPORTUNITY",
     value("message"),
     "",
-    "Prepared locally in the ShadowBridge website preview. This brief has not been submitted.",
+    "Prepared using the ShadowBridge business enquiry form.",
   ].join("\n");
 }
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
+  const brief = prepareBrief();
+  if (!brief) return;
+  const subject = `ShadowBridge business enquiry — ${roleLabels[roleSelect.value]}`;
+  const href = `mailto:${publicContact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(brief)}`;
+  // Mail clients have different URL limits. Never truncate commercial details.
+  if (href.length > 2000) {
+    draftLink.hidden = true;
+    draftLink.removeAttribute("href");
+    status.textContent = `For a long enquiry, download or copy your complete brief and email it to ${publicContact.email} from your email app. This website has not sent a message.`;
+    return;
+  }
+  draftLink.href = href;
+  draftLink.hidden = false;
+  status.textContent =
+    "Email draft prepared. Your email app will open if one is configured. Review the draft and send it there. It has not been sent to ShadowBridge by this website.";
+  draftLink.click();
+});
+
+document.querySelector("#download-brief").addEventListener("click", () => {
   const brief = prepareBrief();
   if (!brief) return;
   const url = URL.createObjectURL(
@@ -2809,17 +2938,12 @@ document.querySelector("#copy-brief").addEventListener("click", async () => {
   }
 });
 
-// A confirmed address enables a visible contact link, never automatic submission.
-if (publicContact.email) {
-  const link = document.createElement("a");
-  link.href = `mailto:${publicContact.email}`;
-  link.textContent = publicContact.email;
-  document.querySelector("#business-contact").replaceChildren(link);
-}
+// The confirmed contact link is also present in HTML for visitors without JS.
 document.querySelector("#copyright-year").textContent = String(
   new Date().getFullYear(),
 );
 
+})();
 </script>
-</body>
+  </body>
 </html>

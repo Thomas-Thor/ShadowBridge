@@ -9,6 +9,19 @@
     />
     <meta name="theme-color" content="#101211" />
     <meta name="robots" content="noindex, nofollow" />
+    <!-- release:canonical -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ShadowBridge" />
+    <meta property="og:locale" content="en_GB" />
+    <meta
+      property="og:title"
+      content="ShadowBridge — International Trade &amp; Partnerships"
+    />
+    <meta
+      property="og:description"
+      content="Independent international B2B brokerage. Sourcing, supplier identification and commercial introductions built around your business requirements."
+    />
+    <meta name="twitter:card" content="summary" />
     <title>ShadowBridge — Connecting markets. Creating possibility.</title>
     <link rel="icon" type="image/svg+xml" href="assets/bridge-mark.svg" />
     <link
@@ -50,6 +63,7 @@
         </button>
         <nav id="primary-nav" class="primary-nav" aria-label="Main navigation">
           <a href="#about">About</a><a href="#services">Our expertise</a
+          ><a href="#industries">Industries</a
           ><a href="#approach">Our approach</a
           ><a href="#network">Global outlook</a>
           <a class="nav-contact" href="#contact"
@@ -600,7 +614,7 @@
           </div>
           <p class="small-note role-note">
             These paths prepare a business enquiry. Account registration and
-            access to private dashboards are not available in this preview.
+            access to private dashboards are not available on this website.
           </p>
         </div>
       </section>
@@ -622,19 +636,26 @@
           <div class="contact-details">
             <p class="eyebrow">BUSINESS ENQUIRIES</p>
             <p id="business-contact">
-              Public contact details are awaiting confirmation.
+              <a href="mailto:shadowbridge.trade@gmail.com"
+                >shadowbridge.trade@gmail.com</a
+              >
             </p>
             <span class="contact-domain">shadow-bridge.eu</span>
           </div>
           <div class="preview-note">
-            <span class="preview-label">DESIGN PREVIEW</span>
+            <span class="preview-label">SEND WITH YOUR EMAIL APP</span>
             <p id="contact-explanation">
-              This form prepares a downloadable enquiry brief. Nothing is sent,
-              submitted or stored on a server.
+              Prepare your enquiry here, then review and send it through your
+              own email app. This website does not send email or store your
+              enquiry.
             </p>
           </div>
         </div>
-        <form id="enquiry-form" class="enquiry-form">
+        <form
+          id="enquiry-form"
+          class="enquiry-form"
+          aria-describedby="contact-explanation"
+        >
           <div class="field-row">
             <div class="field">
               <label for="enquiry-name"
@@ -698,20 +719,38 @@
           </div>
           <div class="form-bottom">
             <p>
-              Fields marked * are required.<br />Your brief stays in your
-              browser until you download or copy it.
+              Fields marked * are required.<br />Your email app handles sending.
+              You can also download or copy your brief.
             </p>
-            <button class="button button-bronze" type="submit" disabled>
-              Download enquiry brief
+            <button
+              id="prepare-email"
+              class="button button-bronze"
+              type="submit"
+              disabled
+            >
+              Prepare email
               <span aria-hidden="true"
                 ><svg class="arrow-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 4v16m-6-6 6 6 6-6" /></svg
+                  <path d="M6 18 18 6M6 6h12v12" /></svg
               ></span>
             </button>
           </div>
-          <button id="copy-brief" disabled type="button" class="copy-button">
-            Copy brief instead
-          </button>
+          <div class="brief-actions">
+            <button
+              id="download-brief"
+              disabled
+              type="button"
+              class="copy-button"
+            >
+              Download enquiry brief
+            </button>
+            <button id="copy-brief" disabled type="button" class="copy-button">
+              Copy brief instead
+            </button>
+          </div>
+          <a id="email-draft-link" class="text-link email-draft-link" hidden
+            >Open the prepared email again</a
+          >
           <p
             id="enquiry-status"
             class="form-status"
@@ -720,8 +759,9 @@
           ></p>
           <noscript
             ><p class="notice">
-              Downloading a brief requires JavaScript. Enquiry delivery is not
-              connected in this preview.
+              Preparing a draft or downloading a brief requires JavaScript. You
+              can still contact us using the email link above and send your
+              enquiry directly from your own email app.
             </p></noscript
           >
         </form>
@@ -749,10 +789,16 @@
               <path d="M12 20V4m-6 6 6-6 6 6" /></svg></span
         ></a>
       </div>
+      <nav class="shell footer-navigation" aria-label="Footer navigation">
+        <a href="#about">About</a><a href="#services">Services</a>
+        <a href="#industries">Industries</a><a href="#approach">Approach</a>
+        <a href="#network">Network</a><a href="#contact">Contact</a>
+        <a class="cartel-footer-link" href="cartel/">C.A.R.T.E.L. Division</a>
+      </nav>
       <div class="shell footer-bottom">
         <p>© <span id="copyright-year">2026</span> ShadowBridge</p>
         <p>International B2B brokerage & trade partnerships</p>
-        <span class="preview-label">V2 · DESIGN PREVIEW</span>
+        <span class="preview-label" data-preview-only>V2 · DESIGN PREVIEW</span>
       </div>
     </footer>
   </body>

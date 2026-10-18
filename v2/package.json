@@ -4,6 +4,9 @@
   "private": true,
   "description": "Local browser and accessibility checks for the isolated ShadowBridge V2 prototype.",
   "scripts": {
+    "build:production": "node scripts/build-production.mjs",
+    "build:preview": "node scripts/build-production.mjs --preview",
+    "export:review": "node scripts/export-review.mjs",
     "test": "playwright test --config tests/playwright.config.cjs",
     "test:list": "playwright test --config tests/playwright.config.cjs --list",
     "test:accessibility": "playwright test --config tests/playwright.config.cjs --grep accessibility"

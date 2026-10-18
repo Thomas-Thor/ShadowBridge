@@ -1,0 +1,176 @@
+/* Information only. This page contains no authentication or membership logic. */
+.restricted-page {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(
+    ellipse at 50% 33%,
+    #25271c 0,
+    #141711 35%,
+    #0c0f0c 76%
+  );
+}
+.restricted-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 25px;
+  padding: 29px 48px;
+  border-bottom: 1px solid #c5a17a22;
+}
+.restricted-wordmark {
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  color: #d3ccb9;
+}
+.restricted-header .eyebrow {
+  font-size: 8px;
+  letter-spacing: 0.23em;
+}
+.restricted-main {
+  width: min(640px, calc(100% - 40px));
+  margin: auto;
+  text-align: center;
+  padding-block: 55px 64px;
+}
+.restricted-emblem {
+  display: grid;
+  place-items: center;
+  width: 138px;
+  height: 138px;
+  margin: 0 auto 32px;
+  border: 1px solid #c5a17a26;
+  border-radius: 50%;
+  box-shadow: 0 0 0 10px #c5a17a05;
+}
+.restricted-emblem img {
+  opacity: 0.9;
+}
+.restricted-kicker {
+  font-size: 8px;
+  letter-spacing: 0.28em;
+  margin-bottom: 22px;
+}
+.restricted-main h1 {
+  font-family: var(--serif);
+  font-size: clamp(58px, 8vw, 92px);
+  letter-spacing: 0.035em;
+  color: var(--bronze-light);
+  line-height: 0.95;
+}
+.restricted-main h1 span {
+  display: block;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.6em;
+  margin-top: 20px;
+  padding-left: 0.6em;
+  color: var(--bronze);
+}
+.restricted-rule {
+  height: 1px;
+  width: 63px;
+  margin: 32px auto 26px;
+  background: linear-gradient(90deg, transparent, #c5a17a, transparent);
+}
+.access-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--bronze);
+}
+.access-label svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.restricted-description {
+  max-width: 410px;
+  margin: 23px auto 10px;
+  font-size: 14px;
+  line-height: 1.9;
+  color: #c2c3b6;
+}
+.restricted-invitation {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 24px;
+  color: var(--bronze-light);
+}
+.restricted-note {
+  font-size: 10px;
+  max-width: 350px;
+  margin: 20px auto 0;
+  line-height: 1.8;
+  color: #a8ae9d;
+}
+.restricted-return {
+  font-size: 10px;
+  color: #cccbbd;
+  margin-top: 33px;
+  gap: 10px;
+}
+.restricted-return svg {
+  width: 16px;
+  height: 16px;
+  color: var(--bronze);
+}
+.restricted-footer {
+  border-top: 1px solid #c5a17a1c;
+  padding: 22px 20px;
+  text-align: center;
+}
+.restricted-footer p {
+  font-size: 7px;
+  letter-spacing: 0.3em;
+  color: #adb09f;
+}
+.restricted-footer .preview-label {
+  display: inline-block;
+  font-size: 6px;
+  margin-top: 10px;
+}
+@media (max-width: 600px) {
+  .restricted-header {
+    padding: 23px 20px;
+    gap: 12px;
+  }
+  .restricted-wordmark {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+  }
+  .restricted-header .eyebrow {
+    font-size: 6px;
+    letter-spacing: 0.15em;
+  }
+  .restricted-main {
+    padding-block: 44px;
+  }
+  .restricted-emblem {
+    width: 112px;
+    height: 112px;
+    margin-bottom: 29px;
+  }
+  .restricted-emblem img {
+    width: 90px;
+    height: 90px;
+  }
+  .restricted-description {
+    font-size: 12px;
+    max-width: 320px;
+  }
+  .restricted-invitation {
+    font-size: 22px;
+  }
+  .restricted-main h1 span {
+    font-size: 10px;
+  }
+}
