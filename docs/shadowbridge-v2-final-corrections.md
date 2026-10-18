@@ -51,7 +51,9 @@ Narzędzia testowe wymagają Node>=22.12, Pythona3 i Chromium. Sam podgląd pobr
 
 ## Publikacja — nadal do potwierdzenia
 
-[Ustalenia hostingu i dokładna procedura](shadowbridge-v2-release.md) oddzielają potwierdzone dowody od braków. Nie ustalono aktywnego dostawcy, źródła root/docs, gałęzi publikacji, entrypointu, DNS ani HTTPS: żądania blokuje proxy/resolver środowiska. Oczekiwane są wartości z Settings→Pages lub panelu aktualnego dostawcy; nie są potrzebne hasła ani tokeny.
+[Ustalenia hostingu i dokładna procedura](shadowbridge-v2-release.md) oddzielają potwierdzenie właściciela od mojego odczytu technicznego. Właściciel sprawdził Settings→Pages: GitHub Pages, „Deploy from a branch”, `main`, `/` (root), domena `shadow-bridge.eu`, DNS check Successful, Enforce HTTPS włączone, witryna Live. Rejestratorem domeny jest Porkbun; termin wygaśnięcia pozostaje nieznany. Nie utożsamia się rejestratora z operatorem autorytatywnego DNS. Proxy/resolver nadal uniemożliwia niezależny test produkcyjnego HTTP, TLS i rekordów DNS.
+
+Samo scalenie gałęzi nie zastąpi obecnego root homepage przez `v2/index.html`. Zalecana publikacja gotowej paczki V2 na zatwierdzonym nowym hostingu nie wymaga merge: jej `/index.html` jest właściwą stroną główną. Stare pliki na `main` pozostają zachowane w Git i jako punkt wycofania. Przełączenie istniejącej domeny wymaga oddzielnego, jawnego planu DNS i HTTPS, opisanego w dokumencie publikacji.
 
 Jeżeli aktualnie działa GitHub Pages, jego oficjalne ograniczenia biznesu online wymagają uwzględnienia. Rekomendacja do odrębnego zatwierdzenia: komercyjny hosting statyczny, np. Cloudflare Pages Direct Upload. Nie założono konta, nie wybrano płatnego planu, nie uruchomiono projektu ani migracji.
 

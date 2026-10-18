@@ -18,11 +18,11 @@ Wynik: `/workspace/exports/shadowbridge-v2-preview`. Ta paczka zachowuje `noinde
 npm run build:production
 ```
 
-Wynik: `/workspace/exports/shadowbridge-v2-production`, poza repozytorium. Głównym plikiem `/index.html` jest zatwierdzony frontend V2. Paczka zawiera wyłącznie dwa pliki HTML (`/index.html`, `/cartel/index.html`), katalog `assets`, `robots.txt`, `sitemap.xml` i manifest integralności `.shadowbridge-build.json`. Nie kopiuje dawnych stron/paneli, zależności, testów, `.git`, workflow ani pliku `CNAME`. Wymaga zwykłego hostingu statycznego z obsługą `index.html` w katalogach; nie skonfigurowano żadnego dostawcy.
+Wynik: `/workspace/exports/shadowbridge-v2-production`, poza repozytorium. Głównym plikiem `/index.html` jest zatwierdzony frontend V2. Paczka zawiera wyłącznie dwa pliki HTML (`/index.html`, `/cartel/index.html`), katalog `assets`, `robots.txt`, `sitemap.xml` i manifest integralności `.shadowbridge-build.json`. Nie kopiuje dawnych stron/paneli, zależności, testów, `.git`, workflow ani pliku `CNAME`. Wymaga zwykłego hostingu statycznego z obsługą `index.html` w katalogach; skrypty nie konfigurują żadnego dostawcy. Według potwierdzenia właściciela obecna produkcja działa w GitHub Pages z `main` i katalogu głównego; plan jawnego przełączenia V2 opisuje `docs/shadowbridge-v2-release.md`.
 
 Źródła pozostają podglądem z `noindex, nofollow`. Dopiero paczka produkcyjna otrzymuje na homepage `index, follow`, canonical i `og:url` `https://shadow-bridge.eu/`; elementy oznaczone `data-preview-only` są pomijane. Strona informacyjna Cartel zachowuje `noindex, nofollow` oraz otrzymuje canonical i `og:url` `https://shadow-bridge.eu/cartel/`. Mapa zawiera tylko homepage, a robots wyklucza `/cartel/`. To reguły indeksowania, nie autoryzacja. Strona Cartel nie zawiera chronionych danych ani działającego logowania.
 
-**Nie używaj paczki produkcyjnej do tymczasowego podglądu internetowego.** Nie skonfigurowano hostingu, dodatkowych nagłówków, płatnych usług ani API. Publikacja wymaga osobnej zgody.
+**Nie używaj paczki produkcyjnej do tymczasowego podglądu internetowego.** Nie skonfigurowano nowego hostingu, dodatkowych nagłówków, płatnych usług ani API. Publikacja wymaga osobnej zgody.
 
 ## Własny katalog, również na Linuxie właściciela
 
