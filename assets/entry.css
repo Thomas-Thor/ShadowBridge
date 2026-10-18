@@ -111,3 +111,12 @@
 @media (prefers-reduced-motion: reduce) {
   .access-entry-link { transition: none; }
 }
+/* Secure account forms are activated only by the same-origin backend. */
+.entry-submit:enabled { cursor: pointer; border-color: #a68a67; background: #26291f; color: var(--bronze-light); transition: background 180ms ease, border-color 180ms ease; }
+.entry-submit:enabled:hover { background: #36392b; border-color: var(--bronze-light); }
+.entry-submit:disabled { cursor: not-allowed; }
+.entry-field-help { font-size: 11px; line-height: 1.8; color: var(--muted); }
+.entry-field input:enabled, .entry-field select:enabled, .entry-field textarea:enabled { color: var(--ink); -webkit-text-fill-color: var(--ink); }
+.entry-notice-error { border-color: #bc8c79; }
+.entry-notice a { margin-top: 8px; }
+.entry-page [hidden] { display: none !important; }

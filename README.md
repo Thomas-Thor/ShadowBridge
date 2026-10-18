@@ -1,82 +1,91 @@
-# ShadowBridge — private B2B frontend review
+# ShadowBridge — secure private B2B MVP
 
-Gałąź: `feature/private-b2b-entrypoints`, utworzona z produkcyjnego commita
-`d0512dd37a162744d845a5cf32ddc25ac3d4f633`. **Ta praca nie jest wdrożeniem.**
-Nie zmieniono gałęzi `main`, domeny, DNS ani konfiguracji hostingu.
+Gałąź: `feature/secure-b2b-mvp`, oparta na `feature/private-b2b-entrypoints`
+(`2cc4de8`), zachowująca produkcyjny `main` (`d0512dd`). **Nie wdrożono tej
+wersji na shadow-bridge.eu.** Nie zmieniono DNS, GitHub Pages ani treści strony `/cartel/`.
 
-## Co można przejrzeć
+## Rzeczywisty lokalny backend
 
-- `/` — zaakceptowana strona V2 z dodatkowymi wejściami w istniejących kartach
-  Buyer, Supplier i B2B Partner. Poprzednie linki kontaktowe są zachowane.
-- `/apply/buyer/`, `/apply/supplier/`, `/apply/partner/` — oddzielne strony
-  zgłoszeniowe; wszystkie pola i wysyłanie pozostają nieaktywne także bez JS.
-- `/member-sign-in/` — wspólne wejście logowania, jawnie nieaktywne.
-- `/prototypes/` — osobny przegląd trzech paneli, wyłącznie fikcyjne dane.
-  Przyciski wyświetlają/zerują stały szablon demonstracyjny, a filtry pokazują
-  przykładowe własne rekordy. Nie ma zapisu, wysyłania, uploadu ani sesji.
-- `/cartel/` — istniejąca strona informacyjna zachowana bez zmian.
-
-Nie ma katalogu firm, automatycznej rejestracji, kojarzenia kontrahentów ani
-dostępu do danych prywatnych. Nowe interfejsy nie zbierają danych osobowych ani
-rzeczywistych zgłoszeń. Istniejący formularz kontaktowy nadal przygotowuje
-wiadomość do przeglądu i wysłania przez własny program pocztowy użytkownika.
-
-## Podgląd na własnym komputerze z Linuxem
-
-Do samego podglądu wystarczy Python 3, bez Node i bez instalowania zależności.
-
-1. Pobierz dostarczone archiwum `ShadowBridge-private-b2b-review.zip` i rozpakuj je.
-2. W terminalu przejdź do rozpakowanego katalogu `ShadowBridge-private-b2b`.
-3. Uruchom:
-
-   ```bash
-   python3 -m http.server 8080 --bind 127.0.0.1
-   ```
-
-4. Na **tym samym komputerze** otwórz `http://127.0.0.1:8080/` i następnie
-   `http://127.0.0.1:8080/prototypes/`. Są to adresy lokalnego podglądu na Twoim
-   komputerze, a nie linki do środowiska Codex. Użyj portu 8081, jeśli 8080 jest zajęty.
-5. Przetestuj trzy wejścia, Member Sign In, rozwijane listy kontrolne,
-   fikcyjne szablony i filtry paneli oraz powrót z C.A.R.T.E.L.
-   W kontakcie wystarczy użyć fikcyjnego briefu i nie wysyłać wiadomości.
-6. Zatrzymaj serwer przez `Ctrl+C`. Nie publikuj tego archiwum jako produkcji.
-
-Nie otwieraj strony przez samo dwukrotne kliknięcie HTML: istniejący moduł
-kontaktu wymaga HTTP. Żaden prawdziwy system rejestracji nie działa w podglądzie.
-Serwer jest ograniczony do loopback i nie udostępnia plików w Twojej sieci.
-
-## Oddzielna paczka publicznego podglądu
-
-Node 22+ wystarczy do zbudowania paczki; nie ma nowych zależności:
+Wymagania: Linux, Docker + Compose v2, Node.js 22.12+ i npm.
+W katalogu rozpakowanego repozytorium:
 
 ```bash
-node scripts/build-preview.mjs --out /tmp/shadowbridge-public-preview
+npm ci
+npm run dev:up
+npm run dev:server
 ```
 
-Wybierz nowy katalog wyjściowy, jeśli istnieje — skrypt nie nadpisuje wcześniejszych
-plików. Paczka ma zamkniętą listę publicznych plików, `noindex, nofollow` i
-`robots.txt: Disallow: /`. Wyklucza prototypy oraz ich CSS/JS, dokumentację,
-testy, skrypty, `.git`, `CNAME` i sitemapę. Dyrektywy robotów nie zapewniają
-poufności; w paczce nie ma danych prywatnych. Nie jest to paczka do automatycznego
-zastąpienia produkcji. Nie konfigurowano żadnego wdrożenia.
+Na **tym samym komputerze** otwórz `http://127.0.0.1:8088/`, a testowe wiadomości
+w `http://127.0.0.1:8025/`. Nie są to publiczne linki do środowiska Codex.
+Używaj fikcyjnych firm i losowych, osobnych haseł. Cała poczta trafia do lokalnego
+Mailpit, nigdy do rzeczywistych odbiorców. Pierwszy start generuje sekrety poza
+Git i pobiera przypięte obrazy PostgreSQL, Supabase GoTrue oraz Mailpit.
 
-## Testy
+Rejestracja → prawdziwe potwierdzenie e-maila → oczekująca aplikacja firmy →
+ręczna decyzja zarządu. Nie ma automatycznego dostępu do ofert. Link potwierdzający
+najlepiej otworzyć w tym samym profilu przeglądarki. W innym profilu zaloguj się
+po potwierdzeniu i uzupełnij aplikację w portalu. Anonimowa odpowiedź GoTrue na
+rejestrację nigdy nie służy jako dowód tożsamości do zapisu danych firmy.
 
-W przygotowanym środowisku używamy już obecnych Playwright/axe i Chromium,
-bez instalowania dodatkowych paczek. Instrukcja i zakres: [tests/README.md](tests/README.md).
-Sprawdzamy nowe przepływy, wąski ekran, dostępność oraz reprezentatywny kontakt
-i C.A.R.T.E.L.; nie uruchamiamy ponownie wszystkich historycznych testów repozytorium.
+Po rejestracji i potwierdzeniu własnego fikcyjnego konta właściciela:
 
-## Architektura i koszty
+```bash
+npm run bootstrap:admin -- --email=owner-test@shadowbridge.invalid --grant-management
+```
 
-[docs/architecture.md](docs/architecture.md) opisuje uprawnienia, model bazy,
-anonimowe karty, autoryzację serwerową, kwarantannę i anonimizację dokumentów,
-historię przedstawień, umowy prowizyjne i kontrolowane ujawnianie tożsamości.
-Pełne tożsamości i wewnętrzne powiązania pozostają wyłącznie po stronie backendu.
+Zaloguj się ponownie, przejdź do Command Center i skonfiguruj prawdziwy TOTP
+w aplikacji uwierzytelniającej. Bez MFA nie można odczytywać ani zmieniać danych
+administracyjnych. Nie istnieje wspólne hasło demo ani automatycznie aktywny admin.
 
-Rekomendacja: PostgreSQL/Auth/prywatny Storage + API/BFF (np. Supabase),
-e-mail transakcyjny i osobny proces skanowania dokumentów. Wstępny budżet
-małego wdrożenia: **35–85 USD/mies.**; aktualnych cenników nie udało się
-potwierdzić przez proxy, więc przed zakupem wymagają ponownego sprawdzenia.
-Nie uruchomiono usług i nie poniesiono opłat. Backend, Command Center,
-C.A.R.T.E.L. Private Division i produkcyjne wdrożenie wymagają osobnej akceptacji.
+Zarejestruj następnie Buyer, Supplier i B2B Partner, potwierdź ich e-maile w
+Mailpit i zatwierdź firmy jako administrator. Utwórz ofertę dostawcy oraz RFQ
+kupującego; prześlij je do oceny. Zatwierdź ofertę, przygotuj osobną nieidentyfikującą
+kartę i przydziel ją konkretnemu kupującemu. Zweryfikuj brak dostępu z innego konta.
+Partner może zgłaszać propozycje i widzieć przydzielone projekty oraz rzeczywiście
+uzgodnione prowizje. Wszystkie zapytania przechodzą przez ShadowBridge.
+
+Ctrl+C zatrzymuje BFF. `npm run dev:down` zatrzymuje kontenery **z zachowaniem
+wolumenu bazy**. Wolumen nie jest kopią zapasową.
+
+## Ochrona danych i granice MVP
+
+- Autoryzacja API i wymuszone RLS po stronie PostgreSQL; oddzielne role bazy.
+- Opaque HttpOnly sessions; JWT/refresh token zaszyfrowane na serwerze, bez localStorage.
+- Źródłowe oferty i pełne tożsamości są osobne od anonimowych kart i przydziałów.
+- Wątki wiadomości izolowane per firma, również przy tej samej anonimowej karcie.
+- Zawieszenie natychmiast blokuje biznesowe API; decyzje i ważne zdarzenia mają audyt.
+- Dokumenty nie są przesyłane. Przed prawdziwymi plikami wymagane są prywatny storage,
+  kwarantanna, antymalware, OCR/redakcja i ręczna akceptacja. Detekcja tekstu nie
+  gwarantuje usunięcia wszystkich identyfikatorów.
+- C.A.R.T.E.L. pozostaje stroną informacyjną; nie ma prywatnego logowania tej dywizji.
+
+Szczegóły: [uruchomienie i konfiguracja](docs/mvp-operations.md),
+[raport weryfikacji](docs/mvp-verification.md),
+[architektura docelowa](docs/architecture.md).
+
+## Testy i paczka publiczna
+
+```bash
+npm run test:api
+node --test server/tests/config.security.test.mjs
+```
+
+Przeglądarkowe testy korzystają z istniejącego Playwright; instrukcja w
+[server/tests/README.md](server/tests/README.md). Nie zawierają haseł testowych
+ani połączenia z prawdziwym CRM. Wcześniejsze makiety zachowano w `prototypes/`.
+
+`node scripts/build-preview.mjs --out /absolute/new-directory` buduje wyłącznie
+statyczny, nieindeksowany podgląd publiczny. Wyklucza backend, portal, account.js,
+sekrety, bazę, testy i makiety. Formularze kont pozostają w nim nieaktywne.
+**Nigdy nie uploaduj całego repozytorium jako publicznej witryny.**
+
+Nie skonfigurowano zewnętrznego Supabase, rzeczywistego SMTP ani hostingu BFF.
+GitHub Pages nie uruchomi tego backendu. Każde wdrożenie, usługi płatne i
+użycie prawdziwych danych wymagają osobnego zatwierdzenia; budżet wstępny
+małego środowiska to orientacyjnie 35–85 USD/mies., przed zakupem należy
+potwierdzić aktualne cenniki i zakres backupów.
+
+Przycisk WhatsApp używa numeru przekazanego przez właściciela. Link wa.me z
+samej swojej konstrukcji ujawnia numer docelowy; nie pokazujemy go jako osobnego
+tekstu na stronie i nie wysyłamy automatycznych wiadomości. Brak weryfikacji
+w tym środowisku, czy numer jest aktywnym kontem WhatsApp Business.

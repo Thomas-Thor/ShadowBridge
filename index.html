@@ -42,6 +42,8 @@
     <link rel="stylesheet" href="assets/styles.css" />
     <link rel="stylesheet" href="assets/entry.css" />
     <script type="module" src="assets/app.js"></script>
+    <script type="module" src="assets/business-contact.js"></script>
+    <link rel="stylesheet" href="assets/business-contact.css" />
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -647,6 +649,10 @@
               >
             </p>
             <span class="contact-domain">shadow-bridge.eu</span>
+            <a class="whatsapp-contact" id="whatsapp-contact" hidden target="_blank" rel="noopener noreferrer" aria-label="Contact ShadowBridge on WhatsApp (opens in a new tab)">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11.6a8 8 0 0 1-11.8 7L4 20l1.3-4.2A8 8 0 1 1 20 11.6Z"/><path d="M9 7.5c-1.2 1.5 1.8 5.7 4.6 6.7.8.3 1.6-.2 2-1.2l-2-1.2-.9.8c-1.2-.5-2.1-1.5-2.5-2.5l.7-.9Z"/></svg>
+              Discuss business on WhatsApp
+            </a>
           </div>
           <div class="preview-note">
             <span class="preview-label">SEND WITH YOUR EMAIL APP</span>
@@ -799,24 +805,18 @@
         <a href="#about">About</a><a href="#services">Services</a>
         <a href="#industries">Industries</a><a href="#approach">Approach</a>
         <a href="#network">Network</a><a href="#contact">Contact</a>
-        <div class="cartel-footer-access">
-          <a
-            class="cartel-footer-link"
-            href="cartel/"
-            aria-describedby="cartel-footer-subtitle"
-            ><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-              <rect x="5" y="10" width="14" height="11" rx="2" />
-              <path d="M12 14v3" /></svg
-            >C.A.R.T.E.L. Division</a
-          >
-          <span id="cartel-footer-subtitle">By invitation only</span>
-        </div>
+
       </nav>
       <div class="shell footer-bottom">
         <p>© <span id="copyright-year">2026</span> ShadowBridge</p>
         <p>International B2B brokerage & trade partnerships</p>
 
+      </div>
+      <div class="footer-private-access">
+        <a class="cartel-footer-link cartel-eye-link" href="cartel/" aria-label="C.A.R.T.E.L. Division" aria-describedby="cartel-footer-subtitle">
+          <img src="assets/cartel-eye.png" width="240" height="80" alt="" loading="lazy" />
+        </a>
+        <span id="cartel-footer-subtitle">By invitation only</span>
       </div>
     </footer>
   </body>

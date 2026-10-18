@@ -1,3 +1,16 @@
+# Tests by development stage
+
+Current functional MVP acceptance tests are documented in
+[server/tests/README.md](../server/tests/README.md): real GoTrue/PostgreSQL API,
+MFA, role isolation, desktop and mobile flows. `mvp-public.config.cjs` separately
+checks the static public package and its inactive account forms.
+
+`private-entry.spec.cjs` and `config.cjs` retain the earlier **static frontend**
+checks from commit `2cc4de8`. Their old inactive-page copy/field expectations are
+historical and are not the acceptance suite for functional account pages.
+The configs use explicit test filenames so a static Python server cannot silently
+substitute for the actual backend in current MVP tests.
+
 # Targeted frontend checks
 
 These checks exercise only the new application/sign-in pages and fictional workspace designs, plus two short regression checks for the preserved Gmail draft and C.A.R.T.E.L. footer route. They do not test authentication or a backend: neither exists in this phase.

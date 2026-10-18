@@ -12,7 +12,7 @@ const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
 
 module.exports = defineConfig({
   testDir: __dirname,
-  testMatch: '**/*.spec.cjs',
+  testMatch: 'private-entry.spec.cjs',
   fullyParallel: true,
   workers: 2,
   retries: 0,
