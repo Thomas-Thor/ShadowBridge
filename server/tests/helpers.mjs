@@ -101,24 +101,30 @@ export function confirmationLink(message) {
 
 export async function confirmMessage(client, message) {
   let url = confirmationLink(message);
+  async function complete(result) {
+    // The email exchange replaces the opaque BFF session. Match the browser's
+    // subsequent config read instead of reusing its pre-verification binding.
+    await client.request('/api/config', { expected: 200 });
+    return result;
+  }
   // GoTrue may issue its own verify URL. Follow only loopback redirects.
   for (let count = 0; count < 8; count++) {
     const sameBff = url.origin === appOrigin;
     if (sameBff) {
       const result = await client.request(`${url.pathname}${url.search}`, { expected: [200, 302, 303] });
       const next = result.headers.get('location');
-      if (!next) return result;
+      if (!next) return complete(result);
       url = new URL(next, url);
     } else {
       const response = await fetch(url, { redirect: 'manual' });
       assert.ok([200, 302, 303].includes(response.status), `Real Auth link returned HTTP ${response.status}`);
       const next = response.headers.get('location');
-      if (!next) return { status: response.status, headers: response.headers };
+      if (!next) return complete({ status: response.status, headers: response.headers });
       url = new URL(next, url);
     }
     assert.ok(['127.0.0.1', 'localhost'].includes(url.hostname), 'E-mail flow must not contact an external service');
     // The application return page is not another identity exchange.
-    if (url.origin === appOrigin && !/^\/auth\/(confirm|recover)/.test(url.pathname)) return { status: 303, headers: new Headers({ Location: url.href }) };
+    if (url.origin === appOrigin && !/^\/auth\/(confirm|recover)/.test(url.pathname)) return complete({ status: 303, headers: new Headers({ Location: url.href }) });
   }
   throw new Error('Verification redirect loop');
 }
@@ -141,6 +147,7 @@ export function totp(secret, timestamp = Date.now()) {
 }
 
 export async function registerActor(role, label = role) {
+  assert.ok(['127.0.0.1', 'localhost'].includes(new URL(appOrigin).hostname), 'Fictional registration fixtures must remain on the local development backend');
   const client = new Client();
   const actor = {
     role, email: `${runId}.${label}@test.shadowbridge.invalid`, password: password(),
@@ -161,6 +168,52 @@ export async function verifyActor(actor) {
   assert.equal(session.user.emailVerified, true, 'E-mail must be verified by real Auth before continuing');
   actor.user = session.user;
   return actor;
+}
+
+// DBA fixture setup is restricted to a freshly verified, fictional loopback
+// identity. Production bootstrap remains a separate operator procedure.
+export function bootstrapOwner(actor) {
+  assert.ok(['127.0.0.1', 'localhost'].includes(new URL(appOrigin).hostname), 'Owner fixtures are local-only');
+  assert.ok(actor.user?.id && actor.email.endsWith('@test.shadowbridge.invalid'), 'Only verified fictional fixture accounts can be bootstrapped');
+  db(`SELECT sb.bootstrap_owner(${sqlLiteral(actor.user.id)}::uuid)`);
+  return actor;
+}
+
+export async function enableMfa(actor) {
+  const factor = (await actor.client.request('/api/auth/mfa/enroll', { method: 'POST', body: {}, expected: 201 })).data;
+  assert.ok(factor.id && factor.totp?.secret, 'Real GoTrue TOTP enrollment is required');
+  actor.factorId = factor.id;
+  actor.mfaSecret = factor.totp.secret;
+  await actor.client.request('/api/auth/mfa/verify', {
+    method: 'POST', body: { factorId: actor.factorId, code: totp(actor.mfaSecret) }, expected: 200,
+  });
+  actor.mfaVerifiedAt = Date.now();
+  const session = await actor.client.request('/api/session', { expected: 200 });
+  assert.equal(session.data.user.aal, 'aal2', 'Management fixtures require an actual provider-verified AAL2 session');
+  actor.user = session.data.user;
+  return actor;
+}
+
+export async function catalogCategory(client, categoryKey = 'industrial-supplies') {
+  const result = await client.request('/api/catalog', { expected: 200 });
+  const category = result.data.categories.find(item => item.key === categoryKey && !item.parentId && item.active);
+  assert.ok(category, 'The shared active category catalogue must contain the requested root category');
+  const subcategory = result.data.categories.find(item => item.parentId === category.id && item.active);
+  return { categoryId: category.id, ...(subcategory ? { subcategoryId: subcategory.id } : {}) };
+}
+
+export async function qualifySupplier(owner, offerId) {
+  const prefix = `/api/staff/offers/${encodeURIComponent(offerId)}`;
+  for (const stage of ['company', 'right_to_sell', 'documents_goods', 'decision']) {
+    await owner.client.request(`${prefix}/supplier-qualification`, { method: 'POST', body: {
+      stage, decision: 'verified', sellerKind: 'manufacturer',
+      reason: `FICTIONAL local integration evidence reviewed for ${stage}; no real company or document.`,
+      evidenceReference: `FICTIONAL-${runId}-${stage}`,
+    }, expected: 200 });
+  }
+  await owner.client.request(`${prefix}/source-review`, { method: 'POST', body: {
+    sourceKind: 'supplier_owned', reason: 'FICTIONAL local fixture only; authority to sell and source evidence reviewed independently for this test.',
+  }, expected: 200 });
 }
 
 export function assertNoCounterpartySecrets(value, forbidden) {

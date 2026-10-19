@@ -14,13 +14,14 @@ export function createDatabase({ connectionString, sessionConnectionString, max 
     sessionPool,
     async asUser(user, { aal = 'aal1' } = {}, callback) {
       const id = typeof user === 'string' ? user : user?.id;
+      const mfaVerifiedAt = typeof user==='object' && Number.isInteger(user?.mfaVerifiedAt) && user.mfaVerifiedAt>0 ? String(user.mfaVerifiedAt) : '';
       if (!uuid.test(id ?? '') || !['aal1', 'aal2'].includes(aal) || typeof callback !== 'function') {
         throw new TypeError('A verified user UUID, AAL and callback are required');
       }
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
-        await client.query("SELECT set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claim.aal', $2, true), set_config('statement_timeout', '15000', true)", [id, aal]);
+        await client.query("SELECT set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claim.aal', $2, true), set_config('request.jwt.claim.mfa_verified_at', $3, true), set_config('statement_timeout', '15000', true)", [id, aal,mfaVerifiedAt]);
         const result = await callback(client);
         await client.query('COMMIT');
         return result;

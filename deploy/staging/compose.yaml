@@ -1,0 +1,118 @@
+name: ${STAGING_PROJECT:?Run staging:prepare first}
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    restart: unless-stopped
+    env_file: ${STAGING_DIR}/postgres.env
+    entrypoint: ["/bin/sh", "/staging/postgres-entrypoint.sh"]
+    command: ["postgres", "-c", "ssl=on", "-c", "ssl_cert_file=/var/lib/postgresql/tls/server.crt", "-c", "ssl_key_file=/var/lib/postgresql/tls/server.key", "-c", "ssl_ca_file=/var/lib/postgresql/tls/ca.crt", "-c", "log_statement=none"]
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./postgres-entrypoint.sh:/staging/postgres-entrypoint.sh:ro
+      - ./bootstrap.sh:/docker-entrypoint-initdb.d/10-shadowbridge.sh:ro
+    secrets: [postgres.crt, postgres.key, internal-ca.crt]
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shadowbridge"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+    security_opt: ["no-new-privileges:true"]
+  mailpit:
+    image: axllent/mailpit:v1.27.8@sha256:6abc8e633df15eaf785cfcf38bae48e66f64beecdc03121e249d0f9ec15f0707
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: "200"
+      MP_SMTP_AUTH_ACCEPT_ANY: "false"
+    networks: [private]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  auth:
+    image: supabase/gotrue:v2.184.0@sha256:c485010238ab429edf4ac8eb70b37b41aae0a0905277a935d4a0b64bb848e393
+    restart: unless-stopped
+    env_file: ${STAGING_DIR}/auth.env
+    depends_on:
+      postgres: {condition: service_healthy}
+      mailpit: {condition: service_healthy}
+    secrets: [internal-ca.crt]
+    networks: [private]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+  app:
+    image: ${STAGING_PROJECT}-app
+    build:
+      context: ../..
+      dockerfile: deploy/staging/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    env_file: ${STAGING_DIR}/app.env
+    depends_on:
+      postgres: {condition: service_healthy}
+    secrets: [internal-ca.crt]
+    networks: [private]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8088/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  migrator:
+    image: ${STAGING_PROJECT}-migrator
+    build:
+      context: ../..
+      dockerfile: deploy/staging/Dockerfile
+      target: migrator
+    env_file: ${STAGING_DIR}/migration.env
+    secrets: [internal-ca.crt]
+    networks: [private]
+    profiles: [tools]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+  gateway:
+    image: caddy:2-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/staging/caddy-entrypoint.sh"]
+    ports:
+      - "${STAGING_BIND:?}:${STAGING_HTTP_PORT:?}:80"
+      - "${STAGING_BIND:?}:${STAGING_HTTPS_PORT:?}:443"
+    volumes:
+      - ${STAGING_DIR}/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy-entrypoint.sh:/staging/caddy-entrypoint.sh:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    secrets: [auth-proxy.crt, auth-proxy.key, public.crt, public.key, tester-password]
+    networks:
+      private:
+        aliases: [auth-proxy]
+      public: {}
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+networks:
+  private: {internal: true}
+  public: {}
+volumes:
+  database:
+  caddy-data:
+  caddy-config:
+secrets:
+  internal-ca.crt: {file: "${STAGING_DIR}/certs/internal-ca.crt"}
+  postgres.crt: {file: "${STAGING_DIR}/certs/postgres.crt"}
+  postgres.key: {file: "${STAGING_DIR}/certs/postgres.key"}
+  auth-proxy.crt: {file: "${STAGING_DIR}/certs/auth-proxy.crt"}
+  auth-proxy.key: {file: "${STAGING_DIR}/certs/auth-proxy.key"}
+  public.crt: {file: "${STAGING_DIR}/certs/public.crt"}
+  public.key: {file: "${STAGING_DIR}/certs/public.key"}
+  tester-password: {file: "${STAGING_DIR}/tester-password"}

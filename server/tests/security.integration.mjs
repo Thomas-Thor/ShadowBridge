@@ -3,7 +3,7 @@ import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import {
   appOrigin, Client, runId, password, db, sqlLiteral, registerActor, verifyActor,
-  waitForMessage, confirmMessage, totp, assertNoCounterpartySecrets,
+  waitForMessage, confirmMessage, totp, assertNoCounterpartySecrets, bootstrapOwner, catalogCategory, qualifySupplier,
 } from './helpers.mjs';
 
 // These are destructive only to the uniquely named fictional records created by
@@ -11,7 +11,7 @@ import {
 // Retain audit evidence in the disposable local database; never reset shared data.
 const future = new Date(Date.now() + 120 * 86_400_000).toISOString().slice(0, 10);
 const offerData = {
-  category: 'Industrial materials', productName: 'Fictional recycled industrial polymer',
+  productName: 'Fictional recycled industrial polymer',
   description: 'Fictional laboratory-only product specification.', specification: 'Non-hazardous test granules; not a real commercial offer.',
   countryOfOrigin: 'NO', quantity: '20', unit: 'tonne', price: '1250', currency: 'EUR',
   minimumOrderQuantity: '5', incoterms: 'FCA', loadingLocation: 'NO', deliveryTerms: 'Collection by appointment',
@@ -42,6 +42,8 @@ test('Private B2B: real local Auth, PostgreSQL, RLS and counterparty confidentia
   assert.equal(health.status, 200, 'Start the documented local stack and BFF before running integration tests');
   assert.equal((await health.json()).backendEnabled, true, 'This suite requires the running backend, never the disabled static UI');
 
+  const category = await catalogCategory(new Client());
+  Object.assign(offerData, category); Object.assign(rfqData, category);
   let buyerA, buyerB, supplier, partner, owner, ownerAal1, offer, rfq, opportunity;
   async function step(name, fn) {
     await t.test(name, fn);
@@ -104,7 +106,7 @@ test('Private B2B: real local Auth, PostgreSQL, RLS and counterparty confidentia
   });
 
   await step('management requires a real TOTP factor and AAL2; AAL1 cannot approve', async () => {
-    db(`INSERT INTO sb.staff_grants(user_id,active) VALUES(${sqlLiteral(owner.user.id)},true) ON CONFLICT(user_id) DO UPDATE SET active=true`);
+    bootstrapOwner(owner);
     ownerAal1 = new Client();
     await ownerAal1.signIn(owner);
     const application = applicationFor(buyerA);
@@ -164,10 +166,11 @@ test('Private B2B: real local Auth, PostgreSQL, RLS and counterparty confidentia
   });
 
   await step('approval alone is insufficient; only reviewed anonymous cards may be assigned', async () => {
+    await qualifySupplier(owner, offer.id);
     await owner.client.request(`/api/admin/offers/${offer.id}/decision`, { method: 'POST', body: { decision: 'approved', reason: 'Fictional source reviewed internally; not yet disclosed' }, expected: 200 });
     assert.deepEqual((await buyerA.client.request('/api/opportunities', { expected: 200 })).data.items, []);
     const commercial = {
-      title: 'Reviewed industrial material opportunity', category: 'Industrial materials',
+      title: 'Reviewed industrial material opportunity', ...category,
       specification: 'Approved generic test polymer specification', quantity: '25', unit: 'tonne',
       price: '1250', currency: 'EUR', incoterms: 'FCA', availability: 'By agreement', validUntil: future,
     };

@@ -6,7 +6,7 @@ test('Horus footer has a keyboard accessible transparent image and preserves car
  const failures=[];page.on('pageerror',error=>failures.push(error.message));
  page.on('response',response=>{if(response.status()>=400)failures.push(response.url());});
  await page.goto('/');await page.evaluate(()=>document.fonts.ready);
- const link=page.getByRole('link',{name:'C.A.R.T.E.L. Division',exact:true});
+ const link=page.getByRole('link',{name:'C.A.R.T.E.L. Private Network — by invitation only',exact:true});
  await link.scrollIntoViewIfNeeded();await expect(link).toBeVisible();
  expect(await link.locator('img').evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
  const box=await link.boundingBox();expect(Math.abs(box.x+box.width/2-page.viewportSize().width/2)).toBeLessThan(2);

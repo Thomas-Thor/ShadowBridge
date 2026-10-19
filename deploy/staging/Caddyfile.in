@@ -1,0 +1,26 @@
+{
+	admin off
+	@LOCAL_OPTIONS@
+}
+
+https://@DOMAIN@ {
+	@PUBLIC_TLS@
+	basic_auth {
+		reviewer {$SB_TESTER_HASH}
+	}
+	header {
+		X-Robots-Tag "noindex, nofollow, noarchive"
+		Cache-Control "no-store"
+		-Server
+	}
+	reverse_proxy app:8088
+}
+
+# GoTrue is reachable only on the PRIVATE Docker network, never via the public site.
+https://auth-proxy:8444 {
+	tls /run/secrets/auth-proxy.crt /run/secrets/auth-proxy.key
+	handle_path /auth/v1/* {
+		reverse_proxy auth:9999
+	}
+	respond 404
+}

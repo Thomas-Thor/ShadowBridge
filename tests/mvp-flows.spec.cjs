@@ -37,7 +37,7 @@ test.describe('Real supplier, management and partner desktop workflows', () => {
   test.beforeAll(async () => {
     helpers = await import('../server/tests/helpers.mjs');
     owner = await helpers.verifyActor(await helpers.registerActor('partner', 'desktop-owner'));
-    helpers.db(`INSERT INTO sb.staff_grants(user_id,active) VALUES(${helpers.sqlLiteral(owner.user.id)},true)`);
+    helpers.bootstrapOwner(owner);
     const enrollment = await owner.client.request('/api/auth/mfa/enroll', { method: 'POST', body: {}, expected: 201 });
     await owner.client.request('/api/auth/mfa/verify', { method: 'POST', body: { factorId: enrollment.data.id, code: helpers.totp(enrollment.data.totp.secret) }, expected: 200 });
     supplier = await helpers.verifyActor(await helpers.registerActor('supplier', 'desktop-supplier'));
@@ -50,19 +50,22 @@ test.describe('Real supplier, management and partner desktop workflows', () => {
     }
   });
 
-  test('supplier creates, edits and submits; management UI approves and individually releases an anonymous card', async ({ page, browser }) => {
+  test('supplier creates, edits and submits; verified management individually releases an anonymous card', async ({ page, browser }) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await signIn(page, supplier, 'supplier');
     const create = section(page, 'New supplier offer');
     const product = `Fictional supplier UI material ${helpers.runId}`;
     await fill(create, {
-      category: 'Industrial materials', productName: product, description: 'Fictional desktop test material. No actual commercial availability.',
+      productName: product, description: 'Fictional desktop test material. No actual commercial availability.',
       specification: 'Generic non-hazardous industrial test granules.', countryOfOrigin: 'NO', quantity: '20', unit: 'tonne', price: '1250',
       minimumOrderQuantity: '5', loadingLocation: 'Norway', deliveryTerms: 'Collection by agreement', availability: 'Within 30 days',
       validUntil: future, certificationsStatus: 'Manual review required', notes: 'Fictional local UI verification only.',
     });
-    await create.locator('[name=currency]').selectOption('EUR');
+    const category = await helpers.catalogCategory(owner.client);
+    await create.locator('[name=categoryId]').selectOption(category.categoryId);
+    if (category.subcategoryId) await create.locator('[name=subcategoryId]').selectOption(category.subcategoryId);
+    await create.locator('[name=currency]').selectOption('PLN');
     await create.locator('[name=incoterms]').selectOption('FCA');
     const saved = page.waitForResponse(response => new URL(response.url()).pathname === '/api/offers' && response.request().method() === 'POST');
     await create.getByRole('button', { name: 'Save private draft', exact: true }).click();
@@ -78,6 +81,8 @@ test.describe('Real supplier, management and partner desktop workflows', () => {
     await expect(editor).toHaveCount(0);
     const ownOffer = (await (await page.request.get(`/api/offers/${offer.id}`)).json()).item;
     expect(ownOffer.data.quantity).toBe(24);
+    expect(ownOffer.data.categoryId).toBe(category.categoryId);
+    expect(ownOffer.data.currency).toBe('PLN');
     await record.getByRole('button', { name: 'Submit for review', exact: true }).click();
     await expect(record.locator('small').first()).toContainText('submitted');
     await expect(record.getByRole('button', { name: 'Edit draft', exact: true })).toHaveCount(0);
@@ -85,21 +90,19 @@ test.describe('Real supplier, management and partner desktop workflows', () => {
     const management = await ownerContext(browser);
     try {
       management.page.on('pageerror', error => errors.push(error.message));
-      const review = section(management.page, 'Supplier offer review').locator('.portal-record').filter({ has: management.page.getByRole('heading', { name: product, exact: true }) });
-      await expect(review).toBeVisible();
-      await expect(review.getByText(supplier.companyName, { exact: true })).toBeVisible();
-      await review.locator('[name=decision]').selectOption('approved');
-      await review.locator('[name=reason]').fill('Fictional source reviewed internally; no identity release approved.');
-      await review.getByRole('button', { name: 'Record review decision', exact: true }).click();
-      await expect(review.locator('small').first()).toContainText('approved');
+      await helpers.qualifySupplier(owner, offer.id);
+      await owner.client.request(`/api/staff/offers/${offer.id}/decision`, { method: 'POST', body: { decision: 'approved', reason: 'Fictional UI flow source reviewed after four explicit supplier verification stages.' }, expected: 200 });
+      await management.page.goto('/portal/admin/?module=opportunities');
       expect((await buyer.client.request('/api/opportunities', { expected: 200 })).data.items).toEqual([]);
       const anonymous = section(management.page, 'Prepare an anonymous commercial opportunity');
       const title = `Reviewed industrial opportunity ${helpers.runId}`;
       await fill(anonymous, {
-        sourceOfferId: offer.id, title, category: 'Industrial materials', specification: 'Reviewed generic non-identifying industrial specification.',
+        sourceOfferId: offer.id, title, specification: 'Reviewed generic non-identifying industrial specification.',
         quantity: '24', unit: 'tonne', price: '1250', incoterms: 'FCA', availability: 'By agreement', validUntil: future,
       });
-      await anonymous.locator('[name=currency]').selectOption('EUR');
+      await anonymous.locator('[name=categoryId]').selectOption(category.categoryId);
+      if (category.subcategoryId) await anonymous.locator('[name=subcategoryId]').selectOption(category.subcategoryId);
+      await anonymous.locator('[name=currency]').selectOption('PLN');
       await anonymous.locator('[name=reviewedNonIdentifying]').check();
       const released = management.page.waitForResponse(response => new URL(response.url()).pathname === '/api/admin/opportunities' && response.request().method() === 'POST');
       await anonymous.getByRole('button', { name: 'Create restricted anonymous opportunity', exact: true }).click();

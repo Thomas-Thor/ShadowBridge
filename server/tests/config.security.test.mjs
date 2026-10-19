@@ -31,3 +31,12 @@ test('local development cannot expose its HTTP service or identity provider exte
   assert.throws(() => loadConfig({ ...env, APP_URL: 'http://public.shadowbridge.invalid' }), /loopback/);
   assert.throws(() => loadConfig({ ...env, SUPABASE_URL: 'http://public.shadowbridge.invalid' }), /loopback/);
 });
+
+test('external email is disabled by default and staging requires a bounded exact allowlist', () => {
+  const env = fixture();
+  assert.equal(loadConfig(env).mailDeliveryMode, 'disabled');
+  assert.throws(()=>loadConfig({...env,MAIL_DELIVERY_MODE:'allowlist'}), /ALLOWLIST/);
+  assert.throws(()=>loadConfig({...env,MAIL_DELIVERY_MODE:'anywhere'}), /MAIL_DELIVERY_MODE/);
+  assert.throws(()=>loadConfig({...env,MAIL_DELIVERY_MODE:'allowlist',TEST_EMAIL_ALLOWLIST:'*@example.invalid'}), /exact/);
+  assert.deepEqual(loadConfig({...env,MAIL_DELIVERY_MODE:'allowlist',TEST_EMAIL_ALLOWLIST:'Owner@shadowbridge.invalid'}).testEmailAllowlist, ['owner@shadowbridge.invalid']);
+});

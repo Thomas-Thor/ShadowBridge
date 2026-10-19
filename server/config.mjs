@@ -13,6 +13,11 @@ export function loadConfig(env = process.env) {
   if (provider.username || provider.password || provider.search || provider.hash) throw new Error('Invalid SUPABASE_URL');
   const localHosts = ['127.0.0.1', 'localhost', '[::1]'];
   const production = appEnv === 'production';
+  const mailDeliveryMode = env.MAIL_DELIVERY_MODE || (production ? 'disabled' : 'captured');
+  if (!['disabled','captured','allowlist'].includes(mailDeliveryMode)) throw new Error('MAIL_DELIVERY_MODE must be disabled, captured or allowlist');
+  const testEmailAllowlist = Object.freeze((env.TEST_EMAIL_ALLOWLIST || '').split(',').map(value=>value.trim().toLowerCase()).filter(Boolean));
+  if (testEmailAllowlist.length > 20 || testEmailAllowlist.some(email=>email.includes('*') || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new Error('Use at most 20 exact test email addresses');
+  if (mailDeliveryMode === 'allowlist' && !testEmailAllowlist.length) throw new Error('Allowlisted mail requires explicit TEST_EMAIL_ALLOWLIST');
   if (production && (app.protocol !== 'https:' || provider.protocol !== 'https:')) throw new Error('Production APP_URL and SUPABASE_URL must use HTTPS');
   if (!production && (!localHosts.includes(app.hostname) || !localHosts.includes(provider.hostname))) throw new Error('Local/test providers and website must bind to loopback origins');
   const host = env.HOST || '127.0.0.1';
@@ -37,6 +42,7 @@ export function loadConfig(env = process.env) {
     supabaseAnonKey: required(env, 'SUPABASE_ANON_KEY'),
     databaseUrl, sessionDatabaseUrl, sessionEncryptionKey,
     secureCookies: production || app.protocol === 'https:',
+    mailDeliveryMode, testEmailAllowlist,
     sessionLifetimeSeconds: 60 * 60 * 24 * 7,
   });
 }

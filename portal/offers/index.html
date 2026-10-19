@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="theme-color" content="#101211" />
+  <title>Offers Workspace | ShadowBridge</title>
+  <link rel="icon" type="image/svg+xml" href="../../assets/bridge-mark.svg" />
+  <link rel="stylesheet" href="../../assets/styles.css" />
+  <link rel="stylesheet" href="../../assets/entry.css" />
+  <link rel="stylesheet" href="../../assets/portal.css" />
+  <link rel="stylesheet" href="../../assets/offers-workspace.css" />
+  <script src="../../assets/offers-workspace.js" defer></script>
+</head>
+<body class="entry-page portal-page offers-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="entry-header"><div class="entry-shell entry-header-inner">
+    <a class="brand" href="../../"><img src="../../assets/bridge-mark.svg" width="44" height="44" alt="" /><span class="brand-type">SHADOWBRIDGE<span>INTERNATIONAL TRADE &amp; PARTNERSHIPS</span></span></a>
+    <nav class="entry-nav" aria-label="Main navigation"><a href="../../">Public website</a><a href="../../portal/admin/">Command Center</a></nav>
+  </div></header>
+  <main id="main" class="entry-shell portal-shell" tabindex="-1">
+    <div class="portal-heading"><div><p class="eyebrow">CONTROLLED COMMERCIAL COOPERATION</p><h1>Offers Workspace</h1><p class="offers-intro">Focused review. Controlled access. Confidential counterparties.</p></div><div id="offers-account" class="portal-account"></div></div>
+    <div id="offers-status" class="entry-notice" role="status" aria-live="polite"><strong>Private service unavailable.</strong><p>No commercial records have been loaded. An authorized staff session and a secure backend are required.</p></div>
+    <nav id="offers-navigation" class="portal-navigation" aria-label="Management workspaces" hidden><a href="../../portal/admin/">Overview &amp; operations</a><a href="./" aria-current="page">Offers</a></nav>
+    <section id="offers-workspace" aria-label="Supplier offers" hidden>
+      <form id="offers-filters" class="offers-filters" role="search" aria-label="Filter offers">
+        <label class="entry-field offers-search" for="offers-search">Search approved visible information<input id="offers-search" name="q" type="search" maxlength="100" autocomplete="off" placeholder="Product, category or offer reference" /></label>
+        <label class="entry-field" for="offers-category">Category<select id="offers-category" name="categoryId"><option value="">All categories</option></select></label>
+        <label class="entry-field" for="offers-subcategory">Subcategory<select id="offers-subcategory" name="subcategoryId" disabled><option value="">All subcategories</option></select></label>
+        <label class="entry-field" for="offers-state">Status<select id="offers-state" name="status"><option value="">All statuses</option><option value="draft">Draft</option><option value="submitted">Submitted</option><option value="clarification_requested">Clarification requested</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="archived">Archived</option></select></label>
+        <label class="entry-field" for="offers-sort">Sort<select id="offers-sort" name="sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="updated">Recently updated</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option></select></label>
+        <button class="portal-button" type="submit">Apply filters</button>
+      </form>
+      <div class="offers-list-heading"><p id="offers-count" role="status" aria-live="polite"></p><label class="entry-field offers-page-size" for="offers-limit">Cards per page<select id="offers-limit"><option value="12">12</option><option value="24">24</option></select></label></div>
+      <div id="offers-grid" class="offers-grid" aria-label="Offer cards" aria-busy="false"></div>
+      <nav id="offers-pagination" class="offers-pagination" aria-label="Offer pages" hidden><button id="offers-previous" class="portal-button portal-button-secondary" type="button">Previous</button><p id="offers-page-label"></p><button id="offers-next" class="portal-button portal-button-secondary" type="button">Next</button></nav>
+      <p class="portal-policy">Commercial introductions and communications are coordinated through ShadowBridge. Counterparty identities and confidential records remain protected. Access to the C.A.R.T.E.L. Private Network is strictly by invitation and subject to separate authorization.</p>
+    </section>
+    <div id="offers-access-action"></div>
+    <noscript><p class="portal-policy">JavaScript is required to communicate with the secure backend. No private data is included in this page.</p></noscript>
+  </main>
+  <dialog id="offer-detail" class="offer-detail" aria-labelledby="offer-detail-title"><div class="offer-detail-bar"><p class="eyebrow">SHADOWBRIDGE · PRIVATE OFFER</p><button id="offer-detail-close" class="portal-button portal-button-secondary" type="button" autofocus>Close detail</button></div><div id="offer-detail-body"></div></dialog>
+  <footer class="entry-footer"><div class="entry-shell entry-footer-inner"><p>SELECTIVE COOPERATION. CONTROLLED INTRODUCTIONS.</p><a class="entry-cartel-network" href="../../cartel/" aria-label="C.A.R.T.E.L. Private Network — by invitation only"><img src="../../assets/cartel-eye.png" width="104" height="35" alt="" loading="lazy" /><span>C.A.R.T.E.L.<small>PRIVATE NETWORK</small></span></a></div></footer>
+</body>
+</html>

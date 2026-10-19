@@ -120,3 +120,15 @@
 .entry-notice-error { border-color: #bc8c79; }
 .entry-notice a { margin-top: 8px; }
 .entry-page [hidden] { display: none !important; }
+
+/* Discreet private-network entry; membership never implies management access. */
+.entry-footer .entry-cartel-network { display: inline-flex; flex-direction: column; justify-content: center; gap: 6px; min-width: 124px; min-height: 92px; padding: 8px 10px; text-align: center; text-decoration: none; color: #b6a58b; }
+.entry-cartel-network img { display: block; width: 104px; height: auto; filter: brightness(.8) saturate(.72); transition: filter 180ms ease; }
+.entry-cartel-network span { font-size: 10px; line-height: 1.6; letter-spacing: .14em; }
+.entry-cartel-network small { display: block; font-size: 8px; letter-spacing: .14em; }
+.entry-footer .entry-cartel-network:hover { color: var(--bronze-light); text-decoration: none; }
+.entry-cartel-network:hover img, .entry-cartel-network:focus-visible img { filter: brightness(1) saturate(.9); }
+.entry-cartel-network:focus-visible { outline: 2px solid var(--bronze-light); outline-offset: 4px; }
+.entry-network-policy { margin-top: 14px; }
+@media (max-width: 650px) { .entry-footer .entry-cartel-network { margin-inline: auto; } }
+@media (prefers-reduced-motion: reduce) { .entry-cartel-network img { transition: none; } }

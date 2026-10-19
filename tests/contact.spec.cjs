@@ -36,11 +36,11 @@ test('public contact persists to the private queue and renders safely for MFA ma
   expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
 
   const owner = await helpers.verifyActor(await helpers.registerActor('partner', `${testInfo.project.name}-queue-owner`));
-  helpers.db(`INSERT INTO sb.staff_grants(user_id,active) VALUES(${helpers.sqlLiteral(owner.user.id)},true)`);
+  helpers.bootstrapOwner(owner);
   const factor = (await owner.client.request('/api/auth/mfa/enroll', { method: 'POST', body: {}, expected: 201 })).data;
   await owner.client.request('/api/auth/mfa/verify', { method: 'POST', body: { factorId: factor.id, code: helpers.totp(factor.totp.secret) }, expected: 200 });
   await page.context().addCookies([...owner.client.cookies].map(([name, value]) => ({ name, value, url: helpers.appOrigin, httpOnly: true, sameSite: 'Lax' })));
-  await page.goto('/portal/admin/');
+  await page.goto('/portal/admin/?module=contact');
   const queue = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Contact enquiry queue', exact: true }) });
   const record = queue.locator('.portal-record').filter({ has: page.getByRole('heading', { name: receipt, exact: true }) });
   await expect(record).toBeVisible();
@@ -55,7 +55,7 @@ test('public contact persists to the private queue and renders safely for MFA ma
   expect(errors).toEqual([]);
 });
 
-test('a second tab rotating CSRF cannot lose or duplicate a valid enquiry', async ({ page }, testInfo) => {
+test('a second tab reading configuration preserves CSRF and saves exactly one enquiry', async ({ page }, testInfo) => {
   const email = `${helpers.runId}.${testInfo.project.name}.two-tabs@test.shadowbridge.invalid`;
   await page.goto('/#contact');
   const form = page.locator('#enquiry-form');
@@ -67,8 +67,8 @@ test('a second tab rotating CSRF cannot lose or duplicate a valid enquiry', asyn
   await form.locator('[name=message]').fill(`FICTIONAL local two-tab CSRF regression ${helpers.runId}. No real business data.`);
   await form.locator('[name=consent]').check();
 
-  // Real shared browser cookies rotate in another tab. Do not mock a failed
-  // response: the server must actually reject the stale token before any write.
+  // Real configuration reads in another tab must preserve the token.
+  // No response is mocked: the enquiry is committed once to PostgreSQL.
   const otherTab = await page.context().newPage();
   const rotation = await otherTab.goto('/api/config');
   expect(rotation.status()).toBe(200);
@@ -82,8 +82,7 @@ test('a second tab rotating CSRF cannot lose or duplicate a valid enquiry', asyn
   const result = await saved;
   const { receipt } = await result.json();
   await expect(page.locator('#enquiry-status')).toContainText(receipt);
-  expect(posts.map(response => response.status())).toEqual([403, 201]);
-  expect((await posts[0].json()).code).toBe('csrf_failed');
+  expect(posts.map(response => response.status())).toEqual([201]);
   expect(helpers.db(`SELECT count(*) FROM sb.contact_enquiries WHERE email=${helpers.sqlLiteral(email)}`)).toBe('1');
   expect(helpers.db(`SELECT count(*) FROM sb.contact_enquiries WHERE public_id=${helpers.sqlLiteral(receipt)} AND email=${helpers.sqlLiteral(email)}`)).toBe('1');
 });
@@ -112,7 +111,7 @@ test('public entry points, WhatsApp and centred C.A.R.T.E.L. seal remain availab
   await expect.poll(() => seal.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
   const centred = await seal.evaluate(image => Math.abs(image.getBoundingClientRect().x + image.getBoundingClientRect().width / 2 - innerWidth / 2));
   expect(centred).toBeLessThanOrEqual(2);
-  await page.getByRole('link', { name: 'C.A.R.T.E.L. Division', exact: true }).click();
+  await page.getByRole('link', { name: 'C.A.R.T.E.L. Private Network — by invitation only', exact: true }).click();
   await expect(page).toHaveURL(/\/cartel\/$/);
   await expect(page.locator('body')).toContainText(/invitation.only|restricted.access/i);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

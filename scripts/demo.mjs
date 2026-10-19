@@ -170,7 +170,13 @@ async function prepareManagement(record, owner, environment) {
     if (result.rowCount !== 1) throw new DemoError('Verified local demo owner is required before management bootstrap.');
     // Same explicit, local DBA operation as bootstrap:admin. Approval itself
     // subsequently uses the real management API and live GoTrue AAL2 session.
-    await admin.query('INSERT INTO sb.staff_grants(user_id,active) VALUES($1,true) ON CONFLICT(user_id) DO NOTHING', [owner.user.id]);
+    const grant=(await admin.query('SELECT active FROM sb.staff_grants WHERE user_id=$1',[owner.user.id])).rows[0];
+    if(grant && !grant.active)throw new DemoError('The local demo management grant was revoked; it will not be reactivated.');
+    if(!record.rbacBootstrapped){
+      await admin.query('SELECT sb.bootstrap_owner($1::uuid)',[owner.user.id]);
+      record.rbacBootstrapped=true; await save(record);
+    }
+
   } finally { await admin.end(); }
   const factors = (await owner.client.request('/api/auth/factors')).data.factors;
   if (!record.mfa) {
@@ -204,6 +210,10 @@ async function prepareFixtures(record, actors) {
   }
   await save(record);
   const future = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  const catalogue=(await owner.client.request('/api/catalog')).data;
+  const category=catalogue.categories.find(item=>item.key==='industrial-supplies' && !item.parentId);
+  if(!category)throw new DemoError('Demo category is unavailable; existing data was preserved.');
+  const categoryId=category.id;
   async function draft(kind, actor, fixture, data) {
     let item;
     if (record.fixtures[fixture]) item = (await actor.client.request(`/api/${kind}/${record.fixtures[fixture]}`)).data.item;
@@ -214,12 +224,18 @@ async function prepareFixtures(record, actors) {
     if (item.status === 'draft') await actor.client.request(`/api/${kind}/${item.id}/submit`, { method: 'POST', body: {} });
     return (await actor.client.request(`/api/${kind}/${item.id}`)).data.item;
   }
-  const offer = await draft('offers', supplier, 'offer', { category: 'Industrial materials', productName: 'FICTIONAL recycled polymer granules', description: 'Local demonstration only. Not a real commercial offer.', specification: 'Fictional generic industrial polymer; illustrative technical specification.', countryOfOrigin: 'NO', quantity: 25, unit: 'tonne', price: 1250, currency: 'EUR', minimumOrderQuantity: 5, incoterms: 'FCA', deliveryTerms: 'Illustrative only; coordinated by ShadowBridge.', availability: 'By agreement', validUntil: future });
-  await draft('rfqs', buyer, 'rfq', { product: 'FICTIONAL industrial polymer purchase request', specifications: 'Local demonstration. Generic illustrative specification.', quantity: 10, unit: 'tonne', budget: 15000, currency: 'EUR', deliveryCountry: 'SE', deadline: future, requirements: 'All introductions and negotiations through ShadowBridge.' });
+  const offer = await draft('offers', supplier, 'offer', { categoryId, productName: 'FICTIONAL recycled polymer granules', description: 'Local demonstration only. Not a real commercial offer.', specification: 'Fictional generic industrial polymer; illustrative technical specification.', countryOfOrigin: 'NO', quantity: 25, unit: 'tonne', price: 1250, currency: 'EUR', minimumOrderQuantity: 5, incoterms: 'FCA', deliveryTerms: 'Illustrative only; coordinated by ShadowBridge.', availability: 'By agreement', validUntil: future });
+  await draft('rfqs', buyer, 'rfq', { categoryId, product: 'FICTIONAL industrial polymer purchase request', specifications: 'Local demonstration. Generic illustrative specification.', quantity: 10, unit: 'tonne', budget: 15000, currency: 'EUR', deliveryCountry: 'SE', deadline: future, requirements: 'All introductions and negotiations through ShadowBridge.' });
   await draft('proposals', partner, 'proposal', { title: 'FICTIONAL northern Europe introduction', description: 'Local test proposal for ShadowBridge screening.', countries: ['NO', 'SE'], sectors: ['Industrial materials'], scope: 'Illustrative introduction only; no real counterparties.' });
+  // Only a newly submitted, namespaced fictional fixture is qualified by this
+  // explicit local demo scenario. Existing approved/rejected records are preserved.
+  if(offer.status==='submitted'){
+    for(const stage of ['company','right_to_sell','documents_goods','decision'])await owner.client.request(`/api/staff/offers/${offer.id}/supplier-qualification`,{method:'POST',body:{stage,decision:'verified',sellerKind:'manufacturer',reason:'FICTIONAL local demonstration evidence reviewed by the demo owner.',evidenceReference:`FICTIONAL-${record.id.toUpperCase()}`}});
+    await owner.client.request(`/api/staff/offers/${offer.id}/source-review`,{method:'POST',body:{sourceKind:'supplier_owned',reason:'FICTIONAL local demo product origin and sale authorization verified.'}});
+  }
   if (offer.status === 'submitted') await owner.client.request(`/api/admin/offers/${offer.id}/decision`, { method: 'POST', body: { decision: 'approved', reason: 'Fictional local demo source reviewed; identity remains internal.' } });
   if (!record.fixtures.opportunity) {
-    const { data } = await owner.client.request('/api/admin/opportunities', { method: 'POST', expected: [201], body: { sourceOfferId: offer.id, commercial: { title: 'FICTIONAL screened industrial material', category: 'Industrial materials', specification: 'Reviewed generic demo specification. No supplier identity or direct contact is released.', quantity: 25, unit: 'tonne', price: 1250, currency: 'EUR', incoterms: 'FCA', availability: 'By agreement', validUntil: future }, reviewedNonIdentifying: true } });
+    const { data } = await owner.client.request('/api/admin/opportunities', { method: 'POST', expected: [201], body: { sourceOfferId: offer.id, commercial: { title: 'FICTIONAL screened industrial material', categoryId, specification: 'Reviewed generic demo specification. No supplier identity or direct contact is released.', quantity: 25, unit: 'tonne', price: 1250, currency: 'EUR', incoterms: 'FCA', availability: 'By agreement', validUntil: future }, reviewedNonIdentifying: true } });
     record.fixtures.opportunity = data.item.id; await save(record);
   }
   const cards = (await buyer.client.request('/api/opportunities')).data.items;

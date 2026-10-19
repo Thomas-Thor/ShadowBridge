@@ -66,7 +66,7 @@ test.describe.serial('Real private B2B mobile workflow', () => {
 
   test('manual approval unlocks own RFQ UI; saving and submitting persist through real API', async ({ page }) => {
     const owner = await helpers.verifyActor(await helpers.registerActor('partner', `ui-owner-${applicant.user.id.slice(0, 8)}`));
-    helpers.db(`INSERT INTO sb.staff_grants(user_id,active) VALUES(${helpers.sqlLiteral(owner.user.id)},true)`);
+    helpers.bootstrapOwner(owner);
     const enrolled = await owner.client.request('/api/auth/mfa/enroll', { method: 'POST', body: {}, expected: [200, 201] });
     await owner.client.request('/api/auth/mfa/verify', { method: 'POST', body: { factorId: enrolled.data.id, code: helpers.totp(enrolled.data.totp.secret) }, expected: 200 });
     const application = helpers.db(`SELECT id FROM sb.applications WHERE user_id=${helpers.sqlLiteral(applicant.user.id)}`);
@@ -87,7 +87,10 @@ test.describe.serial('Real private B2B mobile workflow', () => {
       deadline: new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10), certificates: 'Manual review', requirements: 'ShadowBridge coordinates introductions.',
     };
     for (const [name, value] of Object.entries(values)) await create.locator(`[name=${name}]`).fill(value);
-    await create.locator('[name=currency]').selectOption('EUR');
+    const category = await helpers.catalogCategory(owner.client);
+    await create.locator('[name=categoryId]').selectOption(category.categoryId);
+    if (category.subcategoryId) await create.locator('[name=subcategoryId]').selectOption(category.subcategoryId);
+    await create.locator('[name=currency]').selectOption('PLN');
     await create.getByRole('button', { name: 'Save private draft', exact: true }).click();
     const record = page.locator('.portal-record').filter({ has: page.getByRole('heading', { name: values.product, exact: true }) });
     await expect(record).toBeVisible();
@@ -100,6 +103,8 @@ test.describe.serial('Real private B2B mobile workflow', () => {
     expect(records).toHaveLength(1);
     expect(records[0].status).toBe('submitted');
     expect(records[0].data.product).toBe(values.product);
+    expect(records[0].data.categoryId).toBe(category.categoryId);
+    expect(records[0].data.currency).toBe('PLN');
     await expect(page.getByText('No anonymous opportunities have been individually released to your company.')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);

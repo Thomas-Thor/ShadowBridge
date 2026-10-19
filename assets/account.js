@@ -5,6 +5,11 @@
   const notice = document.querySelector('#application-status, #sign-in-status');
   let csrfToken = null;
   let enabled = false;
+  let changed = false;
+  let checking;
+  const pending = new Set();
+  const sessionChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('shadowbridge-session') : null;
+  const changedMessage = 'The account in this browser changed or signed out. Reload this page before continuing. For simultaneous accounts, use separate browser profiles or a private window.';
   function report(title, detail, error = false) {
     if (!notice) return;
     notice.replaceChildren();
@@ -17,6 +22,38 @@
     form.querySelector('fieldset').disabled = !value;
     form.querySelector('button[type="submit"]').disabled = !value;
   }
+  function sessionChanged() {
+    if (changed) return;
+    changed = true; enabled = false; csrfToken = null;
+    for (const controller of pending) controller.abort();
+    pending.clear();
+    for (const form of forms) { form.reset(); unlock(form, false); form.removeAttribute('aria-busy'); }
+    report('Browser session changed.', changedMessage, true);
+  }
+  function announceSessionChange() { sessionChannel?.postMessage({ sessionChanged: true }); }
+  async function checkSession() {
+    if (!enabled || changed) throw new Error(changedMessage);
+    if (checking) return checking;
+    checking = (async () => {
+      const controller = new AbortController(); pending.add(controller);
+      try {
+        const response = await fetch('/api/session', { credentials: 'same-origin', cache: 'no-store', signal: controller.signal, headers: { Accept: 'application/json', 'X-Session-Token': csrfToken } });
+        const result = await response.json().catch(() => ({}));
+        if (changed) throw new Error(changedMessage);
+        if (response.status === 409 || result.code === 'csrf_failed' || (response.ok && result.csrfToken !== csrfToken)) {
+          sessionChanged(); throw new Error(changedMessage);
+        }
+        if (!response.ok) throw new Error('The secure service could not verify your browser session. Please try again.');
+      } finally { pending.delete(controller); }
+    })();
+    try { await checking; } finally { checking = null; }
+  }
+  sessionChannel?.addEventListener('message', (event) => { if (event.data?.sessionChanged === true) sessionChanged(); });
+  function checkVisibleSession() { if (!document.hidden && enabled && !changed) checkSession().catch(() => {}); }
+  window.addEventListener('focus', checkVisibleSession);
+  document.addEventListener('visibilitychange', checkVisibleSession);
+  window.addEventListener('pageshow', (event) => { if (event.persisted) sessionChanged(); });
+  window.setInterval(checkVisibleSession, 15_000);
   const recovery = new URLSearchParams(location.search).get('recovery') === '1';
   if (recovery) {
     const login = document.querySelector('#sign-in-form');
@@ -44,24 +81,33 @@
       else payload = { email: data.get('email'), password };
       unlock(form, false); form.setAttribute('aria-busy', 'true');
       try {
-        const response = await fetch(`/api/auth/${kind}`, { method: 'POST', credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify(payload) });
-        const result = await response.json().catch(() => ({}));
+        await checkSession();
+        if (changed) throw new Error(changedMessage);
+        const controller = new AbortController(); pending.add(controller);
+        let response; let result;
+        try {
+          response = await fetch(`/api/auth/${kind}`, { method: 'POST', credentials: 'same-origin', signal: controller.signal,
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken, 'X-Session-Token': csrfToken }, body: JSON.stringify(payload) });
+          result = await response.json().catch(() => ({}));
+        } finally { pending.delete(controller); }
+        if (changed) throw new Error(changedMessage);
+        if (result.code === 'session_changed' || result.code === 'csrf_failed') { sessionChanged(); throw new Error(changedMessage); }
         if (!response.ok) throw new Error(result.error || 'The request could not be completed. Please try again later.');
         form.reset();
-        if (kind === 'login') { location.assign('/portal/'); return; }
+        if (kind === 'login') { announceSessionChange(); location.assign('/portal/'); return; }
         if (kind === 'register') {
           report('Check your email.', 'If your application can proceed, a verification email will be sent. Email verification is followed by manual company review; private access is not granted automatically.');
           return;
         }
         if (kind === 'recover') report('Recovery request received.', 'If an eligible account exists for that address, a password recovery email will be sent.');
         if (kind === 'password') {
+          enabled = false; announceSessionChange();
           report('Password updated.', 'Your password has been changed and previous sessions have been signed out. Sign in again with your new password.');
           const link = document.createElement('a'); link.href = '/member-sign-in/'; link.textContent = 'Sign in again'; link.className = 'access-entry-link'; notice.append(link);
           return;
         }
         unlock(form, true);
-      } catch (error) { report('Request not completed.', error.message, true); unlock(form, true); }
+      } catch (error) { if (!changed) { report('Request not completed.', error.message, true); unlock(form, enabled); } }
       finally { form.removeAttribute('aria-busy'); }
     });
   }
@@ -69,6 +115,7 @@
     .then(async (response) => {
       if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Unavailable');
       const config = await response.json();
+      if (changed) return;
       if (config.backendEnabled !== true || typeof config.csrfToken !== 'string' || !config.csrfToken) throw new Error('Unavailable');
       csrfToken = config.csrfToken; enabled = true;
       for (const form of forms) unlock(form, true);

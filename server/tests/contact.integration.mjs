@@ -3,7 +3,7 @@ import test from 'node:test';
 import http from 'node:http';
 import { randomBytes } from 'node:crypto';
 import {
-  appOrigin, Client, db, runId, sqlLiteral, registerActor, verifyActor, totp,
+  appOrigin, Client, db, runId, sqlLiteral, registerActor, verifyActor, totp, bootstrapOwner,
 } from './helpers.mjs';
 
 // Use an actual, separate loopback source address: rate-limit tests must not
@@ -88,7 +88,7 @@ test('Contact queue: real PostgreSQL persistence, management-only access and dur
     owner = await verifyActor(await registerActor('partner', 'contact-owner'));
     buyer = await verifyActor(await registerActor('buyer', 'contact-buyer'));
     supplier = await verifyActor(await registerActor('supplier', 'contact-supplier'));
-    db(`INSERT INTO sb.staff_grants(user_id,active) VALUES(${sqlLiteral(owner.user.id)},true)`);
+    bootstrapOwner(owner);
     const lowAssurance = new Client();
     await lowAssurance.signIn(owner);
     await lowAssurance.request('/api/admin/contact-queue', { expected: 403 });

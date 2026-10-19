@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 export class AuthError extends Error {
   constructor(message, status = 401, code = 'authentication_failed') { super(message); this.status = status; this.code = code; }
@@ -40,6 +40,25 @@ export function createAuthService({ config, db }) {
   function cookie(name, value, maxAge) {
     return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${config.secureCookies ? '; Secure' : ''}`;
   }
+  function effectiveCookie(req, res, name) {
+    let value = cookies(req)[name] || '';
+    // Authentication replies may already have replaced or cleared the session.
+    // Bind the returned CSRF token to that new cookie, not the incoming cookie.
+    const pending = res?.getHeader('Set-Cookie');
+    for (const item of Array.isArray(pending) ? pending : pending ? [pending] : []) {
+      if (item.startsWith(`${name}=`)) value = item.slice(name.length + 1).split(';', 1)[0];
+    }
+    return value;
+  }
+  function sessionHash(req, res) {
+    const value = effectiveCookie(req, res, sessionName);
+    return /^[A-Za-z0-9_-]{43}$/.test(value) ? hash(value) : '';
+  }
+  function requestToken(req, res, seed = effectiveCookie(req, res, csrfName)) {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(seed)) return '';
+    return createHmac('sha256', config.sessionEncryptionKey)
+      .update(`shadowbridge-csrf:v1:${seed}:${sessionHash(req, res)}`).digest('base64url');
+  }
   function seal(value) {
     const nonce = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', config.sessionEncryptionKey, nonce);
@@ -75,9 +94,10 @@ export function createAuthService({ config, db }) {
     const user = await provider('/user', { accessToken: tokens.access_token });
     const claims = decodeClaims(tokens.access_token);
     if (!user.id || claims.sub !== user.id || !['aal1', 'aal2'].includes(claims.aal) || typeof claims.exp !== 'number' || claims.exp <= Date.now() / 1000) throw new AuthError('Invalid authentication session');
+    const mfaVerifiedAt = Math.max(0, ...(Array.isArray(claims.amr) ? claims.amr : []).filter(item=>item?.method==='totp' && Number.isInteger(item.timestamp)).map(item=>item.timestamp));
     return {
       id: user.id, email: user.email, emailVerified: Boolean(user.email_confirmed_at),
-      aal: claims.aal, sessionIdHash, recoveryOnly: Boolean(recoveryOnly),
+      aal: claims.aal, mfaVerifiedAt, sessionIdHash, recoveryOnly: Boolean(recoveryOnly),
     };
   }
   function normalizedTokens(tokens) {
@@ -118,14 +138,23 @@ export function createAuthService({ config, db }) {
 
   return Object.freeze({
     csrf(req, res) {
-      const token = opaque();
-      appendCookie(res, cookie(csrfName, token, 3600));
+      let seed = effectiveCookie(req, res, csrfName);
+      if (!/^[A-Za-z0-9_-]{43}$/.test(seed)) seed = opaque();
+      // Reads in another tab must not invalidate an existing form. The seed is
+      // stable; changing the authenticated session changes the derived token.
+      appendCookie(res, cookie(csrfName, seed, config.sessionLifetimeSeconds));
       res.setHeader('Cache-Control', 'no-store');
-      return { csrfToken: token };
+      return { csrfToken: requestToken(req, res, seed) };
+    },
+    enforceSession(req) {
+      const expected = req.headers['x-session-token'];
+      if (expected !== undefined && !equal(requestToken(req), expected)) {
+        throw new AuthError('The browser session changed. Reload this page before continuing.', 409, 'session_changed');
+      }
     },
     enforceCSRF(req) {
       if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return;
-      if (req.headers.origin !== config.appUrl || !equal(cookies(req)[csrfName], req.headers['x-csrf-token'])) throw new AuthError('Request origin or CSRF token is invalid', 403, 'csrf_failed');
+      if (req.headers.origin !== config.appUrl || !equal(requestToken(req), req.headers['x-csrf-token'])) throw new AuthError('Request origin or CSRF token is invalid', 403, 'csrf_failed');
     },
     async register({ email, password }) {
       await provider('/signup', { method: 'POST', body: { email, password } });
@@ -134,9 +163,9 @@ export function createAuthService({ config, db }) {
       // Never expose it to callers as an authorization principal.
       return { verificationRequired: true };
     },
-    async login({ email, password }, res) {
+    async login({ email, password }, res, req) {
       const tokens = await provider('/token?grant_type=password', { method: 'POST', body: { email, password } });
-      return createSession(tokens, res);
+      return createSession(tokens, res, false, req ? sessionHash(req) || null : null);
     },
     async authenticate(req) {
       const sessionId = cookies(req)[sessionName];
@@ -177,16 +206,19 @@ export function createAuthService({ config, db }) {
       catch (error) { if (error.status === 503 || error.status === 429) throw error; }
       return { accepted: true };
     },
-    async confirmEmail({ token, tokenHash }, res) {
+    async confirmEmail({ token, tokenHash }, res, req) {
       const tokens = await provider('/verify', { method: 'POST', body: { token_hash: tokenHash || token, type: 'signup' } });
-      return createSession(tokens, res, false, null, 'email_verified');
+      return createSession(tokens, res, false, req ? sessionHash(req) || null : null, 'email_verified');
     },
-    async confirmRecovery({ token, tokenHash }, res) {
+    async confirmRecovery({ token, tokenHash }, res, req) {
       const tokens = await provider('/verify', { method: 'POST', body: { token_hash: tokenHash || token, type: 'recovery' } });
-      return createSession(tokens, res, true, null, null);
+      return createSession(tokens, res, true, req ? sessionHash(req) || null : null, null);
     },
     async updatePassword(identity, { password }, res) {
       if (!identity) throw new AuthError('Please verify the password recovery email');
+      if (!identity.recoveryOnly) throw new AuthError('Verify your requested recovery email before setting a new password.', 403, 'recovery_required');
+      const protectedOwner=await db.asUser(identity,{aal:identity.aal},async tx=>(await tx.query("SELECT EXISTS(SELECT 1 FROM sb.staff_role_assignments WHERE user_id=$1 AND role_key='owner' AND active) AS protected",[identity.id])).rows[0].protected);
+      if(protectedOwner)throw new AuthError('Owner authentication recovery requires the controlled infrastructure recovery procedure. No password or MFA method was changed.',403,'owner_recovery_controlled');
       const tokens = await tokensFor(identity);
       await provider('/user', { method: 'PUT', accessToken: tokens.access_token, body: { password } });
       // Revoke every BFF session after password change. A fresh normal login is required.

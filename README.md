@@ -1,5 +1,10 @@
 # ShadowBridge — secure private B2B MVP
 
+**Punkt kontrolny, publikacja wstrzymana.** Zachowany rozwój po `a4582db` i jego
+ograniczenia opisano w [raporcie zabezpieczenia pracy](docs/checkpoint-2026-10-19.md).
+To nie jest potwierdzenie gotowości całej platformy do wydania. Poniższa instrukcja
+uruchomienia pochodzi z poprzedniego etapu; nowy launcher wymaga końcowej weryfikacji.
+
 Gałąź: `feature/secure-b2b-mvp`, oparta na `feature/private-b2b-entrypoints`
 (`2cc4de8`), zachowująca produkcyjny `main` (`d0512dd`). **Nie wdrożono tej
 wersji na shadow-bridge.eu.** Nie zmieniono DNS, GitHub Pages ani treści strony `/cartel/`.
