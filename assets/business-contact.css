@@ -9,3 +9,8 @@
 .whatsapp-contact:hover { background: #282b23; border-color: var(--bronze-light); }
 @media(max-width:650px) { .footer-private-access .cartel-eye-link img { width: 208px; } .whatsapp-contact { max-width: 100%; } }
 @media(prefers-reduced-motion:reduce) { .footer-private-access .cartel-eye-link, .whatsapp-contact { transition: none; } }
+
+.enquiry-consent { display: flex; gap: 12px; align-items: flex-start; color: var(--text-muted, #b7b2a9); font-size: 12px; line-height: 1.6; }
+.enquiry-consent input { flex: 0 0 20px; width: 20px; height: 20px; margin-top: 2px; accent-color: #b89467; }
+.enquiry-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.enquiry-form :disabled { cursor: not-allowed; opacity: .6; }

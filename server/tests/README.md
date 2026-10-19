@@ -10,9 +10,11 @@ From the repository root, after starting the local backend:
 
 ```sh
 node --test server/tests/config.security.test.mjs
-node --env-file=.local/development.env --test server/tests/security.integration.mjs
+npm run test:api
+npm run test:contact
 /workspace/ShadowBridge/v2/node_modules/.bin/playwright test -c tests/mvp-config.cjs
 /workspace/ShadowBridge/v2/node_modules/.bin/playwright test -c tests/mvp-desktop.config.cjs
+/workspace/ShadowBridge/v2/node_modules/.bin/playwright test -c tests/contact.config.cjs
 ```
 
 The browser dependency path above reuses tools already installed in this cloud
@@ -48,3 +50,9 @@ real TOTP, never a fabricated identity/token.
 
 These checks are release evidence for a local MVP, not a claim of independent
 penetration testing, a legal review or production-readiness certification.
+
+Contact integration covers actual committed queue persistence, CSRF/Origin, strict
+input validation, RLS, staff MFA, immutable intake, status audit and atomic
+PostgreSQL throttling. Rate tests use a separate real loopback source address;
+they do not clear existing buckets. Browser checks cover private queue rendering
+without HTML injection, application links, WhatsApp and the C.A.R.T.E.L. footer.

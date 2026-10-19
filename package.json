@@ -6,10 +6,14 @@
   "description": "Server-authorized private brokerage MVP. Local development only; public hosting is unchanged.",
   "engines": { "node": ">=22.12.0" },
   "scripts": {
+    "demo": "node scripts/demo.mjs",
+    "demo:accounts": "node scripts/demo.mjs accounts",
+    "demo:code": "node scripts/demo.mjs code",
     "dev:up": "node scripts/dev-up.mjs",
     "dev:down": "node scripts/dev-down.mjs",
     "dev:server": "node --env-file=.local/development.env server/app.mjs",
     "test:api": "node --env-file=.local/development.env --test --test-concurrency=1 server/tests/security.integration.mjs",
+    "test:contact": "node --env-file=.local/development.env --test --test-concurrency=1 server/tests/contact.integration.mjs",
     "bootstrap:admin": "node --env-file=.local/development.env scripts/bootstrap-admin.mjs",
     "build:preview": "node scripts/build-preview.mjs"
   },

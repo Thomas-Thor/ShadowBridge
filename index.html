@@ -620,8 +620,8 @@
             </article>
           </div>
           <p class="small-note role-note">
-            Selective cooperation. Applications are not open yet; private access
-            will require company verification and individual approval by ShadowBridge.
+            Selective cooperation. Private access requires email verification,
+            company review and individual approval by ShadowBridge.
             <a class="member-entry-link" href="member-sign-in/">Member Sign In <svg class="entry-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 18 18 6M6 6h12v12" /></svg></a>
           </p>
         </div>
@@ -643,23 +643,19 @@
           </p>
           <div class="contact-details">
             <p class="eyebrow">BUSINESS ENQUIRIES</p>
-            <p id="business-contact">
-              <a href="mailto:shadowbridge.trade@gmail.com"
-                >shadowbridge.trade@gmail.com</a
-              >
-            </p>
+            <p id="business-contact">Send a private business enquiry below.</p>
             <span class="contact-domain">shadow-bridge.eu</span>
-            <a class="whatsapp-contact" id="whatsapp-contact" hidden target="_blank" rel="noopener noreferrer" aria-label="Contact ShadowBridge on WhatsApp (opens in a new tab)">
+            <a class="whatsapp-contact" id="whatsapp-contact" hidden target="_blank" rel="noopener noreferrer" aria-label="Discuss business on WhatsApp (opens in a new tab)">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11.6a8 8 0 0 1-11.8 7L4 20l1.3-4.2A8 8 0 1 1 20 11.6Z"/><path d="M9 7.5c-1.2 1.5 1.8 5.7 4.6 6.7.8.3 1.6-.2 2-1.2l-2-1.2-.9.8c-1.2-.5-2.1-1.5-2.5-2.5l.7-.9Z"/></svg>
               Discuss business on WhatsApp
             </a>
           </div>
           <div class="preview-note">
-            <span class="preview-label">SEND WITH YOUR EMAIL APP</span>
+            <span class="preview-label">PRIVATE ENQUIRY QUEUE</span>
             <p id="contact-explanation">
-              Prepare your enquiry here, then review and send it through your
-              own email app. This website does not send email or store your
-              enquiry.
+              Your enquiry is saved for review by authorized ShadowBridge management.
+              Do not include confidential counterparty identities or documents.
+              Formal contact details are available in <a href="legal/">Legal Information</a>.
             </p>
           </div>
         </div>
@@ -711,8 +707,8 @@
                 <option value="">Select your role</option>
                 <option value="buyer">Buyer / importer</option>
                 <option value="supplier">Supplier / manufacturer</option>
-                <option value="agent">Independent B2B agent</option>
-                <option value="partnership">Other business partner</option>
+                <option value="partner">B2B partner / agent</option>
+                <option value="other">Other business enquiry</option>
               </select>
             </div>
           </div>
@@ -729,18 +725,27 @@
               required
             ></textarea>
           </div>
+          <label class="enquiry-consent" for="enquiry-consent">
+            <input id="enquiry-consent" name="consent" type="checkbox" required />
+            <span>I understand that my contact details and message will be stored in
+            ShadowBridge’s private enquiry queue for review. I will not submit confidential counterparty data.</span>
+          </label>
+          <div class="enquiry-trap" aria-hidden="true">
+            <label for="enquiry-website">Leave this field empty</label>
+            <input id="enquiry-website" name="website" tabindex="-1" autocomplete="off" />
+          </div>
           <div class="form-bottom">
             <p>
-              Fields marked * are required.<br />Your email app handles sending.
-              You can also download or copy your brief.
+              Fields marked * are required.<br />A receipt confirms that the enquiry
+              was saved. This form does not send email.
             </p>
             <button
-              id="prepare-email"
+              id="send-enquiry"
               class="button button-bronze"
               type="submit"
               disabled
             >
-              Prepare email
+              Send enquiry
               <span aria-hidden="true"
                 ><svg class="arrow-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M6 18 18 6M6 6h12v12" /></svg
@@ -760,9 +765,6 @@
               Copy brief instead
             </button>
           </div>
-          <a id="email-draft-link" class="text-link email-draft-link" hidden
-            >Open the prepared email again</a
-          >
           <p
             id="enquiry-status"
             class="form-status"
@@ -771,9 +773,8 @@
           ></p>
           <noscript
             ><p class="notice">
-              Preparing a draft or downloading a brief requires JavaScript. You
-              can still contact us using the email link above and send your
-              enquiry directly from your own email app.
+              The enquiry queue requires JavaScript and the secure backend.
+              Please use the formal contact in <a href="legal/">Legal Information</a> if unavailable.
             </p></noscript
           >
         </form>
@@ -805,6 +806,7 @@
         <a href="#about">About</a><a href="#services">Services</a>
         <a href="#industries">Industries</a><a href="#approach">Approach</a>
         <a href="#network">Network</a><a href="#contact">Contact</a>
+        <a href="legal/">Legal Information</a>
 
       </nav>
       <div class="shell footer-bottom">

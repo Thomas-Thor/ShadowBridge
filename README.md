@@ -11,41 +11,31 @@ W katalogu rozpakowanego repozytorium:
 
 ```bash
 npm ci
-npm run dev:up
-npm run dev:server
+npm run demo
 ```
 
-Na **tym samym komputerze** otwórz `http://127.0.0.1:8088/`, a testowe wiadomości
-w `http://127.0.0.1:8025/`. Nie są to publiczne linki do środowiska Codex.
-Używaj fikcyjnych firm i losowych, osobnych haseł. Cała poczta trafia do lokalnego
-Mailpit, nigdy do rzeczywistych odbiorców. Pierwszy start generuje sekrety poza
-Git i pobiera przypięte obrazy PostgreSQL, Supabase GoTrue oraz Mailpit.
+Po komunikacie **MVP gotowy** otwórz na swoim komputerze
+<http://127.0.0.1:8088/member-sign-in/>. W drugim terminalu, w tym samym
+katalogu, wykonaj `npm run demo:accounts`, aby zobaczyć losowo wygenerowane
+loginy i hasła Buyer, Supplier, Partner i Owner. Dla Owner użyj
+`npm run demo:code` i wpisz kod MFA w Command Center. Nie edytujesz plików
+konfiguracyjnych. Nie ma wspólnego hasła ani sekretów w Git.
 
-Rejestracja → prawdziwe potwierdzenie e-maila → oczekująca aplikacja firmy →
-ręczna decyzja zarządu. Nie ma automatycznego dostępu do ofert. Link potwierdzający
-najlepiej otworzyć w tym samym profilu przeglądarki. W innym profilu zaloguj się
-po potwierdzeniu i uzupełnij aplikację w portalu. Anonimowa odpowiedź GoTrue na
-rejestrację nigdy nie służy jako dowód tożsamości do zapisu danych firmy.
+Demo wykonuje prawdziwą rejestrację i potwierdzenie adresów w lokalnym Auth,
+MFA i zatwierdzenie fikcyjnych firm przez API. Tworzy testową ofertę, RFQ,
+indywidualnie przydzieloną anonimową okazję i projekt Partnera. Normalne
+zgłoszenia wymagają osobnej decyzji administratora.
 
-Po rejestracji i potwierdzeniu własnego fikcyjnego konta właściciela:
+Poczta testowa: <http://127.0.0.1:8025/>. Nie jest wysyłana do Gmaila.
+Formularz kontaktowy zapisuje wiadomość do prywatnej kolejki administratora
+w PostgreSQL; potwierdzeniem jest numer `SB-CONTACT-*`. Odczyt i statusy
+wymagają konta zarządu z MFA; formularz nie wysyła e-maila.
 
-```bash
-npm run bootstrap:admin -- --email=owner-test@shadowbridge.invalid --grant-management
-```
-
-Zaloguj się ponownie, przejdź do Command Center i skonfiguruj prawdziwy TOTP
-w aplikacji uwierzytelniającej. Bez MFA nie można odczytywać ani zmieniać danych
-administracyjnych. Nie istnieje wspólne hasło demo ani automatycznie aktywny admin.
-
-Zarejestruj następnie Buyer, Supplier i B2B Partner, potwierdź ich e-maile w
-Mailpit i zatwierdź firmy jako administrator. Utwórz ofertę dostawcy oraz RFQ
-kupującego; prześlij je do oceny. Zatwierdź ofertę, przygotuj osobną nieidentyfikującą
-kartę i przydziel ją konkretnemu kupującemu. Zweryfikuj brak dostępu z innego konta.
-Partner może zgłaszać propozycje i widzieć przydzielone projekty oraz rzeczywiście
-uzgodnione prowizje. Wszystkie zapytania przechodzą przez ShadowBridge.
-
-Ctrl+C zatrzymuje BFF. `npm run dev:down` zatrzymuje kontenery **z zachowaniem
-wolumenu bazy**. Wolumen nie jest kopią zapasową.
+[Krótka instrukcja Pop!_OS](docs/POP-OS.md) opisuje wymagania, ręczne testy
+nowych rejestracji i zatrzymanie. Ctrl+C zatrzymuje aplikację;
+`npm run dev:down` zatrzymuje kontenery, zachowując bazę. Następny start:
+`npm run demo`. Powyższe adresy działają lokalnie po uruchomieniu na Twoim
+komputerze, nie udostępniają środowiska Codex.
 
 ## Ochrona danych i granice MVP
 
@@ -67,6 +57,7 @@ Szczegóły: [uruchomienie i konfiguracja](docs/mvp-operations.md),
 
 ```bash
 npm run test:api
+npm run test:contact
 node --test server/tests/config.security.test.mjs
 ```
 
@@ -76,7 +67,7 @@ ani połączenia z prawdziwym CRM. Wcześniejsze makiety zachowano w `prototypes
 
 `node scripts/build-preview.mjs --out /absolute/new-directory` buduje wyłącznie
 statyczny, nieindeksowany podgląd publiczny. Wyklucza backend, portal, account.js,
-sekrety, bazę, testy i makiety. Formularze kont pozostają w nim nieaktywne.
+sekrety, bazę, testy i makiety. Formularze kont i kontaktu pozostają w nim nieaktywne.
 **Nigdy nie uploaduj całego repozytorium jako publicznej witryny.**
 
 Nie skonfigurowano zewnętrznego Supabase, rzeczywistego SMTP ani hostingu BFF.
@@ -89,3 +80,13 @@ Przycisk WhatsApp używa numeru przekazanego przez właściciela. Link wa.me z
 samej swojej konstrukcji ujawnia numer docelowy; nie pokazujemy go jako osobnego
 tekstu na stronie i nie wysyłamy automatycznych wiadomości. Brak weryfikacji
 w tym środowisku, czy numer jest aktywnym kontem WhatsApp Business.
+
+Sekcja [Legal Information](legal/index.html) zachowuje formalny adres e-mail
+właściciela i wskazuje operatora THØR NORDIC COMMERCE V/ TROJANOWSKI,
+934 957 296, ENK, Norway. SHADOWBRIDGE jest jego marką handlową.
+`assets/legal-information.js` umożliwia przypisanie kolejnych marek do tego samego
+operatora. Adres rejestrowy nie jest częścią kodu publicznego ani paczki; jego
+publikacja oczekuje osobnego zatwierdzenia. Nie dodano numeru VAT/MVA.
+Przed publicznym uruchomieniem platformy trzeba potwierdzić komplet wymaganych
+informacji, zasady retencji i wymagania właściwej jurysdykcji. Nie deklarujemy
+pełnej zgodności prawnej.

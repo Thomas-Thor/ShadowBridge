@@ -1,12 +1,5 @@
 // Public, non-secret content only. Add a separate locale module and translated
 // HTML entry point for each future language; keep SEO copy in the HTML.
-export const publicContact = Object.freeze({
-  // Confirmed by the owner; this is a public contact address, not a credential.
-  email: "shadowbridge.trade@gmail.com",
-  legalName: null,
-  phone: null,
-});
-
 export const industries = Object.freeze({
   food: {
     title: "Food & agriculture",
@@ -43,6 +36,8 @@ export const industries = Object.freeze({
 export const roleLabels = Object.freeze({
   buyer: "Buyer / importer",
   supplier: "Supplier / manufacturer",
+  partner: "B2B partner / agent",
+  other: "Other business enquiry",
   agent: "Independent B2B agent",
   partnership: "Other business partner",
 });

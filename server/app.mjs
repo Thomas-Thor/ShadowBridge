@@ -2,7 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomUUID, randomBytes, createHash } from 'node:crypto';
+import { randomUUID, randomBytes, createHash, createHmac } from 'node:crypto';
 import { loadConfig } from './config.mjs';
 import { createDatabase } from './db.mjs';
 import { createAuthService } from './auth.mjs';
@@ -106,6 +106,22 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
     const route = url.pathname; const method = req.method;
     if (method === 'GET' && route === '/api/config') return json(res, 200, { backendEnabled: true, environment: config.appEnv, ...auth.csrf(req, res) });
     if (!['GET','HEAD'].includes(method)) auth.enforceCSRF(req);
+    if (method === 'POST' && route === '/api/contact') {
+      const input = object(await body(req), ['name','email','company','role','message','consent','website'], ['name','email','role','message','consent','website']);
+      if (input.consent !== true || input.website !== '') throw new ApiError(400, 'INVALID_CONTACT', 'Confirm the enquiry notice and leave the website field empty.');
+      const email = text(input.email, 'email', {min:3,max:254}).toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ApiError(400, 'INVALID_EMAIL', 'Use a valid business email.');
+      const enquiry = {
+        name: text(input.name, 'name', {min:2,max:120}), email,
+        company: text(input.company ?? '', 'company', {max:200}),
+        role: oneOf(input.role, ['buyer','supplier','partner','other'], 'role'),
+        message: text(input.message, 'message', {min:20,max:5000}),
+      };
+      // Trust only the actual peer. Forwarded headers cannot reset the intake limit.
+      const clientKey = createHmac('sha256', config.sessionEncryptionKey).update(`contact:${req.socket.remoteAddress}`).digest('hex');
+      const saved = await db.sessionPool.query('SELECT sb.enqueue_contact($1::jsonb,$2::text) AS receipt', [JSON.stringify(enquiry),clientKey]);
+      return json(res,201,{accepted:true,receipt:saved.rows[0].receipt,message:'Your enquiry has been saved to the private ShadowBridge review queue. No email has been sent.'});
+    }
     if (method === 'POST' && route === '/api/auth/register') {
       limit(req, 'register'); const input = object(await body(req), ['email','password','role','company','profile'], ['email','password','role','company']);
       const proposed = applicationInput({role:input.role,company:input.company,profile:input.profile});
@@ -228,6 +244,7 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
       return txFor(ctx,async tx=>{
         if(method==='GET') {
           const adminLists={
+            'contact-queue':'SELECT public_id AS id,name,email,company,role,message,status,created_at AS "createdAt",reviewed_at AS "reviewedAt" FROM sb.contact_enquiries ORDER BY created_at DESC LIMIT 200',
             applications:'SELECT a.*,c.legal_name AS "companyName",c.country,ac.email FROM sb.applications a JOIN sb.companies c ON c.id=a.company_id JOIN sb.accounts ac ON ac.user_id=a.user_id ORDER BY a.created_at DESC LIMIT 200',
             companies:'SELECT c.*,ac.email,ac.status AS "accountStatus",m.role,m.status AS "membershipStatus",m.user_id AS "userId" FROM sb.companies c JOIN sb.accounts ac ON ac.user_id=c.created_by LEFT JOIN sb.memberships m ON m.company_id=c.id ORDER BY c.created_at DESC LIMIT 200',
             offers:'SELECT o.public_id AS id,o.status,o.data,o.created_at AS "createdAt",c.id AS "companyId",c.legal_name AS "companyName" FROM sb.offers o JOIN sb.companies c ON c.id=o.company_id ORDER BY o.created_at DESC LIMIT 200',
@@ -243,7 +260,14 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
             return json(res,200,{items});
           }
         }
-        let match=route.match(/^\/api\/admin\/applications\/([A-Za-z0-9-]+)\/decision$/);
+        let match=route.match(/^\/api\/admin\/contact-queue\/([A-Za-z0-9-]+)\/status$/);
+        if(method==='POST'&&match){
+          const input=object(await body(req),['status'],['status']);
+          const status=oneOf(input.status,['new','in_review','replied','closed'],'status');
+          const saved=one(await tx.query('UPDATE sb.contact_enquiries SET status=$1 WHERE public_id=$2 RETURNING public_id AS id,status,reviewed_at AS "reviewedAt"',[status,identifier(match[1])]));
+          return json(res,200,{item:saved});
+        }
+        match=route.match(/^\/api\/admin\/applications\/([A-Za-z0-9-]+)\/decision$/);
         if(method==='POST'&&match){const input=object(await body(req),['decision','reason'],['decision']);await tx.query('SELECT sb.decide_application($1::uuid,$2,$3)',[identifier(match[1]),oneOf(input.decision,['approved','rejected'],'decision'),text(input.reason||'','reason')]);return json(res,200,{updated:true});}
         match=route.match(/^\/api\/admin\/accounts\/([A-Za-z0-9-]+)\/status$/);
         if(method==='POST'&&match){const input=object(await body(req),['status'],['status']);const status=oneOf(input.status,['active','suspended'],'status');const id=identifier(match[1]);if(id===identity.id&&status==='suspended')throw new ApiError(400,'SELF_SUSPENSION','Cannot suspend your current management account.');one(await tx.query('UPDATE sb.accounts SET status=$1 WHERE user_id=$2::uuid RETURNING user_id',[status,id]));return json(res,200,{updated:true});}
@@ -276,8 +300,8 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
     if(req.method!=='GET'&&req.method!=='HEAD')throw new ApiError(405,'METHOD_NOT_ALLOWED','Method not allowed.');
     let pathname=decodeURIComponent(url.pathname);
     if(pathname.startsWith('/portal')) { const ctx=await context(await auth.authenticate(req)); if(!ctx||ctx.identity.recoveryOnly){res.writeHead(303,{Location:'/member-sign-in/'});return res.end();} }
-    const publicPage=/^\/(?:index\.html|apply\/(?:buyer|supplier|partner)\/(?:index\.html)?|member-sign-in\/(?:index\.html)?|cartel\/(?:index\.html)?|portal\/(?:(?:buyer|supplier|partner|admin)\/)?(?:index\.html)?)?$/;
-    const asset=/^\/assets\/[a-zA-Z0-9-]+\.(?:css|js|svg|png)$|^\/assets\/fonts\/[a-zA-Z0-9.-]+\.(?:woff2|txt|json)$/;
+    const publicPage=/^\/(?:index\.html|apply\/(?:buyer|supplier|partner)\/(?:index\.html)?|member-sign-in\/(?:index\.html)?|legal\/(?:index\.html)?|cartel\/(?:index\.html)?|portal\/(?:(?:buyer|supplier|partner|admin)\/)?(?:index\.html)?)?$/;
+    const asset=/^\/assets\/(?:[a-zA-Z0-9-]+|content\.en)\.(?:css|js|svg|png)$|^\/assets\/fonts\/[a-zA-Z0-9.-]+\.(?:woff2|txt|json)$/;
     if(config.appEnv==='production'&&/^\/assets\/prototypes\.(?:js|css)$/.test(pathname))throw new ApiError(404,'NOT_FOUND','Not found.');
     const prototype=config.appEnv!=='production'&&/^\/prototypes\/(?:(?:buyer|supplier|partner)\/)?(?:index\.html)?$/.test(pathname);
     if(!publicPage.test(pathname)&&!asset.test(pathname)&&!prototype&&!['/robots.txt','/sitemap.xml'].includes(pathname))throw new ApiError(404,'NOT_FOUND','Not found.');
@@ -308,10 +332,11 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
       return await staticFile(req,res,url);
     } catch(error) {
       res.deferJson=false;res.stagedJson=null;
-      const status=error.status||({'42501':403,'23505':409,'23503':400,'23514':400,'22P02':400,'P0001':400}[error.code])||500;
+      const status=error.status||({'42501':403,'23505':409,'23503':400,'23514':400,'22P02':400,'22023':400,'54000':429,'P0001':400}[error.code])||500;
+      if(status===429)res.setHeader('Retry-After','900');
       const code=error.status?error.code:status===500?'INTERNAL_ERROR':status===403?'FORBIDDEN':'INVALID_OPERATION';
       if(status===500)console.error(`Request ${requestId} failed (${typeof error.code==='string'?error.code:'internal'}). No request data logged.`);
-      json(res,status,{error:error.status?error.message:status===500?'The service could not complete this request.':'Operation is not allowed for this record.',code,requestId});
+      json(res,status,{error:error.status?error.message:status===429?'Please wait before submitting another enquiry.':status===500?'The service could not complete this request.':'Operation is not allowed for this record.',code,requestId});
     }
   });
   server.requestTimeout=30000;server.headersTimeout=15000;

@@ -201,6 +201,19 @@
     }));
   }
   function adminWorkspace() {
+    const contactQueue = section('Contact enquiry queue', 'Confidential public enquiries for authorized management only. These records do not create member accounts or publish offers. Changing a status records your review; it does not send an email.');
+    listLoader(contactQueue, '/api/admin/contact-queue', (holder, item, refresh) => {
+      const card = recordCard(holder, item, item.id);
+      card.append(details(item, [
+        ['name', 'Contact name'], ['email', 'Reply email'], ['company', 'Company'],
+        ['role', 'Enquiry role'], ['message', 'Enquiry message'], ['createdAt', 'Received'],
+        ['reviewedAt', 'Last reviewed'],
+      ]));
+      form(card, [['status', 'Review status — no email is sent', 'select', true, ['new', 'in_review', 'replied', 'closed']]], 'Record enquiry status', async (data) => {
+        await api(`/api/admin/contact-queue/${encodeURIComponent(item.id)}/status`, 'POST', data);
+        await refresh();
+      }, { status: item.status });
+    }, 'No contact enquiries have been received.');
     const applications = section('Company applications', 'Management-only company details. Verify companies independently before approving any role.');
     listLoader(applications, '/api/admin/applications', (holder, item, refresh) => {
       const card = recordCard(holder, item, item.company?.name || item.companyName || item.id);

@@ -19,9 +19,9 @@ if (relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}
 }
 
 const pages = ['index.html', 'apply/buyer/index.html', 'apply/supplier/index.html',
-  'apply/partner/index.html', 'member-sign-in/index.html', 'cartel/index.html'];
+  'apply/partner/index.html', 'member-sign-in/index.html', 'cartel/index.html', 'legal/index.html'];
 const assets = ['assets/app.js', 'assets/content.en.js', 'assets/styles.css',
-  'assets/entry.css', 'assets/business-contact.css', 'assets/business-contact.js', 'assets/business-contact-config.js', 'assets/cartel-eye.png', 'assets/cartel.css', 'assets/bridge-mark.svg', 'assets/global-bridge.svg',
+  'assets/entry.css', 'assets/legal-information.js', 'assets/business-contact.css', 'assets/business-contact.js', 'assets/business-contact-config.js', 'assets/cartel-eye.png', 'assets/cartel.css', 'assets/bridge-mark.svg', 'assets/global-bridge.svg',
   'assets/fonts/dm-sans-LICENSE.txt', 'assets/fonts/dm-sans-latin-wght-normal.woff2',
   'assets/fonts/instrument-serif-LICENSE.txt', 'assets/fonts/instrument-serif-latin-400-italic.woff2',
   'assets/fonts/instrument-serif-latin-400-normal.woff2', 'assets/fonts/sources.json', '.nojekyll'];
@@ -38,6 +38,12 @@ for (const name of [...pages, ...assets]) {
     }
     // Auth is activated only by the private BFF, never by the static public package.
     html = html.replace(/<script[^>]+src="[^"]*assets\/account\.js"[^>]*>\s*<\/script>/gi, '');
+    if (name === 'index.html') {
+      // A static review cannot persist enquiries. Keep the form unavailable and
+      // avoid contacting a nonexistent API when opened through a static server.
+      html = html.replace(/<body\b([^>]*)>/i, (_match, attributes) =>
+        `<body${attributes.replace(/\sdata-contact-mode="[^"]*"/i, '')} data-contact-mode="unavailable">`);
+    }
     html = html.replace(/(<meta\s+name="robots"\s+content=")[^"]*("\s*\/?>)/i, '$1noindex, nofollow$2')
       .replace(/\s*<link\s+rel="canonical"[^>]*>/gi, '')
       .replace(/\s*<meta\s+property="og:url"[^>]*>/gi, '');

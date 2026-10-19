@@ -1,4 +1,4 @@
-import { industries, publicContact, roleLabels } from "./content.en.js";
+import { industries, roleLabels } from "./content.en.js";
 
 document.documentElement.classList.remove("no-js");
 
@@ -59,7 +59,6 @@ function selectIndustry(tab, focus = false) {
   const content = industries[key];
   if (!content) return;
   selectedIndustry = key;
-  invalidatePreparedDraft();
   tabs.forEach((item) => {
     const selected = item === tab;
     item.setAttribute("aria-selected", String(selected));
@@ -92,27 +91,22 @@ tabs.forEach((tab, index) => {
 });
 
 const form = document.querySelector("#enquiry-form");
-form.querySelector("button[type=submit]").disabled = false;
+const sendButton = document.querySelector("#send-enquiry");
+let contactReady = false;
+let contactCSRF;
 document.querySelector("#download-brief").disabled = false;
 document.querySelector("#copy-brief").disabled = false;
 const roleSelect = document.querySelector("#enquiry-role");
 const status = document.querySelector("#enquiry-status");
-const draftLink = document.querySelector("#email-draft-link");
-function invalidatePreparedDraft() {
-  draftLink.hidden = true;
-  draftLink.removeAttribute("href");
-}
-form.addEventListener("input", invalidatePreparedDraft);
 document.querySelectorAll("[data-enquiry-role]").forEach((link) =>
   link.addEventListener("click", () => {
-    invalidatePreparedDraft();
-    roleSelect.value = link.dataset.enquiryRole;
+    roleSelect.value = ({agent:"partner",partnership:"other"})[link.dataset.enquiryRole] || link.dataset.enquiryRole;
     status.textContent = `Enquiry path selected: ${roleLabels[roleSelect.value]}. Complete your brief below.`;
   }),
 );
 document.querySelector("#industry-enquiry").addEventListener("click", () => {
   selectedIndustry ||= "food";
-  status.textContent = `Sector selected: ${industries[selectedIndustry].title}. It will be included in your brief.`;
+  status.textContent = `Sector selected: ${industries[selectedIndustry].title}. Include this sector in your message if relevant.`;
 });
 
 function prepareBrief() {
@@ -140,24 +134,58 @@ function prepareBrief() {
   ].join("\n");
 }
 
-form.addEventListener("submit", (event) => {
+async function refreshContactCSRF() {
+  if (document.body.dataset.contactMode === "unavailable") throw new Error("Static preview");
+  const response = await fetch("/api/config", { credentials: "same-origin", cache: "no-store" });
+  if (!response.ok) throw new Error("Backend unavailable");
+  const config = await response.json();
+  if (config.backendEnabled !== true || !config.csrfToken) throw new Error("Backend unavailable");
+  contactCSRF = config.csrfToken;
+}
+async function enableContact() {
+  await refreshContactCSRF();
+  contactReady = true;
+  sendButton.disabled = false;
+  status.textContent = "The private enquiry queue is available. No email app is needed.";
+}
+enableContact().catch(() => {
+  form.querySelectorAll("input,select,textarea,button").forEach(field => { field.disabled = true; });
+  status.textContent = "The enquiry queue is unavailable in this preview. Nothing can be submitted. Formal contact is available in Legal Information.";
+});
+
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const brief = prepareBrief();
-  if (!brief) return;
-  const subject = `ShadowBridge business enquiry — ${roleLabels[roleSelect.value]}`;
-  const href = `mailto:${publicContact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(brief)}`;
-  // Mail clients have different URL limits. Never truncate commercial details.
-  if (href.length > 2000) {
-    draftLink.hidden = true;
-    draftLink.removeAttribute("href");
-    status.textContent = `For a long enquiry, download or copy your complete brief and email it to ${publicContact.email} from your email app. This website has not sent a message.`;
-    return;
-  }
-  draftLink.href = href;
-  draftLink.hidden = false;
-  status.textContent =
-    "Email draft prepared. Your email app will open if one is configured. Review the draft and send it there. It has not been sent to ShadowBridge by this website.";
-  draftLink.click();
+  if (!contactReady || !form.reportValidity()) return;
+  const fields = new FormData(form);
+  const value = name => String(fields.get(name) || "").trim();
+  const payload = {
+    name:value("name"), email:value("email"), company:value("company"), role:value("role"),
+    message:value("message"), consent:fields.get("consent") === "on", website:value("website"),
+  };
+  sendButton.disabled = true;
+  status.textContent = "Saving your enquiry…";
+  try {
+    const send = () => fetch("/api/contact", {
+      method:"POST", credentials:"same-origin", cache:"no-store",
+      headers:{"Content-Type":"application/json","X-CSRF-Token":contactCSRF}, body:JSON.stringify(payload),
+    });
+    let response = await send();
+    let result = await response.json();
+    // A different tab can rotate the cookie. CSRF is checked before any write;
+    // retry only this explicit rejection, never a timeout or an unknown result.
+    if (response.status === 403 && result.code === "csrf_failed") {
+      await refreshContactCSRF();
+      response = await send();
+      result = await response.json();
+    }
+    if (response.status !== 201 || result.accepted !== true || !/^SB-CONTACT-[a-f0-9-]+$/i.test(result.receipt || "")) {
+      throw new Error(result.error || "The enquiry could not be saved.");
+    }
+    form.reset();
+    status.textContent = `Enquiry saved to the private review queue. Receipt: ${result.receipt}. No email has been sent.`;
+  } catch (error) {
+    status.textContent = `No receipt was confirmed. ${error.message} Your draft is still in the form. Please check with management before resubmitting if the connection was interrupted.`;
+  } finally { sendButton.disabled = !contactReady; }
 });
 
 document.querySelector("#download-brief").addEventListener("click", () => {
@@ -189,7 +217,7 @@ document.querySelector("#copy-brief").addEventListener("click", async () => {
   }
 });
 
-// The confirmed contact link is also present in HTML for visitors without JS.
+// Keep the public footer year current.
 document.querySelector("#copyright-year").textContent = String(
   new Date().getFullYear(),
 );

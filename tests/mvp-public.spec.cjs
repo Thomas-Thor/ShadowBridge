@@ -29,12 +29,17 @@ test('Horus footer has a keyboard accessible transparent image and preserves car
 
 test('configured WhatsApp link is valid and static account pages cannot activate authentication',async({page})=>{
  await page.goto('/');
- const link=page.getByRole('link',{name:'Contact ShadowBridge on WhatsApp (opens in a new tab)'});
+ const link=page.getByRole('link',{name:'Discuss business on WhatsApp (opens in a new tab)'});
  await link.scrollIntoViewIfNeeded();await expect(link).toBeVisible();
  const url=new URL(await link.getAttribute('href'));expect(url.origin).toBe('https://wa.me');expect(url.pathname).toBe('/4747747007');
  expect(url.searchParams.get('text')).toContain('business enquiry');await expect(link).toHaveAttribute('target','_blank');await expect(link).toHaveAttribute('rel',/noopener/);
  const region=await page.locator('#contact').innerText();expect(region).not.toMatch(/47747007|4747747007/);
- await expect(page.locator('#business-contact a')).toHaveAttribute('href','mailto:shadowbridge.trade@gmail.com');
+ await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
+ await expect(page.locator('#send-enquiry')).toBeDisabled();
+ await expect(page.locator('#enquiry-status')).toContainText('unavailable');
+ await page.getByRole('link',{name:'Legal Information',exact:true}).first().click();
+ await expect(page.getByRole('link',{name:'shadowbridge.trade@gmail.com',exact:true})).toHaveAttribute('href','mailto:shadowbridge.trade@gmail.com');
+ await expect(page.locator('body')).not.toContainText('TODO');
  for(const route of ['/apply/buyer/','/apply/supplier/','/apply/partner/','/member-sign-in/']){
   const requests=[];const listener=request=>requests.push(request.url());page.on('request',listener);
   await page.goto(route);await expect(page.locator('input:enabled,textarea:enabled,select:enabled,button[type="submit"]:enabled')).toHaveCount(0);
