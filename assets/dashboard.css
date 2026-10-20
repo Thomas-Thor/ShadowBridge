@@ -140,3 +140,14 @@
 @media (prefers-reduced-motion: reduce) { .dashboard-enabled *, .dashboard-enabled *::before, .dashboard-enabled *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
 
 .dashboard-stack { display: grid; gap: 20px; min-width: 0; }
+
+/* Role summaries are fed by existing authorized list reloads. */
+.dashboard-member { margin-block: 24px 34px; }
+.dashboard-commission-row { display: flex; justify-content: space-between; gap: 16px; padding-block: 12px; border-bottom: 1px solid var(--dashboard-line); font-size: 13px; font-variant-numeric: tabular-nums; }
+.dashboard-commission-row strong { color: var(--dashboard-ink); font-weight: 500; overflow-wrap: anywhere; }
+.dashboard-scope { color: var(--dashboard-muted); font-size: 11px; line-height: 1.8; margin-top: 12px; }
+
+.dashboard-enabled .portal-section > dl { display: grid; grid-template-columns: minmax(120px, .6fr) minmax(0, 1.4fr); gap: 10px 20px; margin-top: 18px; font-size: 12px; }
+.dashboard-enabled .portal-section > dl dt { color: var(--dashboard-muted); }
+.dashboard-enabled .portal-section > dl dd { margin: 0; overflow-wrap: anywhere; color: var(--dashboard-ink); }
+@media (max-width: 500px) { .dashboard-enabled .portal-section > dl { grid-template-columns: 1fr; gap: 6px; } .dashboard-enabled .portal-section > dl dd { margin-bottom: 10px; } }

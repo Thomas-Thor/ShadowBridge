@@ -31,3 +31,23 @@ Dotychczasowy `npm run demo` oraz własne lokalne konta pozostają sposobem wej�
 do `/portal/buyer/`, `/portal/supplier/`, `/portal/partner/`, `/portal/admin/`
 i `/portal/offers/`. Command Center nadal wymaga rzeczywistego MFA. Sam plik HTML
 bez działającego lokalnego MVP nie udostępnia prywatnych danych ani logowania.
+
+## Etap D
+
+Buyer, Supplier i Partner mają podsumowania przed formularzami: KPI odebranych
+rekordów, rozkłady statusów, ostatnie zmiany i linki do istniejących działań.
+Nie wykonują dodatkowych żądań; dane pochodzą z dotychczasowych odczytów list,
+a ponowienie listy po zapisie aktualizuje również podsumowanie. Prowizje są
+grupowane według waluty źródłowej, bez konwersji i bez utożsamiania ich z zapłatą.
+
+**4/4 przypadki UI zaliczone**: zapis RFQ aktualizuje 2 → 3, Supplier widzi review
+i wyjaśnienia, Partner ma osobne EUR/PLN i brak pozornego zera dla pustej kwoty,
+stan pusty różni się od błędu, zmiana sesji usuwa summary. Układy sprawdzono
+przy 1440/390/320 px. Dwa selektory testów wymagały dopasowania do pełnej
+dostępnej nazwy linku; ponowiono te dwa przypadki, bez osłabiania asercji href.
+Po integracji D ponowiono także cztery przypadki wspólnego shell: **4/4**,
+w tym axe na nowych widgetach Buyer przy 320 px.
+
+Leady, konwersja/performance, zadania follow-up i unread nie są podłączone.
+Podsumowania list mają jawny zakres „loaded records”, maksymalnie 200 pozycji;
+licznik anonimowych okazji opisuje dostępny `total` dla bieżących filtrów.

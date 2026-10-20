@@ -9,6 +9,7 @@
   let csrfToken;
   let session;
   let managementAccess;
+  let memberDashboard;
   let businessCatalog = { categories: [], currencies: [] };
   const currencyOptions = () => businessCatalog.currencies.map(({ code, label }) => ({ value: code, label }));
   const categoryOptions = () => businessCatalog.categories.filter(item => !item.parentId).map(({ id, label }) => ({ value: id, label }));
@@ -29,6 +30,7 @@
     closed = true; epoch++;
     for (const controller of pending) controller.abort();
     pending.clear(); csrfToken = null; session = null;
+    memberDashboard?.clear();
     window.ShadowDashboard?.clearPrivate();
     root.replaceChildren(); nav.replaceChildren(); nav.hidden = true;
     document.querySelector('#portal-account')?.replaceChildren();
@@ -127,11 +129,14 @@
     async function refresh() {
       holder.setAttribute('aria-busy', 'true');
       try {
-        const result = await api(path); holder.replaceChildren();
+        const result = await api(path);
+        if (closed) return;
         if (!Array.isArray(result.items)) throw new Error('Invalid response from the secure service.');
+        memberDashboard?.observe(path, result);
+        holder.replaceChildren();
         if (!result.items.length) empty(holder, message);
         for (const item of result.items) await render(holder, item, refresh);
-      } catch (error) { holder.replaceChildren(el('p', { class: 'portal-error', text: error.message })); }
+      } catch (error) { if (!closed) { memberDashboard?.fail(path); holder.replaceChildren(el('p', { class: 'portal-error', text: error.message })); } }
       finally { holder.removeAttribute('aria-busy'); }
     }
     refresh(); return refresh;
@@ -214,6 +219,7 @@
     const create = section(`New ${title}`, 'Start with a title and save your private draft. Complete the commercial details before submitting it for individual ShadowBridge review. Submitting never publishes it automatically.', grid);
     create.append(el('p', { class: 'portal-document-notice', text: 'Document uploads are disabled. Only approved, non-identifying commercial summaries may be released by management.' }));
     const list = section(`Your ${kind === 'rfqs' ? 'purchase requests' : kind === 'offers' ? 'offers' : 'opportunities'}`, 'Only your own records are returned by the secure service.', grid);
+    create.id = 'workspace-draft'; list.id = 'workspace-records';
     const singular = kind === 'rfqs' ? 'rfq' : kind === 'offers' ? 'offer' : 'proposal';
     const draftFields = fields.map(([name, label, type, required, options]) => [name, label, type, [dataTitle, 'categoryId'].includes(name), options]);
     const refresh = listLoader(list, `/api/${kind}`, async (parent, item, reload) => {
@@ -236,6 +242,7 @@
   }
   function opportunities() {
     const parent = section('Individually released opportunities', 'Only anonymous commercial information explicitly assigned to your company is available. Counterparty identities and introductions remain with ShadowBridge.');
+    parent.id = 'workspace-opportunities';
     const approvedFields = [['title', 'Commercial opportunity'], ['categoryId', 'Category'], ['subcategoryId', 'Subcategory'], ['specification', 'Specification'], ['quantity', 'Quantity'], ['unit', 'Unit'], ['price', 'Indicative unit price'], ['currency', 'Currency'], ['incoterms', 'Incoterms'], ['availability', 'Availability'], ['validUntil', 'Valid until']];
     let criteria = { q: '', categoryId: '', subcategoryId: '', sort: 'newest' }, page = 1, loadSequence = 0;
     const countSummary = el('p', { class: 'portal-document-notice', 'aria-live': 'polite' });
@@ -256,6 +263,7 @@
         const result = await api(`/api/opportunities?${query}`);
         if (currentLoad !== loadSequence || closed) return;
         if (!Array.isArray(result.items)) throw new Error('Invalid response from the secure opportunity service.');
+        memberDashboard?.observe(`/api/opportunities?${query}`, result);
         holder.replaceChildren(); pagination.replaceChildren();
         if (!result.items.length) empty(holder, [criteria.q, criteria.categoryId, criteria.subcategoryId].some(Boolean) ? 'No individually assigned anonymous opportunities match these filters.' : 'No anonymous opportunities have been individually released to your company.');
         for (const item of result.items) {
@@ -275,7 +283,7 @@
         if (page > 1) pagination.append(button('Previous page', async () => { page--; await load(); }, true));
         pagination.append(el('span', { text: pages ? `Page ${page} of ${pages}` : 'No assigned pages' }));
         if (page < pages) pagination.append(button('Next page', async () => { page++; await load(); }, true));
-      } catch (error) { if (currentLoad === loadSequence && !closed) holder.replaceChildren(el('p', { class: 'portal-error', text: error.message })); }
+      } catch (error) { if (currentLoad === loadSequence && !closed) { memberDashboard?.fail('/api/opportunities'); holder.replaceChildren(el('p', { class: 'portal-error', text: error.message })); } }
       finally { if (currentLoad === loadSequence) holder.removeAttribute('aria-busy'); }
     }
     load();
@@ -290,11 +298,13 @@
   }
   function partnerAssignments() {
     const projects = section('Assigned cooperation', 'Only projects explicitly assigned to your account are returned.');
+    projects.id = 'workspace-projects';
     listLoader(projects, '/api/projects', (holder, item) => {
       const card = recordCard(holder, item, item.title || item.data?.title);
       card.append(details(item.data || item, [['title', 'Project'], ['scope', 'Assigned scope'], ['summary', 'Assigned cooperation'], ['stage', 'Cooperation stage'], ['status', 'Status'], ['updatedAt', 'Updated']]));
     }, 'No projects have been assigned to your account.');
     const commissions = section('Individually agreed commissions', 'Commission terms are negotiated for each cooperation. No default percentage is assumed.');
+    commissions.id = 'workspace-commissions';
     listLoader(commissions, '/api/commissions', (holder, item) => {
       const card = recordCard(holder, item, item.projectId || item.id);
       card.append(details(item.data || item, [['projectId', 'Project reference'], ['basis', 'Agreed basis'], ['rate', 'Agreed rate'], ['amount', 'Agreed amount'], ['currency', 'Currency'], ['agreementReference', 'Agreement reference'], ['status', 'Status']]));
@@ -614,6 +624,10 @@
     }
     if (role !== 'home' && !roles.includes(role)) { status('Role not approved.', 'This account is not authorized for the selected workspace.', true); return; }
     status('Approved account.', 'Your workspace contains only your records and individually assigned anonymous opportunities. All introductions pass through ShadowBridge.');
+    if (['buyer', 'supplier', 'partner'].includes(role) && window.ShadowMemberDashboard) {
+      const summary = el('section', { class: 'dashboard-member' }); root.append(summary);
+      memberDashboard = window.ShadowMemberDashboard.mount({ role, session, host: summary });
+    }
     if (role !== 'home') {
       const company = section('Your company profile', 'These details belong to your own company. Changes to registered company identity require management review.');
       company.append(details(session.company, [['name', 'Registered company'], ['country', 'Registration country'], ['registrationNumber', 'Registration number']]));
@@ -624,9 +638,13 @@
     if (role === 'home') {
       const overview = section('Your approved cooperation', 'Choose an approved workspace above. Permissions and record access are checked by the server on every request.');
       overview.append(details(session.company, [['name', 'Your registered company'], ['country', 'Registration country'], ['registrationNumber', 'Registration number']]));
+      if (window.ShadowDashboard) overview.append(window.ShadowDashboard.actions({ title: 'Your workspaces', description: 'Open an existing workspace authorized for your account.', items: [
+        ...roles.filter(value => ['buyer', 'supplier', 'partner'].includes(value)).map(value => ({ label: value === 'partner' ? 'B2B Partner Workspace' : `${value[0].toUpperCase() + value.slice(1)} Workspace`, href: `/portal/${value}/` })),
+        ...(session.staff ? [{ label: 'Command Center', href: '/portal/admin/', detail: 'Management access requires your second authentication factor.' }] : []),
+      ] }));
       if (!roles.length && !session.staff) empty(overview, 'No commercial role has been assigned. Contact ShadowBridge about your company review.');
       if (session.staff && session.aal !== 'aal2') empty(overview, 'Open Command Center to set up or verify your management second factor.');
     }
   }
-  start().catch((error) => { if (!closed) { window.ShadowDashboard?.clearPrivate(); root.replaceChildren(); status('Private service unavailable.', `${error.message} No private workspace has been activated.`, true); } });
+  start().catch((error) => { if (!closed) { memberDashboard?.clear(); window.ShadowDashboard?.clearPrivate(); root.replaceChildren(); status('Private service unavailable.', `${error.message} No private workspace has been activated.`, true); } });
 })();
