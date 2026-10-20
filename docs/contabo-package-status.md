@@ -59,3 +59,42 @@ Rzeczywiste `caddy validate` z wygenerowanymi certyfikatami i filtrem logów —
 Backup zapisuje również SHA źródła i identyfikatory obrazów. Bezpieczne cofnięcie
 polega na odtworzeniu w nowym projekcie, nie na downgrade bazy na miejscu.
 To nadal kontrole pakietu; pełne pg_dump/pg_restore i kontenery wymagają G3.
+
+## G3 — ZABLOKOWANY; praca zatrzymana
+
+Pierwsze uruchomienie wymagało wskazania zapisywalnego `DOCKER_CONFIG`, ponieważ
+domyślny katalog klienta Docker w tym środowisku jest tylko do odczytu.
+Po tej zmianie rzeczywisty build rozpoczął się, ale `npm ci` zakończyło się
+`EAI_AGAIN registry.npmjs.org` przy pobieraniu `xtend-4.0.2.tgz`.
+Druga próba z prywatnym, ignorowanym override proxy i sieci budowania host
+również zakończyła się `EAI_AGAIN proxy`. Sam `npm ping` w osobnym kontenerze
+z proxy działał; nie dowodzi to łączności procesu BuildKit.
+
+Dodano opcjonalne zaufane CA jako sekret BuildKit używany tylko podczas
+instalacji zależności. Nie wyłączono kontroli TLS i nie zapisano CA/proxy
+środowiska do obrazu ani repozytorium. Obrazy aplikacji/migratora nie zostały
+ukończone, a usługi G3 nie wystartowały. Nie rozpoczęto migracji ani fixturek.
+
+Przygotowano `tests/contabo-real.mjs` i `tests/contabo-lifecycle.mjs`; ich składnia
+jest poprawna, ale **nie zostały wykonane**. Nie ma nowego raportu PASS integracji
+dashboardów ani reprezentatywnych zrzutów z tej instalacji.
+
+**NIEPRZETESTOWANE:** rzeczywiste migracje pakietu 001–011, start GoTrue/API,
+logowanie/MFA, dashboardy i uprawnienia, restart, aktualizacja, pg_dump/pg_restore
+z pełnymi ACL i odzyskanie sesji. Dotychczasowe wyniki jednostkowe G1/G2 pozostają
+ważne; nie zastępują tych testów. PKI i Compose przeszły kontrolę konfiguracji.
+
+Trzy pierwotne kontenery lokalne zachowały te same identyfikatory i działają;
+fingerprinty obu zastanych plików konfiguracji/kont są niezmienione. Nie usuwano
+żadnych wolumenów. Zachowano również zatrzymany projekt F i dokument Cloudflare.
+
+Zgodnie z zasadą zatrzymania po nieudanym etapie **G4 nie rozpoczęto**.
+`docs/CONTABO-DEPLOYMENT.md` nie jest jeszcze gotową instrukcją. Pakietu nie należy
+instalować na VPS jako zweryfikowanego wydania. Najpierw trzeba zapewnić łączność
+BuildKit z rejestrem npm i ponowić G3 na nowym, izolowanym projekcie.
+
+## Zapis pracy
+
+- G1: `bce4edcce1e67f3883c39b1e49b5e6c49e38c074`.
+- G2: `8be799b759ae3872fc176ef6c5ac71c85d9ce2df`.
+- G3: commit zawierający ten raport — checkpoint blokady, bez zaliczonej integracji.

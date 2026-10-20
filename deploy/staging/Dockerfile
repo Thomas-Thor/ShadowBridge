@@ -1,7 +1,11 @@
 FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+# Optional enterprise build CA is mounted only for this step, never copied into
+# an image. Default builds use the system trust store without any TLS bypass.
+RUN --mount=type=secret,id=build-ca,required=false \
+    if [ -f /run/secrets/build-ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/build-ca; fi; \
+    npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS runtime
 ENV NODE_ENV=production
