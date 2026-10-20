@@ -28,6 +28,7 @@
 !supabase/migrations/*.sql
 !scripts/
 !scripts/staging-migrate.mjs
+!scripts/bootstrap-admin.mjs
 !deploy/
 !deploy/staging/
 !deploy/staging/Dockerfile

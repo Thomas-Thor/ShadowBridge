@@ -17,6 +17,7 @@
     "bootstrap:admin": "node --env-file=.local/development.env scripts/bootstrap-admin.mjs",
     "staging:prepare": "node scripts/staging-prepare.mjs",
     "staging:check": "node scripts/staging-prepare.mjs --check",
+    "staging:ops": "node scripts/staging-ops.mjs",
     "build:preview": "node scripts/build-preview.mjs"
   },
   "dependencies": { "pg": "8.16.3" }

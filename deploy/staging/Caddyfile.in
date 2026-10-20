@@ -1,6 +1,15 @@
 {
 	admin off
 	@LOCAL_OPTIONS@
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>uri delete
+				request>headers delete
+			}
+		}
+	}
 }
 
 https://@DOMAIN@ {

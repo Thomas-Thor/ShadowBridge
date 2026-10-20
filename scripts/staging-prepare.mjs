@@ -103,7 +103,7 @@ export async function prepareStaging(options = {}) {
   };
   for (const [name, values] of Object.entries(env)) await writePrivate(path.join(directory, `${name}.env`), envText(values));
   await writePrivate(path.join(directory, 'tester-password'), secret() + '\n');
-  openssl(['req', '-x509', '-newkey', 'rsa:3072', '-nodes', '-keyout', path.join(certificates, 'internal-ca.key'), '-out', path.join(certificates, 'internal-ca.crt'), '-days', '3650', '-sha256', '-subj', `/CN=ShadowBridge private ${project}`, '-addext', 'basicConstraints=critical,CA:TRUE', '-addext', 'keyUsage=critical,keyCertSign,cRLSign']);
+  openssl(['req', '-x509', '-newkey', 'rsa:3072', '-nodes', '-keyout', path.join(certificates, 'internal-ca.key'), '-out', path.join(certificates, 'internal-ca.crt'), '-days', '3650', '-sha256', '-subj', `/CN=ShadowBridge private CA ${project.slice(-20)}`, '-addext', 'basicConstraints=critical,CA:TRUE', '-addext', 'keyUsage=critical,keyCertSign,cRLSign']);
   const { chmod } = await import('node:fs/promises');
   await chmod(path.join(certificates, 'internal-ca.key'), 0o600);
   // The CA certificate is public and must be readable by container UID 1000

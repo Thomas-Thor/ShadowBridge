@@ -27,5 +27,6 @@ COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node package.json ./
 COPY --chown=node:node supabase/migrations/*.sql ./supabase/migrations/
 COPY --chown=node:node scripts/staging-migrate.mjs ./scripts/staging-migrate.mjs
+COPY --chown=node:node scripts/bootstrap-admin.mjs ./scripts/bootstrap-admin.mjs
 USER node
 CMD ["node", "scripts/staging-migrate.mjs"]
