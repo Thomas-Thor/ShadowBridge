@@ -139,3 +139,88 @@ test('D member: empty and unavailable snapshots remain distinct and clear after 
     } finally { await context.close(); }
   }
 });
+
+test('E monitor: Owner shows supplied queues, bounded safe activity and accessible monitoring', async ({ page }) => {
+  const state = await dashboardFixture(page, { staffRole: 'owner' });
+  state.overview = {
+    counts: { pendingApplications: 5, submittedOffers: 3, submittedRfqs: 2, activeProjects: 4, pendingProposals: 1, openContactEnquiries: 2, pendingRiskApprovals: 1 },
+    recentActivity: Array.from({ length: 20 }, (_, index) => ({ action: index ? `FICTIONAL reviewed event ${index}` : 'FICTIONAL <img src=x onerror="window.dashboardInjection=true">', resourceType: 'offers', createdAt: '2026-10-20T09:00:00.000Z' })),
+    warnings: ['FICTIONAL controlled review warning.'],
+  };
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/portal/admin/');
+  await expect(page.getByRole('heading', { name: 'Owner Overview', exact: true })).toBeVisible();
+  const summary = page.locator('[data-command-dashboard]');
+  await expect(summary.locator('.portal-metric')).toHaveText(['5', '3', '2', '4', '1', '2', '1']);
+  await expect(summary.getByRole('heading', { name: 'Pending work by queue', exact: true })).toBeVisible();
+  await expect(summary.getByRole('heading', { name: 'Operational next actions', exact: true })).toBeVisible();
+  await expect(summary.locator('a[href="/portal/offers/"]')).not.toHaveCount(0);
+  await expect(summary).toContainText('FICTIONAL controlled review warning.');
+  await expect(summary.getByRole('heading', { name: 'Monitoring scope', exact: true })).toBeVisible();
+  await expect(summary).toContainText('not connected');
+  const activity = page.locator('[data-command-activity]');
+  await expect(activity.locator('.dashboard-activity li')).toHaveCount(12);
+  await expect(activity.locator('img')).toHaveCount(0);
+  expect(await page.evaluate(() => window.dashboardInjection)).toBeUndefined();
+  expect(state.calls.filter(call => call.path.startsWith('/api/admin/') || call.path === '/api/staff/offers')).toEqual([]);
+  expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
+  await responsive(page);
+  const accessibility = await new AxeBuilder({ page }).include('[data-command-dashboard]').withTags(['wcag2a', 'wcag2aa']).analyze();
+  expect(accessibility.violations.map(item => ({ id: item.id, impact: item.impact }))).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('E monitor: Operations and Analyst keep role-filtered counters and actions', async ({ browser }) => {
+  for (const staffRole of ['operations_manager', 'staff_analyst']) {
+    const context = await browser.newContext({ viewport: { width: 390, height: 950 }, reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    try {
+      const state = await dashboardFixture(page, { staffRole });
+      if (staffRole === 'staff_analyst') state.overview = {
+        counts: { pendingRiskApprovals: 0, pendingApplications: 999, submittedOffers: 999 },
+        recentActivity: [{ action: 'FICTIONAL unauthorized activity must not render', createdAt: '2026-10-20T09:00:00.000Z' }], warnings: [],
+      };
+      await page.goto('/portal/admin/');
+      await expect(page.getByRole('heading', { name: 'Command Center Overview', exact: true })).toBeVisible();
+      const summary = page.locator('[data-command-dashboard]');
+      await expect(summary).toBeVisible();
+      await expect(summary).not.toContainText('Company applications awaiting review');
+      if (staffRole === 'staff_analyst') {
+        await expect(summary.locator('.portal-metric')).toHaveText(['0']);
+        await expect(summary).not.toContainText('999');
+        await expect(summary.locator('.dashboard-kpi a')).toHaveCount(0);
+        await expect(page.locator('[data-command-activity]')).toContainText('not available with your current permissions');
+        await expect(page.locator('body')).not.toContainText('FICTIONAL unauthorized activity must not render');
+      } else {
+        const projects = summary.locator('.dashboard-kpi').filter({ hasText: 'Active cooperation projects' });
+        await expect(projects.locator('.portal-metric')).toHaveText('4');
+        await expect(projects.locator('a')).toHaveAttribute('href', '/portal/admin/?module=projects');
+      }
+      expect(state.calls.some(call => call.path.startsWith('/api/admin/') || call.path === '/api/offers')).toBe(false);
+      await responsive(page);
+    } finally { await context.close(); }
+  }
+});
+
+test('E monitor: malformed and unavailable summaries never fabricate zero counters', async ({ browser }) => {
+  for (const failed of [false, true]) {
+    const context = await browser.newContext({ viewport: { width: 320, height: 950 }, reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    try {
+      const state = await dashboardFixture(page, { staffRole: 'owner', failures: failed ? ['/api/staff/overview'] : [] });
+      if (!failed) state.overview = { counts: { submittedOffers: null, activeProjects: 4 }, recentActivity: [], warnings: [] };
+      await page.goto('/portal/admin/');
+      if (failed) {
+        await expect(page.locator('#portal-status')).toContainText('Private service unavailable.');
+        await expect(page.locator('.portal-metric')).toHaveCount(0);
+        await expect(page.locator('.dashboard-module-slot')).toBeEmpty();
+      } else {
+        const summary = page.locator('[data-command-dashboard]');
+        await expect(summary.locator('.portal-metric')).toHaveText(['4']);
+        await expect(summary).toContainText('Some counters are unavailable');
+        await expect(summary).not.toContainText('New supplier offers');
+      }
+      await noOverflow(page);
+    } finally { await context.close(); }
+  }
+});

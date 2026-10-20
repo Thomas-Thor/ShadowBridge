@@ -7,6 +7,10 @@ i ograniczenia opisuje [raport regresji](docs/regression-2026-10-20.md).
 [Punkt kontrolny z 19.10](docs/checkpoint-2026-10-19.md) jest zapisem historycznym.
 To nie jest potwierdzenie gotowości platformy do publikacji.
 
+Panele UI: [audyt i mapa ról](docs/dashboard-audit.md),
+[system dashboardów](docs/dashboard-system.md) oraz
+[zakres implementacji, testy UI i lokalny przegląd](docs/dashboard-ui-verification.md).
+
 Gałąź: `feature/secure-b2b-mvp`, oparta na `feature/private-b2b-entrypoints`
 (`2cc4de8`), zachowująca produkcyjny `main` (`d0512dd`). **Nie wdrożono tej
 wersji na shadow-bridge.eu.** Nie zmieniono DNS, GitHub Pages ani treści strony `/cartel/`.

@@ -33,7 +33,7 @@ async function dashboardFixture(page, { role = 'buyer', staffRole = null, aal = 
       const counts = staffRole === 'staff_analyst' ? { pendingRiskApprovals: 0 } : staffRole === 'operations_manager'
         ? { submittedOffers: 3, submittedRfqs: 2, activeProjects: 4, pendingProposals: 1, openContactEnquiries: 2, pendingRiskApprovals: 0 }
         : { pendingApplications: 5, submittedOffers: 3, submittedRfqs: 2, activeProjects: 4, pendingProposals: 1, openContactEnquiries: 2, pendingRiskApprovals: 1 };
-      return send({ counts, recentActivity: permissions.includes('audit.read') ? [{ action: 'FICTIONAL offer reviewed', resourceType: 'offers', createdAt: stamp }] : [], warnings: [] });
+      return send(state.overview || { counts, recentActivity: permissions.includes('audit.read') ? [{ action: 'FICTIONAL offer reviewed', resourceType: 'offers', createdAt: stamp }] : [], warnings: [] });
     }
     if (url.pathname === '/api/auth/factors') return send({ factors: [{ id: 'FICTIONAL-FACTOR', status: 'verified', factor_type: 'totp' }] });
     if (url.pathname === '/api/auth/logout') { state.user = null; return send({ signedOut: true, csrfToken }); }

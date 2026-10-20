@@ -347,6 +347,11 @@
     const parent = section(managementAccess.owner ? 'Owner Overview' : 'Command Center Overview', 'A concise view of the work you are authorized to supervise. Open a module to view its confidential records.');
     const overview = await api('/api/staff/overview');
     if (closed) return;
+    if (window.ShadowCommandDashboard) {
+      const activity = section('Recent activity', 'Recent authorized actions recorded by the server.');
+      window.ShadowCommandDashboard.render({ host: parent, activityHost: activity, overview, access: managementAccess });
+      return;
+    }
     const metrics = [
       ['pendingApplications', 'Company applications awaiting review', 'applications'],
       ['submittedOffers', 'New supplier offers', 'offers'],
