@@ -29,6 +29,7 @@
     closed = true; epoch++;
     for (const controller of pending) controller.abort();
     pending.clear(); csrfToken = null; session = null;
+    window.ShadowDashboard?.clearPrivate();
     root.replaceChildren(); nav.replaceChildren(); nav.hidden = true;
     document.querySelector('#portal-account')?.replaceChildren();
     status('Browser session changed.', changedMessage, true);
@@ -458,6 +459,7 @@
     ];
     const selected = new URLSearchParams(location.search).get('module') || 'overview';
     const moduleNav = el('nav', { class: 'portal-navigation', 'aria-label': 'Command Center modules' }); root.append(moduleNav);
+    window.ShadowDashboard?.placeModules(moduleNav);
     for (const [key, label, permission] of modules) if (canManage(permission)) moduleNav.append(el('a', { href: key === 'offers' ? '/portal/offers/' : `/portal/admin/${key === 'overview' ? '' : `?module=${key}`}`, text: label, 'aria-current': selected === key ? 'page' : null }));
     const available = modules.find(([key]) => key === selected);
     if (!available || !canManage(available[2])) { status('Module unavailable.', 'Your assigned management permissions do not allow access to this module.', true); return; }
@@ -572,6 +574,7 @@
     }
   }
   async function start() {
+    window.ShadowDashboard?.mountShell({ navigation: nav, role });
     const config = await api('/api/config');
     if (config.backendEnabled !== true || !config.csrfToken) return;
     csrfToken = config.csrfToken;
@@ -625,5 +628,5 @@
       if (session.staff && session.aal !== 'aal2') empty(overview, 'Open Command Center to set up or verify your management second factor.');
     }
   }
-  start().catch((error) => { if (!closed) { root.replaceChildren(); status('Private service unavailable.', `${error.message} No private workspace has been activated.`, true); } });
+  start().catch((error) => { if (!closed) { window.ShadowDashboard?.clearPrivate(); root.replaceChildren(); status('Private service unavailable.', `${error.message} No private workspace has been activated.`, true); } });
 })();

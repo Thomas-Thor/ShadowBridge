@@ -50,6 +50,7 @@
     closed = true; epoch++; listSequence++; detailSequence++;
     for (const controller of pending) controller.abort();
     pending.clear(); clearTimeout(timer); csrfToken = null; user = null;
+    window.ShadowDashboard?.clearPrivate();
     grid.replaceChildren(); detail.replaceChildren();
     if (dialog.open) dialog.close();
     workspace.hidden = true; pagination.hidden = true;
@@ -316,6 +317,7 @@
   document.querySelector('#offers-previous').addEventListener('click', () => { if (page > 1) { page--; loadList(); } });
   document.querySelector('#offers-next').addEventListener('click', () => { if (page < pages) { page++; loadList(); } });
   async function start() {
+    window.ShadowDashboard?.mountShell({ navigation: document.querySelector('#offers-navigation'), role: 'offers' });
     const config = await api('/api/config');
     if (config.backendEnabled !== true || !config.csrfToken) return;
     csrfToken = config.csrfToken;
@@ -341,5 +343,5 @@
     document.querySelector('#offers-navigation').hidden = false;
     workspace.hidden = false; await loadList();
   }
-  start().catch((error) => { if (!closed) { grid.replaceChildren(); workspace.hidden = true; report('Private service unavailable.', `${error.message} No private workspace has been activated.`, true); } });
+  start().catch((error) => { if (!closed) { window.ShadowDashboard?.clearPrivate(); grid.replaceChildren(); workspace.hidden = true; report('Private service unavailable.', `${error.message} No private workspace has been activated.`, true); } });
 })();
