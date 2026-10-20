@@ -55,6 +55,7 @@ services:
     env_file: ${STAGING_DIR}/app.env
     depends_on:
       postgres: {condition: service_healthy}
+      auth: {condition: service_started}
     secrets: [internal-ca.crt]
     networks: [private]
     read_only: true
@@ -85,8 +86,8 @@ services:
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/staging/caddy-entrypoint.sh"]
     ports:
-      - "${STAGING_BIND:?}:${STAGING_HTTP_PORT:?}:80"
-      - "${STAGING_BIND:?}:${STAGING_HTTPS_PORT:?}:443"
+      # This package is private-only. Access remotely through an SSH tunnel.
+      - "127.0.0.1:${STAGING_HTTPS_PORT:?}:443"
     volumes:
       - ${STAGING_DIR}/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy-entrypoint.sh:/staging/caddy-entrypoint.sh:ro

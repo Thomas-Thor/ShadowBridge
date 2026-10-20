@@ -1,12 +1,15 @@
-# Staging — zachowany, niedokończony szkic
+# Prywatny pakiet instalacyjny Contabo
 
-Publikacja jest wstrzymana decyzją właściciela. Te pliki zachowano w punkcie
-kontrolnym; nie są gotowym ani przetestowanym wdrożeniem.
+Pakiet jest przygotowywany i sprawdzany lokalnie. Nie wykonuje publikacji,
+zmian DNS ani połączeń SSH. [Stan weryfikacji](../../docs/contabo-package-status.md)
+odróżnia zakończone kontrole od nieprzetestowanych elementów.
 
-Brakuje `scripts/staging-migrate.mjs`, polecenia `staging:prepare` oraz generatora
-plików konfiguracji, certyfikatów i bramy testerów. Dockerfile i Compose odwołują
-się do tych brakujących elementów. Nie uruchamiać tego szkicu jako stagingu ani
-produkcji. Działający lokalny stos pozostaje w `local/compose.yaml`.
+`npm run staging:prepare` tworzy nowy zestaw sekretów i certyfikatów w ignorowanym
+katalogu `.local/`. `npm run staging:check` sprawdza konfigurację bez uruchamiania
+kontenerów. Istniejąca konfiguracja nie jest automatycznie nadpisywana.
 
-Nie utworzono hostingu, nie zmieniono DNS i nie przeniesiono lokalnych kont ani
-sekretów. Dalsze prace wymagają odrębnego polecenia właściciela.
+Jedynym opublikowanym portem jest HTTPS na loopback. Do zdalnych prób potrzebny
+jest tunel SSH oraz zaufanie do konkretnego prywatnego certyfikatu. PostgreSQL,
+GoTrue, Mailpit i aplikacja pozostają na prywatnej sieci Dockera.
+Nie przenoś lokalnych kont, `.local/development.env` ani `demo-accounts.json`.
+Nie uruchamiaj `npm run demo` jako usługi internetowej.

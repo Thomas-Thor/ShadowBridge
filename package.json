@@ -15,6 +15,8 @@
     "test:api": "node --env-file=.local/development.env --test --test-concurrency=1 server/tests/security.integration.mjs",
     "test:contact": "node --env-file=.local/development.env --test --test-concurrency=1 server/tests/contact.integration.mjs",
     "bootstrap:admin": "node --env-file=.local/development.env scripts/bootstrap-admin.mjs",
+    "staging:prepare": "node scripts/staging-prepare.mjs",
+    "staging:check": "node scripts/staging-prepare.mjs --check",
     "build:preview": "node scripts/build-preview.mjs"
   },
   "dependencies": { "pg": "8.16.3" }
