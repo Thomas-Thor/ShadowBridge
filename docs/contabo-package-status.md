@@ -98,3 +98,8 @@ BuildKit z rejestrem npm i ponowić G3 na nowym, izolowanym projekcie.
 - G1: `bce4edcce1e67f3883c39b1e49b5e6c49e38c074`.
 - G2: `8be799b759ae3872fc176ef6c5ac71c85d9ce2df`.
 - G3: commit zawierający ten raport — checkpoint blokady, bez zaliczonej integracji.
+
+Późniejszy [raport H1](H1-REPORT.md) opisuje rzeczywiście sprawdzony lokalny
+start PostgreSQL/GoTrue/API, migracje i uwierzytelnianie z buforowanego obrazu
+Node oraz kopii źródeł. Nie oznacza to zaliczenia wcześniejszego builda ani
+pełnego restartu/aktualizacji/odtworzenia z G3. Powyższe wyniki G1–G3 są historyczne.

@@ -27,6 +27,14 @@ test('resolved private Compose publishes only the loopback TLS gateway', async (
     assert.equal(config.services.app.environment.GOTRUE_JWT_SECRET, undefined);
     assert.equal(config.services.app.read_only, true);
     assert.equal(config.services.app.cap_drop.includes('ALL'), true);
+    for (const service of ['app', 'auth', 'gateway']) {
+      for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy']) {
+        assert.equal(config.services[service].environment[key], '', `${service} must not send private traffic through inherited proxies`);
+      }
+      for (const host of ['app', 'auth', 'auth-proxy', 'postgres', 'mailpit']) {
+        assert.equal(config.services[service].environment.NO_PROXY.split(',').includes(host), true);
+      }
+    }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 

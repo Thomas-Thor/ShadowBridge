@@ -14,7 +14,7 @@
 
 https://@DOMAIN@ {
 	@PUBLIC_TLS@
-	basic_auth {
+	basic_auth bcrypt {
 		reviewer {$SB_TESTER_HASH}
 	}
 	header {
