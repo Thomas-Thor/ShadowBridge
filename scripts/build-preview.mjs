@@ -21,6 +21,7 @@ if (relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}
 const pages = ['index.html', 'apply/buyer/index.html', 'apply/supplier/index.html',
   'apply/partner/index.html', 'member-sign-in/index.html', 'cartel/index.html', 'legal/index.html'];
 const assets = ['assets/app.js', 'assets/content.en.js', 'assets/styles.css',
+  'assets/member-access.css', 'assets/member-access.svg',
   'assets/entry.css', 'assets/legal-information.js', 'assets/business-contact.css', 'assets/business-contact.js', 'assets/business-contact-config.js', 'assets/cartel-eye.png', 'assets/cartel.css', 'assets/bridge-mark.svg', 'assets/global-bridge.svg',
   'assets/fonts/dm-sans-LICENSE.txt', 'assets/fonts/dm-sans-latin-wght-normal.woff2',
   'assets/fonts/instrument-serif-LICENSE.txt', 'assets/fonts/instrument-serif-latin-400-italic.woff2',
