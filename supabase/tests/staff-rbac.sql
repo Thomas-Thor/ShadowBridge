@@ -1,8 +1,9 @@
 -- Real PostgreSQL/RLS checks. All fixtures are fictional and rolled back.
--- Run only against an isolated test database with migrations001..010 applied,
+-- Run only against an isolated test database with migrations001..011 applied,
 -- before persistent OWNER fixtures are bootstrapped. Never use the owner's demo database.
 -- Last-OWNER assertions intentionally require this isolated test baseline.
--- docker exec -i shadowbridge-private-local-postgres-1 psql -U postgres -d shadowbridge -v ON_ERROR_STOP=1 < supabase/tests/staff-rbac.sql
+-- Example for the separately provisioned disposable regression database only:
+-- docker exec -i shadowbridge-stage2-regression-postgres-1 psql -U postgres -d shadowbridge_stage2_sql -v ON_ERROR_STOP=1 < supabase/tests/staff-rbac.sql
 BEGIN;
 CREATE FUNCTION pg_temp.assert_true(ok boolean,label text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN IF ok IS DISTINCT FROM true THEN RAISE EXCEPTION 'FAIL: %',label;END IF;END $$;
@@ -16,6 +17,9 @@ INSERT INTO auth.users(id,email,email_confirmed_at)
 SELECT sb.bootstrap_owner('00000000-0000-4000-8000-00000000e001');
 INSERT INTO sb.staff_grants(user_id,active) VALUES('00000000-0000-4000-8000-00000000e00c',true);
 SET LOCAL ROLE shadowbridge_api;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e001',true);
+SELECT pg_temp.assert_true(current_setting('request.jwt.claim.aal',true) IS NULL,'fresh SQL fixture has no MFA claim');
+SELECT pg_temp.denied($q$SELECT sb.project_partner_eligible('00000000-0000-4000-8000-000000000000')$q$,'missing MFA claim fails closed before recipient lookup');
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e001',true),set_config('request.jwt.claim.aal','aal1',true);
 SELECT pg_temp.assert_true(sb.has_staff_grant() AND NOT sb.has_permission('staff.manage'),'MFA required despite OWNER assignment');
 SELECT pg_temp.assert_true(sb.staff_context()->'permissions'='[]'::jsonb,'aal1 effective permissions empty');
@@ -90,6 +94,31 @@ SELECT company_id AS partner_company FROM sb.applications WHERE id=:'partner_app
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e001',true),set_config('request.jwt.claim.aal','aal2',true);
 SELECT sb.decide_application(:'partner_application','approved','FICTIONAL RBAC test');
 SELECT sb.add_company_member(:'partner_company','00000000-0000-4000-8000-00000000e010','partner');
+SELECT set_config('test.project_partner_company',:'partner_company',true);
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e005',true);
+SELECT pg_temp.assert_true(NOT sb.has_permission('accounts.read') AND sb.project_partner_eligible(:'partner_company'),'operations checks approved partner without receiving account records');
+SELECT pg_temp.assert_true(NOT sb.project_partner_eligible(:'supplier_company') AND NOT sb.project_partner_eligible('00000000-0000-4000-8000-000000000000'),'supplier-only and unknown companies are not eligible project recipients');
+INSERT INTO sb.projects(partner_company_id,title) VALUES(:'partner_company','FICTIONAL operations delegated project');
+SELECT set_config('test.supplier_company',:'supplier_company',true);
+SELECT pg_temp.denied($q$INSERT INTO sb.projects(partner_company_id,title) VALUES(current_setting('test.supplier_company')::uuid,'FICTIONAL wrong-role project')$q$,'direct SQL cannot assign projects to a nonpartner');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e007',true);
+SELECT pg_temp.denied($q$SELECT sb.project_partner_eligible(current_setting('test.project_partner_company')::uuid)$q$,'analyst cannot enumerate recipient eligibility');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e005',true),set_config('request.jwt.claim.aal','aal1',true);
+SELECT pg_temp.denied($q$SELECT sb.project_partner_eligible(current_setting('test.project_partner_company')::uuid)$q$,'recipient eligibility requires real staff MFA context');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e001',true),set_config('request.jwt.claim.aal','aal2',true);
+SELECT sb.suspend_account('00000000-0000-4000-8000-00000000e00f','suspended');
+SELECT sb.suspend_account('00000000-0000-4000-8000-00000000e010','suspended');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e005',true);
+SELECT pg_temp.assert_true(NOT sb.project_partner_eligible(:'partner_company'),'all suspended partner accounts make recipient ineligible');
+SELECT pg_temp.denied($q$INSERT INTO sb.projects(partner_company_id,title) VALUES(current_setting('test.project_partner_company')::uuid,'FICTIONAL suspended-recipient project')$q$,'direct SQL cannot assign projects to suspended-only partners');
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e001',true);
+SELECT sb.suspend_account('00000000-0000-4000-8000-00000000e00f','active');
+SELECT sb.suspend_account('00000000-0000-4000-8000-00000000e010','active');
+RESET ROLE;
+SET LOCAL ROLE shadowbridge_sessions;
+SELECT pg_temp.denied($q$SELECT sb.project_partner_eligible(current_setting('test.project_partner_company')::uuid)$q$,'session role has no recipient eligibility RPC');
+RESET ROLE;
+SET LOCAL ROLE shadowbridge_api;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e00a',true),set_config('request.jwt.claim.aal','aal1',true);
 INSERT INTO sb.rfqs(company_id,created_by,status,data) VALUES(:'buyer_company',sb.user_id(),'draft','{"product":"FICTIONAL multiuser RFQ","categoryId":"10000000-0000-4000-8000-000000000001"}') RETURNING id AS rfq_id \gset
 SELECT set_config('test.rfq_id',:'rfq_id',true);
@@ -139,20 +168,20 @@ SELECT set_config('request.jwt.claim.mfa_verified_at',(extract(epoch FROM statem
 SELECT pg_temp.denied($q$SELECT sb.set_staff_limit('00000000-0000-4000-8000-00000000e006',100,'EUR')$q$,'owner limits require fresh MFA');
 SELECT set_config('request.jwt.claim.mfa_verified_at',extract(epoch FROM statement_timestamp())::text,true);
 SELECT sb.set_staff_limit('00000000-0000-4000-8000-00000000e006',100,'EUR');
-INSERT INTO sb.projects(partner_company_id,title) VALUES(:'supplier_company','FICTIONAL RBAC project') RETURNING id AS project_id \gset
+INSERT INTO sb.projects(partner_company_id,title) VALUES(:'partner_company','FICTIONAL RBAC project') RETURNING id AS project_id \gset
 SELECT set_config('test.project_id',:'project_id',true);
 SELECT set_config('request.jwt.claim.mfa_verified_at',(extract(epoch FROM statement_timestamp())-301)::text,true);
-SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.supplier_company')::uuid,10001,'EUR')$q$,'OWNER high-value commission requires fresh MFA');
-SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.supplier_company')::uuid,1,'USD')$q$,'OWNER different-currency commission requires fresh MFA');
-INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(:'project_id',:'supplier_company',50,'EUR');
+SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.project_partner_company')::uuid,10001,'EUR')$q$,'OWNER high-value commission requires fresh MFA');
+SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.project_partner_company')::uuid,1,'USD')$q$,'OWNER different-currency commission requires fresh MFA');
+INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(:'project_id',:'partner_company',50,'EUR');
 SELECT set_config('request.jwt.claim.mfa_verified_at',extract(epoch FROM statement_timestamp())::text,true);
-INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(:'project_id',:'supplier_company',10001,'EUR');
+INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(:'project_id',:'partner_company',10001,'EUR');
 
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e006',true);
-INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(:'project_id',:'supplier_company',50,'EUR');
-SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.supplier_company')::uuid,200,'EUR')$q$,'commission limit enforced in PostgreSQL');
-SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.supplier_company')::uuid,1,'USD')$q$,'unknown conversion currency requires approval');
-SELECT sb.request_risk_approval('commissions.create',jsonb_build_object('projectId',:'project_id','partnerCompanyId',:'supplier_company','amount',200,'currency','EUR','agreementReference','','status','under_agreement')) AS risk_id \gset
+INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(:'project_id',:'partner_company',50,'EUR');
+SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.project_partner_company')::uuid,200,'EUR')$q$,'commission limit enforced in PostgreSQL');
+SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.project_partner_company')::uuid,1,'USD')$q$,'unknown conversion currency requires approval');
+SELECT sb.request_risk_approval('commissions.create',jsonb_build_object('projectId',:'project_id','partnerCompanyId',:'partner_company','amount',200,'currency','EUR','agreementReference','','status','under_agreement')) AS risk_id \gset
 SELECT set_config('test.risk_id',:'risk_id',true);
 SELECT pg_temp.denied($q$SELECT sb.decide_risk_approval(current_setting('test.risk_id')::uuid,'approved')$q$,'requester cannot self-approve risk');
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e001',true);
@@ -161,9 +190,9 @@ SELECT pg_temp.denied($q$SELECT sb.decide_risk_approval(current_setting('test.ri
 SELECT set_config('request.jwt.claim.mfa_verified_at',extract(epoch FROM statement_timestamp())::text,true);
 SELECT sb.decide_risk_approval(:'risk_id','approved');
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e006',true),set_config('request.risk_approval_id',:'risk_id',true);
-SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.supplier_company')::uuid,201,'EUR')$q$,'approval cannot authorize modified payload');
-INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(:'project_id',:'supplier_company',200,'EUR');
-SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.supplier_company')::uuid,200,'EUR')$q$,'approval cannot be replayed');
+SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.project_partner_company')::uuid,201,'EUR')$q$,'approval cannot authorize modified payload');
+INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(:'project_id',:'partner_company',200,'EUR');
+SELECT pg_temp.denied($q$INSERT INTO sb.commissions(project_id,partner_company_id,amount,currency) VALUES(current_setting('test.project_id')::uuid,current_setting('test.project_partner_company')::uuid,200,'EUR')$q$,'approval cannot be replayed');
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e001',true);
 SELECT sb.suspend_account('00000000-0000-4000-8000-00000000e006','suspended');
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000e006',true);

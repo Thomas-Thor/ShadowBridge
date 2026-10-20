@@ -135,6 +135,44 @@ test('RBAC: real individual staff identities, owner protection, delegation and c
     await employee.client.request(`/api/rfqs/${privateRfq.id}`, { expected: 403 });
   });
 
+  await t.test('director, operations and finance complete ordinary work without an owner decision', async () => {
+    const director = actors.general_director;
+    const operations = actors.operations_manager;
+    const finance = actors.compliance_finance;
+    await director.client.request(`/api/admin/rfqs/${privateRfq.id}/decision`, { method: 'POST', body: {
+      decision: 'accepted', reason: 'FICTIONAL independent director review of the submitted requirement.',
+    }, expected: 200 });
+    assert.equal((await buyerA.client.request(`/api/rfqs/${privateRfq.id}`, { expected: 200 })).data.item.status, 'accepted');
+    await operations.client.request(`/api/admin/rfqs/${privateRfq.id}/decision`, { method: 'POST', body: {
+      decision: 'accepted', reason: 'FICTIONAL denied cross-scope operations decision.',
+    }, expected: 403 });
+
+    const project = (await operations.client.request('/api/admin/projects', { method: 'POST', body: {
+      partnerCompanyId: employee.companyId, title: `FICTIONAL delegated operations project ${runId}`,
+      summary: 'Fictional individually assigned cooperation; no real transaction or transport.', reviewedNonIdentifying: true,
+    }, expected: 201 })).data.item;
+    assert.ok((await employee.client.request('/api/projects', { expected: 200 })).data.items.some(item => item.id === project.id));
+    assert.ok((await director.client.request('/api/admin/projects', { expected: 200 })).data.items.some(item => item.id === project.id));
+    await actors.procurement_manager.client.request('/api/admin/projects', { expected: 403 });
+    const agreed = {
+      projectId: project.id, amount: 50, currency: 'EUR', agreementReference: `FICTIONAL-${runId.toUpperCase()}`,
+      agreementConfirmed: true, reviewedNonIdentifying: true,
+    };
+    await operations.client.request('/api/admin/commissions', { method: 'POST', body: agreed, expected: 403 });
+    await finance.client.request('/api/admin/commissions', { method: 'POST', body: agreed, expected: 201 });
+    const commission = (await employee.client.request('/api/commissions', { expected: 200 })).data.items.find(item => item.projectId === project.id);
+    assert.equal(Number(commission.amount), 50);
+    assert.equal(commission.currency, 'EUR');
+    const overview = (await actors.staff_analyst.client.request('/api/staff/overview', { expected: 200 })).data;
+    assert.deepEqual(Object.keys(overview.counts), ['pendingRiskApprovals']);
+    assert.deepEqual(overview.recentActivity, []);
+    await actors.staff_analyst.client.request('/api/admin/companies', { expected: 403 });
+    await actors.staff_analyst.client.request('/api/admin/rfqs', { expected: 403 });
+    await actors.staff_analyst.client.request('/api/admin/commissions', { expected: 403 });
+    const actorsOfDecisions = JSON.parse(db(`SELECT coalesce(json_agg(DISTINCT actor_id),'[]') FROM sb.audit_events WHERE actor_id IN (${[director, operations, finance].map(actor => sqlLiteral(actor.user.id)).join(',')})`));
+    for (const actor of [director, operations, finance]) assert.ok(actorsOfDecisions.includes(actor.user.id), 'Delegated operational actions must identify the actual staff actor in audit');
+  });
+
   await t.test('high-risk financial decisions require independent exact authorization and cannot be replayed', async () => {
     const finance = actors.compliance_finance;
     await owner.client.request('/api/staff/limits', { method: 'POST', body: { userId: finance.user.id, amount: 100, currency: 'EUR' }, expected: 200 });

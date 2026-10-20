@@ -21,3 +21,12 @@ Demo tworzy wyłącznie fikcyjne konta `@demo.shadowbridge.invalid`. Przeprowadz
 **Zatrzymanie:** Ctrl+C w terminalu demo; następnie `npm run dev:down` zatrzymuje kontenery, zachowując bazę. Kolejny start to tylko `npm run demo`. Jeśli port 8088 jest zajęty, zatrzymaj wcześniejszy `dev:server`/`demo` przez Ctrl+C. Narzędzie nie zabija obcych procesów ani nie wysyła haseł do innego serwera. Nie odblokowuje zawieszonych i nie zatwierdza ponownie odrzuconych kont.
 
 Losowe sekrety są wyłącznie w ignorowanym katalogu `.local/` (`0700`), w plikach `development.env` i `demo-accounts.json` (`0600`). **Nie wysyłaj ich na GitHub ani w zrzutach ekranu.** Plik kont demo zawiera również sekret lokalnego MFA. Zachowaj `.local/` i wolumen bazy między uruchomieniami; ich usunięcie nie jest procedurą naprawy. Wszystkie porty są dostępne wyłącznie na własnym komputerze. Nie utworzono usług chmurowych i nie zmieniono produkcji.
+
+**Aktualizacja istniejącej instalacji:** zatrzymaj aplikację przez Ctrl+C.
+Przed zmianą wersji zachowaj prywatną kopię `.local/` oraz osobną kopię bazy;
+sam ZIP kodu nie zawiera kont i danych PostgreSQL. Aktualizuj pliki w dotychczasowym
+katalogu, zachowując jego `.local/` i ten sam wolumen/projekt Compose. Następnie
+wykonaj `npm ci` i `npm run demo`. Launcher sprawdza zapisane migracje i stosuje
+nowe; nie usuwa bazy. Nie uruchamiaj świeżo rozpakowanego ZIP obok starej instalacji
+jako sposobu aktualizacji: bez jej `.local/` wygenerowałby inne sekrety dla
+istniejącego stosu. Nie kasuj kont, wolumenu ani sekretów w odpowiedzi na błąd startu.

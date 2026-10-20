@@ -2,9 +2,13 @@
 
 Ten etap jest środowiskiem **lokalnym do przeglądu i testów**, z rzeczywistym GoTrue Auth, PostgreSQL i politykami dostępu. Nie jest wdrożeniem produkcyjnym ani certyfikatem bezpieczeństwa. Nie skonfigurowano kont zewnętrznych usług, prawdziwego SMTP, płatnych usług ani automatycznego importu rzeczywistych danych. Produkcja GitHub Pages i DNS pozostają bez zmian.
 
-## Najkrótsza instrukcja lokalna
+## Ręczne uruchomienie lokalne
 
 Wymagania: Linux, działający Docker z Compose v2, Node.js 22.12 lub nowszy oraz npm. Polecenia wykonuj w katalogu repozytorium, na gałęzi `feature/secure-b2b-mvp`.
+
+Najprostsze uruchomienie z fikcyjnymi kontami opisuje [instrukcja Pop!_OS](POP-OS.md)
+(`npm ci`, następnie `npm run demo`). Poniższy wariant uruchamia sam backend;
+nie przygotowuje kont demonstracyjnych ani nie nadaje uprawnień OWNER.
 
 ```bash
 npm ci
@@ -38,10 +42,15 @@ Przeglądarka otrzymuje niejawny identyfikator sesji w ciasteczku HttpOnly, Same
 Uprawnienie zarządcze przyznaje operator bazy dopiero po zweryfikowanej rejestracji. Nie jest przyznawane przez formularz, rolę użytkownika ani członkostwo C.A.R.T.E.L. Do testu lokalnego użyj własnego fikcyjnego, wcześniej zweryfikowanego konta:
 
 ```bash
-npm run bootstrap:admin -- --email=owner-test@shadowbridge.invalid --grant-management
+npm run bootstrap:admin -- --email=owner-test@shadowbridge.invalid --grant-owner
 ```
 
-To polecenie nie tworzy hasła, nie wysyła zaproszenia i nie omija MFA. Działania zarządcze wymagają osobnego, rzeczywistego TOTP i sesji `aal2`. Nie przyznawaj tego uprawnienia kupującemu, dostawcy ani partnerowi. Polecenie ma dostęp DBA; nie uruchamiaj go automatycznie ani w publicznym serwerze aplikacji.
+To polecenie nadaje najwyższą rolę **OWNER** wskazanemu, zweryfikowanemu kontu.
+Nie tworzy hasła, nie wysyła zaproszenia i nie omija MFA. Działania zarządcze
+wymagają osobnego, rzeczywistego TOTP i sesji `aal2`. Zwykłe role pracownicze
+nadaje następnie upoważniony zarząd przez RBAC; nie używaj bootstrapu do
+promowania managerów ani kontrahentów. Polecenie ma dostęp DBA; nie uruchamiaj
+go automatycznie ani w publicznym serwerze aplikacji.
 
 ## Weryfikacja uprawnień przed wyborem zarządzanej bazy
 
@@ -84,13 +93,18 @@ Jeżeli dostawca nie pozwala utworzyć tej roli lub odpowiednio przekazać włas
 
 ## Testy
 
-Przy działającym stosie lokalnym i serwerze aplikacji:
+Wyłącznie na osobnym, przeznaczonym do testów stosie lokalnym i przy działającym
+serwerze aplikacji:
 
 ```bash
 npm run test:api
 ```
 
-Testy używają fikcyjnych kont i lokalnej poczty. Nie zastępują przeglądu wdrożenia, testu penetracyjnego, analizy prawnej ani zatwierdzenia pracy na rzeczywistych danych. Wyniki i ograniczenia opisuje osobny raport w dokumentacji.
+Testy tworzą fikcyjne konta i dane oraz korzystają z lokalnej poczty; nie uruchamiaj
+ich na instalacji z kontami i danymi właściciela. Sposób wskazania izolowanej bazy
+i aktualne zestawy opisuje [instrukcja testów](../server/tests/README.md).
+Nie zastępują przeglądu wdrożenia, testu penetracyjnego, analizy prawnej ani
+zatwierdzenia pracy na rzeczywistych danych.
 
 ## Warunki wymagające osobnego zatwierdzenia przed uruchomieniem zewnętrznym
 

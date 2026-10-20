@@ -22,8 +22,8 @@ async function signIn(page, actor, role) {
   await expect(page.locator('#portal-status')).toContainText('Approved account.');
   await page.goto(`/portal/${role}/`);
 }
-async function ownerContext(browser) {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+async function ownerContext(browser, { viewport, isMobile = false, hasTouch = false }) {
+  const context = await browser.newContext({ viewport, isMobile, hasTouch, reducedMotion: 'reduce' });
   // An opaque, real GoTrue-backed AAL2 BFF session, created through real MFA.
   // No JWT, password or fixture credential is written to an artifact/file.
   await context.addCookies([...owner.client.cookies].map(([name, value]) => ({ name, value, url: helpers.appOrigin, httpOnly: true, sameSite: 'Lax' })));
@@ -33,7 +33,7 @@ async function ownerContext(browser) {
   return { context, page };
 }
 
-test.describe('Real supplier, management and partner desktop workflows', () => {
+test.describe('Real supplier, management and partner workflows', () => {
   test.beforeAll(async () => {
     helpers = await import('../server/tests/helpers.mjs');
     owner = await helpers.verifyActor(await helpers.registerActor('partner', 'desktop-owner'));
@@ -50,7 +50,7 @@ test.describe('Real supplier, management and partner desktop workflows', () => {
     }
   });
 
-  test('supplier creates, edits and submits; verified management individually releases an anonymous card', async ({ page, browser }) => {
+  test('supplier creates, edits and submits; verified management individually releases an anonymous card', async ({ page, browser }, testInfo) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await signIn(page, supplier, 'supplier');
@@ -87,7 +87,7 @@ test.describe('Real supplier, management and partner desktop workflows', () => {
     await expect(record.locator('small').first()).toContainText('submitted');
     await expect(record.getByRole('button', { name: 'Edit draft', exact: true })).toHaveCount(0);
 
-    const management = await ownerContext(browser);
+    const management = await ownerContext(browser, testInfo.project.use);
     try {
       management.page.on('pageerror', error => errors.push(error.message));
       await helpers.qualifySupplier(owner, offer.id);

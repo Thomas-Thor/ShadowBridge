@@ -1,5 +1,10 @@
 # ShadowBridge MVP — wynik implementacji i testów
 
+**Zapis historyczny wcześniejszego wykonania.** Poniższe wyniki nie oznaczają
+ponowienia tych testów po każdej późniejszej zmianie. Aktualne wykonania i ich
+ograniczenia opisuje [raport regresji z 20.10.2026](regression-2026-10-20.md);
+zapis [punktu kontrolnego z 19.10](checkpoint-2026-10-19.md) pozostaje bez zmian.
+
 Data: 19 października 2026. Gałąź `feature/secure-b2b-mvp`, oparta na
 `feature/private-b2b-entrypoints` (`2cc4de8`). Produkcyjny `main` pozostaje
 `d0512dd`. Nie wdrożono MVP na domenie publicznej.

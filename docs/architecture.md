@@ -1,5 +1,12 @@
 # ShadowBridge — specyfikacja prywatnej platformy B2B
 
+**Dokument historyczny projektu z etapu frontendu (`2cc4de8`, 18.10.2026).**
+Poniższy opis stanu bez backendu odnosi się do tamtego etapu; modele i funkcje
+docelowe nie są listą obecnie zaimplementowanych modułów. Bieżąca gałąź ma
+lokalny backend, uwierzytelnianie i zapis formularzy. Aktualny zakres i wykonane
+testy opisuje [raport regresji z 20.10.2026](regression-2026-10-20.md),
+a uruchomienie — [instrukcja operacyjna](mvp-operations.md).
+
 Status: **projekt architektury do osobnego zatwierdzenia; backend nie jest uruchomiony**. Data: 18 października 2026. Punktem wyjścia tej gałęzi jest produkcyjny commit `d0512dd`. Poniższe tabele, API i polityki są dokumentacją przyszłego wdrożenia, a nie działającą konfiguracją.
 
 ## 1. Zakres obecnego etapu

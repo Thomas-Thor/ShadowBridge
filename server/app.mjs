@@ -344,7 +344,7 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
         if(method==='POST'&&route==='/api/admin/projects') {
           await requirePermission(tx,'projects.create');
           const input=object(await body(req),['partnerCompanyId','title','summary','reviewedNonIdentifying'],['partnerCompanyId','title','reviewedNonIdentifying']);const company=identifier(input.partnerCompanyId);if(input.reviewedNonIdentifying!==true)throw new ApiError(400,'REVIEW_REQUIRED','Review partner-visible text for identifying information.');await guardReleasedText(tx,[input.title,input.summary||''],company);
-          if(!(await tx.query("SELECT 1 FROM sb.memberships m JOIN sb.accounts a ON a.user_id=m.user_id WHERE m.company_id=$1::uuid AND m.role='partner' AND m.status='approved' AND a.status='active'",[company])).rowCount)throw new ApiError(400,'PARTNER_NOT_APPROVED','Assign only to an approved partner.');
+          if(!(await tx.query('SELECT sb.project_partner_eligible($1::uuid) AS eligible',[company])).rows[0].eligible)throw new ApiError(400,'PARTNER_NOT_APPROVED','Assign only to an approved partner.');
           const project=one(await tx.query('INSERT INTO sb.projects(partner_company_id,title,summary) VALUES($1,$2,$3) RETURNING public_id AS id,title,status,summary',[company,text(input.title,'title',{min:2,max:200}),text(input.summary||'','summary')]));return json(res,201,{item:project});
         }
         if(method==='POST'&&route==='/api/admin/commissions') {

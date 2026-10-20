@@ -1,5 +1,6 @@
 -- Local isolated SQL authorization test. Requires a DBA test connection; always rolls back.
--- docker exec -i shadowbridge-private-local-postgres-1 psql -U postgres -d shadowbridge -v ON_ERROR_STOP=1 < supabase/tests/rls-smoke.sql
+-- Example for the separately provisioned disposable regression database only:
+-- docker exec -i shadowbridge-stage2-regression-postgres-1 psql -U postgres -d shadowbridge_stage2_sql -v ON_ERROR_STOP=1 < supabase/tests/rls-smoke.sql
 BEGIN;
 INSERT INTO auth.users(id,email,email_confirmed_at) VALUES
  ('00000000-0000-4000-8000-00000000d001','buyer.rls-smoke@test.shadowbridge.invalid',now()),
@@ -8,7 +9,8 @@ INSERT INTO auth.users(id,email,email_confirmed_at) VALUES
  ('00000000-0000-4000-8000-00000000d004','pending.rls-smoke@test.shadowbridge.invalid',now()),
  ('00000000-0000-4000-8000-00000000d005','buyer2.rls-smoke@test.shadowbridge.invalid',now()),
  ('00000000-0000-4000-8000-00000000d006','unverified.rls-smoke@test.shadowbridge.invalid',NULL);
-INSERT INTO sb.staff_grants(user_id,active) VALUES('00000000-0000-4000-8000-00000000d003',true);
+-- Current RBAC never promotes a legacy staff_grant automatically.
+SELECT sb.bootstrap_owner('00000000-0000-4000-8000-00000000d003');
 SET LOCAL ROLE shadowbridge_api;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000d001',true),set_config('request.jwt.claim.aal','aal1',true);
 SELECT sb.submit_application('buyer','{"legal_name":"FICTIONAL Buyer RLS","registration_number":"TEST-BUYER-RLS","country":"NO"}') AS buyer_application \gset
@@ -50,7 +52,7 @@ SELECT sb.decide_application(:'buyer_application','approved','FICTIONAL SQL test
 SELECT sb.decide_application(:'supplier_application','approved','FICTIONAL SQL test');
 SELECT sb.decide_application(:'buyer2_application','approved','FICTIONAL SQL test');
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000d002',true),set_config('request.jwt.claim.aal','aal1',true);
-INSERT INTO sb.offers(company_id,created_by,data,status) VALUES(:'supplier_company','00000000-0000-4000-8000-00000000d002','{"title":"FICTIONAL Industrial material"}','submitted') RETURNING id AS source_offer,public_id AS source_public_id \gset
+INSERT INTO sb.offers(company_id,created_by,data,status) VALUES(:'supplier_company','00000000-0000-4000-8000-00000000d002','{"title":"FICTIONAL Industrial material","categoryId":"10000000-0000-4000-8000-000000000001"}','submitted') RETURNING id AS source_offer,public_id AS source_public_id \gset
 DO $$ BEGIN
  BEGIN
   UPDATE sb.offers SET status='approved';
@@ -68,13 +70,17 @@ END $$;
 SELECT set_config('test.supplier_company',:'supplier_company',true);
 DO $$ BEGIN
  BEGIN
-  INSERT INTO sb.offers(company_id,created_by,data) VALUES(current_setting('test.supplier_company')::uuid,sb.user_id(),'{}');
+  INSERT INTO sb.offers(company_id,created_by,data) VALUES(current_setting('test.supplier_company')::uuid,sb.user_id(),'{"categoryId":"10000000-0000-4000-8000-000000000001"}');
   RAISE EXCEPTION 'Forged company offer insertion succeeded';
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000d003',true),set_config('request.jwt.claim.aal','aal2',true);
-UPDATE sb.offers SET status='approved' WHERE id=:'source_offer';
-SELECT sb.publish_opportunity(:'source_offer','{"title":"FICTIONAL Industrial material","specification":"Commercial terms through ShadowBridge","quantity":20,"price":42,"unit":"tonnes"}') AS opportunity_id \gset
+-- Company approval does not qualify a supplier or a copied source offer.
+SELECT sb.review_supplier_qualification(:'source_public_id',stage,'verified','manufacturer','FICTIONAL current RLS fixture evidence; no real document.','FICTIONAL-RLS-EVIDENCE')
+ FROM unnest(ARRAY['company','right_to_sell','documents_goods','decision']) WITH ORDINALITY AS review(stage,position) ORDER BY position;
+SELECT sb.set_workspace_source(:'source_public_id','supplier_owned','FICTIONAL right-to-sell evidence reviewed for the isolated RLS fixture.');
+SELECT sb.decide_workspace_offer(:'source_public_id','approved','FICTIONAL qualified supplier and source reviewed for the isolated RLS fixture.');
+SELECT sb.publish_opportunity(:'source_offer','{"title":"FICTIONAL Industrial material","categoryId":"10000000-0000-4000-8000-000000000001","specification":"Commercial terms through ShadowBridge","quantity":20,"price":42,"unit":"tonnes"}') AS opportunity_id \gset
 SELECT sb.grant_opportunity(:'opportunity_id',:'buyer_company','buyer',NULL);
 SELECT sb.grant_opportunity(:'opportunity_id',:'buyer2_company','buyer',NULL);
 DO $$ BEGIN
@@ -90,10 +96,10 @@ END $$;
 SELECT set_config('test.source_offer',:'source_offer',true);
 DO $$ BEGIN
  BEGIN
-  PERFORM sb.publish_opportunity(current_setting('test.source_offer')::uuid,'{"title":"Contact supplier@example.invalid"}');
+  PERFORM sb.publish_opportunity(current_setting('test.source_offer')::uuid,'{"title":"Contact supplier@example.invalid","categoryId":"10000000-0000-4000-8000-000000000001"}');
   RAISE EXCEPTION 'Anonymous card accepted an e-mail';
- EXCEPTION WHEN raise_exception THEN
-  IF SQLERRM<>'Contact information is forbidden in anonymous cards' THEN RAISE; END IF;
+ EXCEPTION WHEN invalid_parameter_value THEN
+  IF SQLERRM<>'Contact details are forbidden in anonymous cards' THEN RAISE; END IF;
  END;
 END $$;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000d001',true),set_config('request.jwt.claim.aal','aal1',true);

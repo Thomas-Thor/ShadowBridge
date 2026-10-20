@@ -15,6 +15,7 @@ module.exports = defineConfig({
   projects: [
     { name: 'desktop-contact', use: { viewport: { width: 1440, height: 1000 } } },
     { name: 'mobile-contact', use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
+    { name: 'mobile-320-contact', use: { viewport: { width: 320, height: 740 }, isMobile: true, hasTouch: true } },
   ],
   // No API stubs or static-server fallback: the actual local backend is required.
 });

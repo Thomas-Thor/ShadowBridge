@@ -1,9 +1,11 @@
 # ShadowBridge — secure private B2B MVP
 
-**Punkt kontrolny, publikacja wstrzymana.** Zachowany rozwój po `a4582db` i jego
-ograniczenia opisano w [raporcie zabezpieczenia pracy](docs/checkpoint-2026-10-19.md).
-To nie jest potwierdzenie gotowości całej platformy do wydania. Poniższa instrukcja
-uruchomienia pochodzi z poprzedniego etapu; nowy launcher wymaga końcowej weryfikacji.
+**Lokalny MVP, publikacja wstrzymana.** Start `npm run demo`, ponowny start i
+aktualizację instalacji z `a4582db` sprawdzono 20.10.2026 na izolowanym stosie,
+z zachowaniem kont, haseł, MFA, ustawień, danych i aktywnych sesji. Aktualne wyniki
+i ograniczenia opisuje [raport regresji](docs/regression-2026-10-20.md).
+[Punkt kontrolny z 19.10](docs/checkpoint-2026-10-19.md) jest zapisem historycznym.
+To nie jest potwierdzenie gotowości platformy do publikacji.
 
 Gałąź: `feature/secure-b2b-mvp`, oparta na `feature/private-b2b-entrypoints`
 (`2cc4de8`), zachowująca produkcyjny `main` (`d0512dd`). **Nie wdrożono tej
@@ -60,6 +62,10 @@ Szczegóły: [uruchomienie i konfiguracja](docs/mvp-operations.md),
 
 ## Testy i paczka publiczna
 
+Testy integracyjne tworzą fikcyjne rekordy. Uruchamiaj je wyłącznie na osobnym
+stosie testowym, wskazując jego kontener PostgreSQL zgodnie z
+[instrukcją testów](server/tests/README.md), a nie na instalacji z kontami właściciela.
+
 ```bash
 npm run test:api
 npm run test:contact
@@ -77,9 +83,10 @@ sekrety, bazę, testy i makiety. Formularze kont i kontaktu pozostają w nim nie
 
 Nie skonfigurowano zewnętrznego Supabase, rzeczywistego SMTP ani hostingu BFF.
 GitHub Pages nie uruchomi tego backendu. Każde wdrożenie, usługi płatne i
-użycie prawdziwych danych wymagają osobnego zatwierdzenia; budżet wstępny
-małego środowiska to orientacyjnie 35–85 USD/mies., przed zakupem należy
-potwierdzić aktualne cenniki i zakres backupów.
+użycie prawdziwych danych wymagają osobnego zatwierdzenia. Zachowany
+[plan stagingu](docs/staging-plan.md) zawiera niezatwierdzone warianty i
+historyczne szacunki; nie jest aktualną ofertą ani zgodą na zakup. Publikacja
+pozostaje wstrzymana, a szkic wdrożenia jest niekompletny.
 
 Przycisk WhatsApp używa numeru przekazanego przez właściciela. Link wa.me z
 samej swojej konstrukcji ujawnia numer docelowy; nie pokazujemy go jako osobnego

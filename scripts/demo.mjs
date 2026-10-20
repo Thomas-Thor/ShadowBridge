@@ -148,6 +148,9 @@ async function prepareActor(record, label) {
       actor.registered = true; await save(record);
     }
     await verifyMail(client, actor.email);
+    // Confirmation replaces the opaque session. Refresh its CSRF binding just
+    // as the browser does before attempting the next authenticated mutation.
+    await client.request('/api/config');
     login = await client.login(actor);
     if (login.status !== 200) throw new DemoError(`Could not sign in to the generated ${label} account. Existing accounts were preserved; no password was reset.`);
   }

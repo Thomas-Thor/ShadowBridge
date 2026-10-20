@@ -3,7 +3,8 @@ BEGIN;
 INSERT INTO auth.users(id,email,email_confirmed_at) VALUES
  ('00000000-0000-4000-8000-00000000c901','contact.management@test.shadowbridge.invalid',now()),
  ('00000000-0000-4000-8000-00000000c902','contact.buyer@test.shadowbridge.invalid',now());
-INSERT INTO sb.staff_grants(user_id,active) VALUES('00000000-0000-4000-8000-00000000c901',true);
+-- A legacy staff_grant deliberately grants no current RBAC authority.
+SELECT sb.bootstrap_owner('00000000-0000-4000-8000-00000000c901');
 SELECT encode(digest(gen_random_uuid()::text,'sha256'),'hex') AS client_key \gset
 SELECT set_config('test.contact_client_key',:'client_key',true);
 SET LOCAL ROLE shadowbridge_sessions;

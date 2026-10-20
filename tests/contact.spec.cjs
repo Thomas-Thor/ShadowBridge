@@ -1,5 +1,12 @@
 const { loadTestDependency } = require('./dependencies.cjs');
-const { test, expect } = loadTestDependency('@playwright/test');
+const { test: base, expect } = loadTestDependency('@playwright/test');
+const { contactProxy } = require('./contact-proxy.cjs');
+const test = base.extend({
+  proxy: async ({}, use) => {
+    const forwarding = await contactProxy();
+    try { await use(forwarding.settings); } finally { await forwarding.close(); }
+  },
+});
 let helpers;
 
 test.beforeAll(async () => {
