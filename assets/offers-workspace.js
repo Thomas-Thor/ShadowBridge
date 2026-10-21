@@ -6,6 +6,7 @@
   const notice = document.querySelector('#offers-status');
   const grid = document.querySelector('#offers-grid');
   const filters = document.querySelector('#offers-filters');
+  const navigation = document.querySelector('#offers-navigation');
   const pagination = document.querySelector('#offers-pagination');
   const dialog = document.querySelector('#offer-detail');
   const detail = document.querySelector('#offer-detail-body');
@@ -54,7 +55,8 @@
     grid.replaceChildren(); detail.replaceChildren();
     if (dialog.open) dialog.close();
     workspace.hidden = true; pagination.hidden = true;
-    document.querySelector('#offers-navigation').hidden = true;
+    navigation.replaceChildren(); navigation.hidden = true;
+    permissions = [];
     document.querySelector('#offers-account').replaceChildren();
     report(title, message, true); linkAction('Member Sign In', '/member-sign-in/');
   }
@@ -317,7 +319,7 @@
   document.querySelector('#offers-previous').addEventListener('click', () => { if (page > 1) { page--; loadList(); } });
   document.querySelector('#offers-next').addEventListener('click', () => { if (page < pages) { page++; loadList(); } });
   async function start() {
-    window.ShadowDashboard?.mountShell({ navigation: document.querySelector('#offers-navigation'), role: 'offers' });
+    window.ShadowDashboard?.mountShell({ navigation, role: 'offers' });
     const config = await api('/api/config');
     if (config.backendEnabled !== true || !config.csrfToken) return;
     csrfToken = config.csrfToken;
@@ -328,6 +330,10 @@
     const access = await api('/api/staff/access');
     if (!Array.isArray(access.permissions) || !access.permissions.includes('offers.read')) { report('Offer access not granted.', 'Your current role does not grant permission to read offers. No offer data has been requested.'); linkAction('Return to Command Center', '/portal/admin/'); return; }
     permissions = access.permissions;
+    if (!window.ShadowDashboard?.managementNavigation) throw new Error('The shared Command Center navigation is unavailable. Reload the page before continuing.');
+    window.ShadowDashboard.workspaceNavigation({ navigation, user, role: 'offers' });
+    const modules = window.ShadowDashboard.managementNavigation({ access, selected: 'offers' });
+    window.ShadowDashboard.placeModules(modules);
     catalog = await api('/api/catalog');
     if (!Array.isArray(catalog.categories) || !Array.isArray(catalog.currencies)) throw new Error('The business classification is unavailable.');
     fillCategories(document.querySelector('#offers-category'), '', 'All categories');
@@ -340,8 +346,7 @@
     });
     account.replaceChildren(node('span', { class: 'portal-environment', text: config.environment === 'local' ? 'Local development — not production' : 'Secure staff service' }), node('p', { text: user.email }), signOut);
     report('Authorized offers workspace.', 'Only offers and fields allowed by your current permissions are returned. Source records are never automatically visible to counterparties.');
-    document.querySelector('#offers-navigation').hidden = false;
     workspace.hidden = false; await loadList();
   }
-  start().catch((error) => { if (!closed) { window.ShadowDashboard?.clearPrivate(); grid.replaceChildren(); workspace.hidden = true; report('Private service unavailable.', `${error.message} No private workspace has been activated.`, true); } });
+  start().catch((error) => { if (!closed) { window.ShadowDashboard?.clearPrivate(); navigation.replaceChildren(); navigation.hidden = true; document.querySelector('#offers-account').replaceChildren(); grid.replaceChildren(); workspace.hidden = true; report('Private service unavailable.', `${error.message} No private workspace has been activated.`, true); } });
 })();

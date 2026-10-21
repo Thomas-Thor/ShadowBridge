@@ -464,18 +464,11 @@
   async function adminWorkspace() {
     managementAccess = await api('/api/staff/access');
     if (closed) return;
-    const modules = [
-      ['overview', 'Overview', 'overview.read'], ['contact', 'Contact queue', 'contact.read'],
-      ['applications', 'Applications', 'applications.read'], ['companies', 'Companies', 'companies.read'],
-      ['offers', 'Offers', 'offers.read'], ['rfqs', 'Buyer requests', 'rfqs.read'],
-      ['proposals', 'Partner opportunities', 'proposals.read'], ['opportunities', 'Anonymous releases', 'opportunities.read'],
-      ['projects', 'Projects', 'projects.read'], ['commissions', 'Commissions', 'commissions.read'],
-      ['audit', 'Activity log', 'audit.read'], ['team', 'Team and access', 'staff.read'], ['risk', 'Controlled approvals', 'commissions.create'], ['categories', 'Categories', 'taxonomy.read'],
-    ];
+    const modules = window.ShadowDashboard?.managementModules;
+    if (!modules) throw new Error('The shared Command Center navigation is unavailable. Reload the page before continuing.');
     const selected = new URLSearchParams(location.search).get('module') || 'overview';
-    const moduleNav = el('nav', { class: 'portal-navigation', 'aria-label': 'Command Center modules' }); root.append(moduleNav);
+    const moduleNav = window.ShadowDashboard.managementNavigation({ access: managementAccess, selected }); root.append(moduleNav);
     window.ShadowDashboard?.placeModules(moduleNav);
-    for (const [key, label, permission] of modules) if (canManage(permission)) moduleNav.append(el('a', { href: key === 'offers' ? '/portal/offers/' : `/portal/admin/${key === 'overview' ? '' : `?module=${key}`}`, text: label, 'aria-current': selected === key ? 'page' : null }));
     const available = modules.find(([key]) => key === selected);
     if (!available || !canManage(available[2])) { status('Module unavailable.', 'Your assigned management permissions do not allow access to this module.', true); return; }
     if (selected === 'overview') { await managementOverview(); return; }
@@ -644,10 +637,7 @@
     const roles = Array.isArray(session.roles) ? session.roles : [];
     businessCatalog = await api('/api/catalog');
     if (!Array.isArray(businessCatalog.categories) || !Array.isArray(businessCatalog.currencies) || !businessCatalog.categories.length || !businessCatalog.currencies.length) throw new Error('The controlled commercial classification service is unavailable. No unclassified record can be submitted.');
-    nav.hidden = false;
-    nav.append(el('a', { href: '/portal/', text: 'Overview', 'aria-current': role === 'home' ? 'page' : null }));
-    for (const value of ['buyer', 'supplier', 'partner']) if (roles.includes(value)) nav.append(el('a', { href: `/portal/${value}/`, text: value === 'partner' ? 'B2B Partner' : value[0].toUpperCase() + value.slice(1), 'aria-current': role === value ? 'page' : null }));
-    if (session.staff) nav.append(el('a', { href: '/portal/admin/', text: 'Command Center', 'aria-current': role === 'admin' ? 'page' : null }));
+    window.ShadowDashboard?.workspaceNavigation({ navigation: nav, user: session, role });
     if (role === 'admin') {
       if (!session.staff) { status('Management authorization required.', 'This account has no Command Center privileges.', true); return; }
       if (session.aal !== 'aal2') { status('Second factor required.', 'Management records are protected by an additional authenticator verification.'); await mfaGate(); return; }

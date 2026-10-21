@@ -85,6 +85,38 @@
   }
   let sidebar;
   let moduleSlot;
+  // One presentation map for every administrative page. The caller supplies
+  // the effective access returned by the BFF after its existing MFA/session gate.
+  const managementModules = Object.freeze([
+    ['overview', 'Overview', 'overview.read'], ['contact', 'Contact queue', 'contact.read'],
+    ['applications', 'Applications', 'applications.read'], ['companies', 'Companies', 'companies.read'],
+    ['offers', 'Offers', 'offers.read'], ['rfqs', 'Buyer requests', 'rfqs.read'],
+    ['proposals', 'Partner opportunities', 'proposals.read'], ['opportunities', 'Anonymous releases', 'opportunities.read'],
+    ['projects', 'Projects', 'projects.read'], ['commissions', 'Commissions', 'commissions.read'],
+    ['audit', 'Activity log', 'audit.read'], ['team', 'Team and access', 'staff.read'],
+    ['risk', 'Controlled approvals', 'commissions.create'], ['categories', 'Categories', 'taxonomy.read'],
+  ].map(Object.freeze));
+  function workspaceNavigation({ navigation, user, role } = {}) {
+    if (!navigation || !user) return;
+    const links = [create('a', { href: '/portal/', text: 'Overview', 'aria-current': role === 'home' ? 'page' : null })];
+    const roles = Array.isArray(user.roles) ? user.roles : [];
+    for (const value of ['buyer', 'supplier', 'partner']) if (roles.includes(value)) links.push(create('a', {
+      href: `/portal/${value}/`, text: value === 'partner' ? 'B2B Partner' : value[0].toUpperCase() + value.slice(1),
+      'aria-current': role === value ? 'page' : null,
+    }));
+    if (user.staff === true) links.push(create('a', { href: '/portal/admin/', text: 'Command Center', 'aria-current': role === 'admin' ? 'page' : null }));
+    navigation.replaceChildren(...links);
+    navigation.hidden = false;
+  }
+  function managementNavigation({ access, selected = 'overview' } = {}) {
+    const navigation = create('nav', { class: 'portal-navigation', 'aria-label': 'Command Center modules' });
+    const allowed = permission => access?.owner === true || access?.permissions?.includes(permission) === true;
+    for (const [key, label, permission] of managementModules) if (allowed(permission)) navigation.append(create('a', {
+      href: key === 'offers' ? '/portal/offers/' : `/portal/admin/${key === 'overview' ? '' : `?module=${key}`}`,
+      text: label, 'aria-current': selected === key ? 'page' : null, 'data-command-module': key,
+    }));
+    return navigation;
+  }
   function mountShell({ navigation, role = 'home' } = {}) {
     const main = document.querySelector('#main');
     if (!main || document.querySelector('.dashboard-layout')) return;
@@ -106,5 +138,5 @@
     moduleSlot?.replaceChildren();
     if (sidebar) for (const node of sidebar.querySelectorAll('[data-dashboard-private]')) node.remove();
   }
-  window.ShadowDashboard = Object.freeze({ create, metric, statusDistribution, activity, alert, actions, sectionHeader, statusBadge, mountShell, placeModules, clearPrivate });
+  window.ShadowDashboard = Object.freeze({ create, metric, statusDistribution, activity, alert, actions, sectionHeader, statusBadge, managementModules, workspaceNavigation, managementNavigation, mountShell, placeModules, clearPrivate });
 })();
