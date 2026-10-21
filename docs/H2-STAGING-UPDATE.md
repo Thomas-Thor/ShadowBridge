@@ -55,9 +55,12 @@ jeśli na serwerze ma inną nazwę, użyj tej istniejącej nazwy.
    ```
 
    Polecenie ponownie robi backup przed budową, zapisuje `previous-images.json`,
-   sprawdza checksumy historii i stosuje brakujące migracje. H2-A dodaje **012**:
-   nowe tabele prywatnych szkiców i funkcje rejestracji; nie przepisuje starych
-   kont, wniosków ani ról OWNER. Wolumeny i istniejące klucze pozostają te same.
+   sprawdza checksumy historii i stosuje brakujące migracje. Zestaw H2 obejmuje
+   **012** (trwałe szkice rejestracji), **013** (widoczność kont i profili dla
+   uprawnionych recenzentów) i **014** (historia decyzji). Nie przepisuje starych
+   kont, wniosków ani ról OWNER. Historia 014 zachowuje ostatnią znaną dawną
+   decyzję jako oznaczony snapshot; nie odtwarza nieznanych wcześniejszych
+   decyzji. Wolumeny i istniejące klucze pozostają te same.
    Nie wykonuj ręcznych zmian historycznych migracji ani SQL potwierdzającego
    e-mail. Błąd oznacza przerwanie dalszych czynności, nie reset.
 
@@ -67,7 +70,7 @@ wyłącznie uzgodnionych kont testowych; nie zapraszaj kontrahentów. Bez właś
 konfiguracji wysyłki wiadomości potwierdzenia pozostają w prywatnym Mailpit —
 nie oznacza to przetestowania zewnętrznej poczty ani własności skrzynki.
 
-**Wycofanie:** nie usuwaj migracji 012 ani nowych tabel i nie odtwarzaj kopii na
+**Wycofanie:** nie usuwaj migracji 012–014 ani nowych tabel i nie odtwarzaj kopii na
 obecnym wolumenie. Zachowaj backup, klucz, poprzednie obrazy i SHA. Jeśli błąd
 wystąpił po migracji, bezpiecznym wariantem jest osobne odtworzenie kopii sprzed
 aktualizacji z odpowiadającym jej kodem, sprawdzenie tej kopii i dopiero decyzja
