@@ -1,0 +1,87 @@
+{
+  "kind": "real-h3a-schema",
+  "mode": "schema-upgrade",
+  "startedAt": "2026-10-21T13:26:33.676Z",
+  "cases": [
+    {
+      "name": "001–014 migration provenance and fictional-only credentials verified",
+      "result": "PASS"
+    },
+    {
+      "name": "pre-existing worker role fails closed with full transaction rollback",
+      "result": "PASS"
+    },
+    {
+      "name": "complete 015 transaction dry-run rolls back without modifying preserved records",
+      "result": "PASS"
+    },
+    {
+      "name": "private pre-upgrade dump and protected-table fingerprints preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "actual TLS migrator upgrades preserved 014 database to 015 atomically",
+      "result": "PASS"
+    },
+    {
+      "name": "migrator replay skips 015 and preserves schema, credentials, sessions and MFA",
+      "result": "PASS"
+    },
+    {
+      "name": "manual case opening, matching verified source application, multi-user company and idempotency",
+      "result": "PASS",
+      "engine": "real PostgreSQL",
+      "writesRolledBack": true
+    },
+    {
+      "name": "all seven staff roles and tenant roles deny by default; MFA, least privilege and explicit delegation",
+      "result": "PASS",
+      "engine": "real PostgreSQL",
+      "writesRolledBack": true
+    },
+    {
+      "name": "documented outcomes, latest-negative evidence, stale versions, human decisions and company vs individual separation",
+      "result": "PASS",
+      "engine": "real PostgreSQL",
+      "writesRolledBack": true
+    },
+    {
+      "name": "append-only evidence/history, minimal audit, FORCE RLS, denied raw writes and worker Auth/Vault isolation",
+      "result": "PASS",
+      "engine": "real PostgreSQL",
+      "writesRolledBack": true
+    },
+    {
+      "name": "real PostgreSQL authorization, company review, evidence and history regression",
+      "result": "PASS"
+    },
+    {
+      "name": "existing isolated TLS services start without demo bootstrap or external mail",
+      "result": "PASS"
+    },
+    {
+      "name": "preserved cookies resume approved tenants and all seven real MFA staff sessions",
+      "result": "PASS"
+    },
+    {
+      "name": "unchanged owner password requires real GoTrue MFA before operational access and rejects invalid CSRF",
+      "result": "PASS"
+    }
+  ],
+  "mocksUsed": false,
+  "externalEmailSent": false,
+  "registryNetworkCalls": false,
+  "imageBuildTested": false,
+  "migrationSha256": "f9c9fdd80004ebf30daa124d8b1fe1bcece4dcd396be1bf0388a3b1faf19b000",
+  "backup": {
+    "bytes": 403750,
+    "mode": "0600",
+    "verifiedLocally": true
+  },
+  "actualUpgradeTested": true,
+  "protectedDataUnchanged": true,
+  "actualProviderAuthenticationTested": true,
+  "result": "PASS",
+  "fixtureStoppedWithoutVolumeRemoval": true,
+  "finishedAt": "2026-10-21T13:26:56.168Z"
+}

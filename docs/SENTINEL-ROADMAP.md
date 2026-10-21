@@ -1,7 +1,8 @@
 # ShadowBridge Sentinel — roadmapa H3-A–H3-E
 
-Stan: zakres zatwierdzony przez właściciela 21.10.2026; realizowany jest wyłącznie
-**H3-A**. Wyniki implementacji i testów danego etapu podaje jego osobny raport.
+Stan: zakres zatwierdzony przez właściciela 21.10.2026; ukończono wyłącznie
+**H3-A**, zgodnie z [raportem i wynikami testów](H3-A-REPORT.md).
+H3-B–H3-E pozostają nierozpoczęte. Wyniki danego etapu podaje jego osobny raport.
 Ten dokument nie potwierdza działania przyszłych integracji ani analityki.
 
 | Etap | Zakres | Granica etapu |

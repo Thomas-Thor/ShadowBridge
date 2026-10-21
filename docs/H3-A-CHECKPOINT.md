@@ -1,6 +1,8 @@
 # H3-A — checkpoint przygotowania
 
-To zapis częściowej pracy, **nie potwierdzenie ukończenia H3-A**.
+To historyczny zapis częściowej pracy z commita `ffc8365`, **nie potwierdzenie
+ukończenia H3-A**. Późniejsze wyniki wznowienia podaje
+[H3-A-REPORT.md](H3-A-REPORT.md); poniższy stan dotyczy chwili checkpointu.
 
 Gotowe: roadmapa H3-A–H3-E, z odrębnym Member Intelligence po H3-D, oraz skrypt
 przygotowania izolowanego środowiska testowego. Wykonano 3 grupy przygotowania

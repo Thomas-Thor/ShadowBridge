@@ -8,6 +8,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { checkStaging, readEnv, repositoryRoot } from '../scripts/staging-prepare.mjs';
+import { migrationSources } from '../scripts/staging-migrate.mjs';
 
 const args = process.argv.slice(2);
 const directoryArg = args.find(value => value.startsWith('--dir='))?.slice(6);
@@ -195,10 +196,10 @@ async function recruitmentRegression() {
     value.mfaVerifiedAt = Date.now(); return h.totp(value.mfaSecret);
   }
   try {
-    await phase('real TLS reviewer gate and committed 001–014 migration ledger', async () => {
+    await phase('real TLS reviewer gate and complete source migration ledger', async () => {
       assert.equal((await realFetch(checked.origin + '/api/config')).status, 401);
       assert.equal((await fetch(checked.origin + '/api/config')).status, 200);
-      assert.equal(h.db('SELECT count(*) FROM shadowbridge_migrations.applied'), '14');
+      assert.equal(h.db('SELECT count(*) FROM shadowbridge_migrations.applied'), String((await migrationSources()).length));
       for (const name of ['202610210013_recruitment_visibility.sql','202610210014_application_decision_history.sql']) assert.equal(h.db(`SELECT sha256 FROM shadowbridge_migrations.applied WHERE name=${h.sqlLiteral(name)}`), createHash('sha256').update(await readFile(path.join(repositoryRoot,'supabase/migrations',name))).digest('hex'));
     });
     let owner, buyer, supplier, partner, rejected, pending, unverified, missing;
