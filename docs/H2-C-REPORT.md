@@ -36,6 +36,8 @@ Data: 21.10.2026. Testy wyłącznie na fikcyjnych, izolowanych instalacjach.
 | Loader/checksum/konfiguracja migracji | 7/7 PASS; testy bez połączenia z bazą |
 | Interfejs z fikcyjnymi DTO | 4/4 PASS, Chromium 1440/390/320 i axe |
 | Rzeczywisty PostgreSQL 17 + GoTrue + API + Caddy/TLS + Chromium | **13/13 grup PASS**, 38 s |
+| Nowa regresja H2-A po H2-C | **10/10 grup PASS**, w tym 23 kontrole SQL, 79 s |
+| Nowa regresja H2-B po H2-C | **7/7 grup PASS**, 17 s |
 
 Rzeczywista regresja H2-C objęła obowiązkowe potwierdzenie e-maila, siedem ról
 pracowniczych z MFA, odmowę przy niepełnych uprawnieniach, pełne profile,
@@ -59,15 +61,31 @@ załączone do repozytorium.
 
 ## Regresja wcześniejszych etapów
 
-**H2-A i H2-B: oczekują na zakończenie nowego wykonania po H2-C.** Historyczne
-wyniki nie zastępują tej kontroli. Przed końcowym raportem i rozpoczęciem H3-A
-potrzebne są rzeczywiste wyniki obu skryptów na aktualnym kodzie 001–014.
+Obie regresje wykonano **ponownie po H2-C**, na nowym izolowanym fixture z
+aktualnym kodem i migracjami 001–014. To najnowsze wyniki, niezależne od
+historycznych raportów H2-A/H2-B.
+
+- **H2-A: 10/10 grup PASS** — dziewięć scenariuszy rejestracji i grupa 23 kontroli
+  SQL. Trzy rejestracje dały trzy niezależne aplikacje (`1,1,1`); potwierdzanie w
+  innej sesji, pierwotne role, duplikaty, współbieżność, wznowienie i izolacja
+  pozostały poprawne. Respektowano rzeczywisty cooldown GoTrue. Dodatkowego
+  identycznego run SQL nie powtarzano, bo jest już częścią aktualnego skryptu.
+- **H2-B: 7/7 grup PASS** — rzeczywisty OWNER i MFA, 12 przejść między modułami
+  przy 1440/390/320 px, pełne wspólne menu, zachowana sesja, wylogowanie w wielu
+  kartach i poprawne przekierowanie anonimowego Offers do Member Sign In.
+  Tym razem cały run zakończył się sukcesem, łącznie z ostatnim scenariuszem.
+
+Raporty lokalne: `/tmp/shadowbridge-h2-registration-regression.json` oraz
+`/tmp/shadowbridge-h2-navigation-regression.json`. Oba fixture pełnej regresji
+H2-C i H2-A/B zatrzymano; kontenery i wolumeny zachowano. Pierwotny projekt
+lokalny właściciela nadal działa. Nie uruchomiono **H3-A**.
 
 ## Dane i granice etapu
 
 013 i 014 zapisano w `060a3f9` po próbach SQL z ROLLBACK, przed trwałym
 zastosowaniem w nowym fixture. Interfejs/API zapisano w `d4a6f9c` przed pełnym
-testem integracyjnym. Historycznych migracji 001–012 nie zmieniano.
+testem integracyjnym; skrypt i raport wyników C zapisano w `25574f9`.
+Historycznych migracji 001–012 nie zmieniano.
 
 Próby wstępne miały prywatny backup fikcyjnej bazy; po ROLLBACK fingerprinty
 kont, rekordów haseł Auth, sesji, MFA, uprawnień, danych i polityk pozostały
@@ -81,8 +99,11 @@ produkcji, hostingu lub DNS. Nie korzystano z płatnych usług.
 Nadal poza tym etapem: urzędowa weryfikacja firm, Sentinel, bezpieczny wybór
 dodatkowych członków firmy zamiast ręcznego ID oraz prywatny portal C.A.R.T.E.L.
 Nie deklarujemy gotowości całej platformy do produkcyjnego przyjmowania firm.
+Nie testowano wdrożenia na Contabo, budowania nowego obrazu produkcyjnego ani
+odtwarzania jego kopii. Lokalne testy używały istniejącego obrazu Node i
+zamrożonego źródła aplikacji; wyniki nie zastępują tych kontroli wdrożeniowych.
 
 Późniejsza aktualizacja wymaga osobnej decyzji właściciela i backupu:
-[H2-STAGING-UPDATE.md](H2-STAGING-UPDATE.md). Następny proponowany etap po
-zaliczeniu regresji to **H3-A**, z wyraźnym rozdzieleniem wyniku kontroli rejestru,
+[H2-STAGING-UPDATE.md](H2-STAGING-UPDATE.md). Następny proponowany etap to
+**H3-A**, z wyraźnym rozdzieleniem wyniku kontroli rejestru,
 zatwierdzania członkostwa i całkowitym wyłączeniem OWNER VAULT.
