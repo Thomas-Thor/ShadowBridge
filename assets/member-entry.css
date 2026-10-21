@@ -1,0 +1,46 @@
+/* Visual identity only. Authentication remains the existing account.js flow. */
+.entry-auth .member-threshold {
+  margin: 0 0 32px;
+  padding: 0 0 22px;
+  border: 1px solid #4c4433;
+  background: #111514;
+  text-align: center;
+  overflow: hidden;
+}
+.member-threshold-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 240px;
+  object-fit: cover;
+}
+.member-threshold-seal {
+  display: block;
+  width: 76px;
+  height: 76px;
+  margin: -8px auto 16px;
+  position: relative;
+}
+.entry-auth .member-threshold figcaption {
+  color: #d8bd8d;
+  font-family: var(--sans);
+  font-size: 10px;
+  line-height: 1.6;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  padding-inline: 18px;
+}
+.entry-auth .member-threshold p {
+  max-width: 28em;
+  margin: 8px auto 0;
+  padding-inline: 18px;
+  color: #b6b9af;
+  font-size: 11px;
+  line-height: 1.7;
+  text-transform: none;
+  letter-spacing: normal;
+}
+@media (max-width: 760px) {
+  .entry-auth .member-threshold { max-width: 440px; margin-inline: auto; }
+  .member-threshold-art { max-height: 210px; }
+}

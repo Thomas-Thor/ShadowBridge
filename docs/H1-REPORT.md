@@ -57,3 +57,25 @@ uruchomiony; nie wykonywano na nim operacji.
 [Pierwszy rzeczywisty OWNER](H1-OWNER-ACCESS.md) wymaga zatwierdzenia SMTP
 i rzeczywistego potwierdzenia skrzynki. [Późniejsza aktualizacja stagingu](H1-STAGING-UPDATE.md)
 zachowuje istniejącą konfigurację i bramę; procedury nie wykonywano na Contabo.
+
+## H1-C
+
+Dodano oryginalną ilustrację bramy z postacią i złotą pieczęć globu/mostu
+w sąsiedniej kolumnie formularza. Na telefonie grafika jest poniżej formularza.
+Załączniki są kierunkiem estetycznym; nowe SVG są lekką, samodzielną grafiką.
+Nie zmieniono account.js, formularzy, modelu logowania ani C.A.R.T.E.L.
+
+**2/2 testy statycznego UI PASS**, 1440/390/320 px: układ, axe, brak overflow,
+kontrakty formularzy, fail-closed bez API, recovery i odnośniki. Drobny błąd
+selektora poprawiono w teście; końcowy komplet 2/2 zaliczony w jednym wykonaniu.
+Nowe zasoby są obecne w rzeczywiście zbudowanej paczce statycznej; ta paczka
+nadal nie aktywuje uwierzytelniania. Zrzuty pokazują pusty formularz bez sekretów.
+
+## Zapis H1
+
+- A: `7765d16e247a8d3215ebe25f7aab4dee092010af`.
+- B: `c956916f8b67cc2bd7ae1d6b572553a74b76c0b7`.
+- C: commit zawierający tę sekcję i grafikę wejścia.
+
+H1 zamknięto przed rozpoczęciem napraw H2. Nie wdrożono zmian ani nie zmieniono
+main, DNS, domeny, danych/kont właściciela lub jego istniejącej konfiguracji.

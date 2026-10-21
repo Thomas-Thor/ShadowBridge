@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="370" viewBox="0 0 640 370" fill="none">
+  <defs>
+    <radialGradient id="light"><stop stop-color="#b88e47" stop-opacity=".25"/><stop offset="1" stop-color="#111514" stop-opacity="0"/></radialGradient>
+    <linearGradient id="metal" x1="180" y1="40" x2="460" y2="330" gradientUnits="userSpaceOnUse"><stop stop-color="#e0c898"/><stop offset=".48" stop-color="#a17b42"/><stop offset="1" stop-color="#665133"/></linearGradient>
+    <linearGradient id="path" x1="320" y1="180" x2="320" y2="370" gradientUnits="userSpaceOnUse"><stop stop-color="#c5a56a" stop-opacity=".18"/><stop offset="1" stop-color="#c5a56a" stop-opacity="0"/></linearGradient>
+  </defs>
+  <path fill="#111514" d="M0 0h640v370H0z"/>
+  <ellipse cx="320" cy="174" rx="250" ry="190" fill="url(#light)"/>
+  <path d="m309 183-110 187h242L331 183Z" fill="url(#path)"/>
+  <g stroke="#816c49" stroke-opacity=".18">
+    <path d="M0 300h640M0 330h640M105 370l195-187M535 370 340 183M0 370l288-187M640 370 352 183"/>
+    <path d="M68 0v300M572 0v300M92 0v300M548 0v300"/>
+  </g>
+  <g stroke="url(#metal)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M185 298V145a135 135 0 0 1 270 0v153" stroke-width="3"/>
+    <path d="M199 298V145a121 121 0 0 1 242 0v153" stroke-width="1"/>
+    <path d="M185 298h-15m285 0h15M185 145h14m242 0h14M185 285h14m242 0h14"/>
+    <path d="m199 126 72 38v137l-72-16Zm242 0-72 38v137l72-16Z" fill="#171c18" fill-opacity=".7" stroke-width="2"/>
+    <path d="m211 147 48 25v110l-48-11Zm218 0-48 25v110l48-11Z"/>
+    <path d="M226 155v119m18-110v114m170-123v119m-18-110v114M211 231l48 13m122 0 48-13" stroke-opacity=".55"/>
+    <path d="M285 105h70M303 88h34M320 74v58" stroke-opacity=".45"/>
+  </g>
+  <g fill="#151a17" stroke="#b79761" stroke-opacity=".55" stroke-linejoin="round">
+    <circle cx="320" cy="215" r="13"/>
+    <path d="m310 231-14 12-6 51 9 2 8-39-1 48-4 42h12l6-49 6 49h12l-4-42-1-48 8 39 9-2-6-51-14-12-10 6Z"/>
+    <path d="m310 231 10 27 10-27m-10 6v18" stroke-opacity=".7"/>
+  </g>
+  <path d="M285 351h70" stroke="#b79761" stroke-opacity=".3"/>
+</svg>
