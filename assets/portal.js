@@ -606,7 +606,33 @@
       const labels = { pending: 'Application under review.', rejected: 'Application not approved.', suspended: 'Account suspended.' };
       status(labels[session.applicationStatus] || 'Approval required.', 'Your current account status does not permit access to private commercial records. ShadowBridge reviews each company individually.');
       if (session.applicationStatus === 'not_submitted') {
-        const application = section('Complete your company application', 'Your email is verified. Submit your company details for individual review. No private access is granted until management approves the application.');
+        const { draft } = await api('/api/application/draft');
+        if (closed) return;
+        if (!draft || !['missing', 'review_required', 'ready', 'submitted', 'blocked'].includes(draft.state)) throw new Error('The saved application could not be verified. No replacement application was submitted.');
+        if (draft.state === 'submitted') {
+          const ready = section('Application received', 'Your original application has been restored. Refresh to view its current review status.');
+          ready.append(button('Refresh application status', () => location.reload()));
+          return;
+        }
+        if (draft.state === 'blocked') return;
+        if (draft.state === 'review_required' || draft.state === 'ready') {
+          const recovery = section('Resume your original application', 'Review the saved role and company details. Resuming uses these original details and still requires individual management approval. It does not grant private access.');
+          const choices = draft.state === 'ready' ? [draft] : draft.choices;
+          if (!Array.isArray(choices) || !choices.length) { empty(recovery, 'Contact ShadowBridge for review of the original application. No role or company has been guessed.'); return; }
+          for (const saved of choices) {
+            const card = el('article', { class: 'portal-record' }); recovery.append(card);
+            card.append(el('h3', { text: `${saved.role === 'partner' ? 'B2B Partner' : saved.role} — ${saved.company?.legal_name || 'Saved company application'}` }));
+            card.append(details(saved.company, [['country', 'Registration country'], ['registration_number', 'Registration number']]));
+            card.append(details(saved.professional, [['countries', 'Markets/countries'], ['sectors', 'Sectors'], ['summary', 'Business scope']]));
+            if (saved.expired) card.append(el('p', { text: 'This older application needs your explicit confirmation before it can be resumed.' }));
+            form(card, [['acknowledgement', 'I have reviewed this original role and company application and want to submit it for review.', 'checkbox', true]], 'Resume this application', async () => {
+              await api('/api/application/resume', 'POST', { ...(saved.id ? { draftId: saved.id } : {}), acknowledged: true });
+              location.reload(); return false;
+            });
+          }
+          return;
+        }
+        const application = section('Complete your company application', 'No original application can be recovered for this verified account. Explicitly choose your business role and submit your company details for individual review. This does not verify your company or grant private access.');
         form(application, [['role', 'Business role', 'select', true, ['buyer', 'supplier', 'partner']], ['companyName', 'Registered company name', 'text', true], ['country', 'Country of registration', 'text', true], ['registrationNumber', 'Company registration number', 'text', true], ['countries', 'Markets or countries (comma separated)', 'text'], ['sectors', 'Commercial sectors (comma separated)', 'text'], ['summary', 'General business scope — no counterparty identities', 'textarea'], ['acknowledgement', 'I understand that email verification and manual company approval are required and that introductions are coordinated by ShadowBridge.', 'checkbox', true]], 'Submit company application', async (data) => {
           const company = { name: data.companyName, country: data.country, registrationNumber: data.registrationNumber };
           const profile = { countries: data.countries.split(',').map((value) => value.trim()).filter(Boolean), sectors: data.sectors.split(',').map((value) => value.trim()).filter(Boolean), summary: data.summary };

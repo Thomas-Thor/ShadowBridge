@@ -69,14 +69,19 @@ test('Private B2B: real local Auth, PostgreSQL, RLS and counterparty confidentia
   await step('unverified accounts cannot sign in; self-appointed administrator role is rejected', async () => {
     buyerA = await registerActor('buyer', 'buyer-a');
     await buyerA.client.request('/api/auth/login', { method: 'POST', body: { email: buyerA.email, password: buyerA.password }, expected: [400, 401, 403] });
-    const beforeDuplicate = db(`SELECT md5(raw_user_meta_data::text) FROM auth.users WHERE email=${sqlLiteral(buyerA.email)}`);
+    // GoTrue may rotate untrusted metadata for an unconfirmed duplicate signup.
+    // Authorization and the original company role must use the INSERT-bound,
+    // immutable draft, never the current provider metadata or signup reply.
+    const originalRegistration = () => db(`SELECT md5(jsonb_build_object('id',u.id,'email',u.email,'draft',to_jsonb(d))::text) FROM auth.users u JOIN sb.registration_drafts d ON d.user_id=u.id WHERE u.email=${sqlLiteral(buyerA.email)}`);
+    const beforeDuplicate = originalRegistration();
+    assert.ok(beforeDuplicate, 'The original identity-bound application draft must exist before confirmation');
     const duplicate = new Client();
     await duplicate.request('/api/auth/register', { method: 'POST', body: {
       email: buyerA.email, password: password(), role: 'supplier',
       company: { name: 'FICTIONAL ATTACKER REPLACEMENT', registrationNumber: `ATTACK-${runId}`, country: 'US' },
       profile: { summary: 'This must never replace the existing applicant profile.' },
     }, expected: [202, 409, 429] });
-    assert.equal(db(`SELECT md5(raw_user_meta_data::text) FROM auth.users WHERE email=${sqlLiteral(buyerA.email)}`), beforeDuplicate, 'Unauthenticated duplicate registration must not modify an existing Auth identity or deferred application');
+    assert.equal(originalRegistration(), beforeDuplicate, 'Unauthenticated duplicate registration must not replace the original identity or immutable application draft');
     const attacker = new Client();
     await attacker.request('/api/auth/register', { method: 'POST', body: {
       email: `${runId}.self-admin@test.shadowbridge.invalid`, password: password(), role: 'admin',

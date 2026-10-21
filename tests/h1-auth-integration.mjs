@@ -8,6 +8,7 @@ import { mkdir, readFile, writeFile, cp, readdir, lstat, chmod } from 'node:fs/p
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { prepareStaging, checkStaging, readEnv, repositoryRoot } from '../scripts/staging-prepare.mjs';
+import { migrationSources } from '../scripts/staging-migrate.mjs';
 
 const args = process.argv.slice(2);
 const action = args.find(value => ['--prepare', '--start', '--test', '--stop'].includes(value));
@@ -113,11 +114,11 @@ async function test(checked) {
     const cert = new X509Certificate(await readFile(path.join(checked.directory,'certs/public.crt')));
     const pin = createHash('sha256').update(cert.publicKey.export({type:'spki',format:'der'})).digest('base64');
     browser = await chromium.launch({executablePath:'/usr/bin/chromium',headless:true,args:['--no-sandbox',`--ignore-certificate-errors-spki-list=${pin}`]});
-    await run('TLS, private reviewer gate and actual migrations 001–011',async()=>{
+    await run('TLS, private reviewer gate and actual source migration history',async()=>{
       assert.equal((await originalFetch(checked.origin+'/api/config')).status,401);
       const config = await fetch(checked.origin+'/api/config');assert.equal(config.status,200);
       assert.equal((await config.json()).environment,'production');
-      assert.equal(h.db('SELECT count(*) FROM shadowbridge_migrations.applied'),'11');
+      assert.equal(h.db('SELECT count(*) FROM shadowbridge_migrations.applied'),String((await migrationSources()).length));
       assert.equal(h.db("SELECT count(*) FROM pg_roles WHERE rolname IN ('shadowbridge_api','shadowbridge_sessions') AND (rolsuper OR rolbypassrls)"),'0');
     });
     let owner;

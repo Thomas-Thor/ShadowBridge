@@ -8,6 +8,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { checkStaging, readEnv, repositoryRoot } from '../scripts/staging-prepare.mjs';
+import { migrationSources } from '../scripts/staging-migrate.mjs';
 
 const args=process.argv.slice(2);
 const directory=path.resolve(repositoryRoot,args.find(a=>a.startsWith('--dir='))?.slice(6)||'.local/contabo-g3-regression');
@@ -73,7 +74,7 @@ try{
   await phase('TLS, reviewer gate and database migrations',async()=>{
     const rejected=await realFetch(checked.origin+'/api/config');assert.equal(rejected.status,401);
     const cfg=await fetch(checked.origin+'/api/config');assert.equal(cfg.status,200);assert.equal((await cfg.json()).environment,'production');
-    assert.equal(h.db('SELECT count(*) FROM shadowbridge_migrations.applied'),'11');
+    assert.equal(h.db('SELECT count(*) FROM shadowbridge_migrations.applied'),String((await migrationSources()).length));
     const tls=h.db("SELECT bool_and(ssl) FROM pg_stat_ssl JOIN pg_stat_activity a USING(pid) WHERE a.usename IN ('shadowbridge_api','shadowbridge_sessions','supabase_auth_admin')");assert.equal(tls,'t');
     assert.equal(h.db("SELECT count(*) FROM pg_roles WHERE rolname IN ('shadowbridge_api','shadowbridge_sessions') AND (rolsuper OR rolbypassrls OR rolcreaterole)"),'0');
   });

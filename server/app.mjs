@@ -2,8 +2,9 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomUUID, randomBytes, createHash, createHmac } from 'node:crypto';
+import { randomUUID, createHmac } from 'node:crypto';
 import { loadConfig } from './config.mjs';
+import { createRegistrationService } from './registration.mjs';
 import { createDatabase } from './db.mjs';
 import { createAuthService } from './auth.mjs';
 import { assertMailRecipient } from './mail-policy.mjs';
@@ -39,6 +40,7 @@ function headers(res, config) {
 }
 export function createApp({ config = loadConfig(), db = createDatabase({ connectionString: config.databaseUrl, sessionConnectionString: config.sessionDatabaseUrl }) } = {}) {
   const auth = createAuthService({ config, db });
+  const registration = createRegistrationService({ db, auth });
   const attempts = new Map();
   function limit(req, name) {
     const key = `${req.socket.remoteAddress}:${name}`; const now = Date.now();
@@ -70,14 +72,11 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
     });
   }
   async function consumeIntent(req, res, identity) {
-    const token = (req.headers.cookie || '').split(';').map(x=>x.trim()).find(x=>x.startsWith('sb_application_intent='))?.slice('sb_application_intent='.length);
-    if (!token || !/^[a-f0-9]{64}$/.test(token) || !identity.emailVerified || identity.recoveryOnly) return;
-    const hash = createHash('sha256').update(token).digest('hex');
-    const intent = (await db.sessionPool.query('SELECT email,payload FROM sb.registration_intents WHERE token_hash=$1 AND expires_at>now()', [hash])).rows[0];
-    if (!intent || intent.email.toLowerCase() !== identity.email.toLowerCase()) return;
-    await finishApplication(identity, intent.payload, true);
-    await db.sessionPool.query('DELETE FROM sb.registration_intents WHERE token_hash=$1', [hash]);
-    intentCookie(res, '', 0);
+    // Clear the obsolete hint; it must never decide which account receives an
+    // application. The SQL transaction binds only the verified session owner.
+    const result = await registration.consume(identity);
+    if (result.state === 'submitted') intentCookie(res, '', 0);
+    return result;
   }
   async function context(identity) {
     if (!identity) return null;
@@ -138,12 +137,7 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
       const email = text(input.email, 'email', {min:3,max:254}).toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ApiError(400, 'INVALID_EMAIL', 'Use a valid business email.');
       const password = text(input.password, 'password', {min:12,max:128});
       assertMailRecipient(config, email);
-      await auth.register({email,password});
-      const token=randomBytes(32).toString('hex');
-      const hash=createHash('sha256').update(token).digest('hex');
-      await db.sessionPool.query('DELETE FROM sb.registration_intents WHERE expires_at<now()');
-      await db.sessionPool.query("INSERT INTO sb.registration_intents(token_hash,email,payload,expires_at) VALUES($1,$2,$3::jsonb,now()+interval '1 hour')",[hash,email,JSON.stringify(proposed)]);
-      intentCookie(res,token);
+      await registration.register({email,password,proposed});
       return json(res, 202, {verificationRequired:true, approvalRequired:true, message:'Check your email to verify the account. Private access requires separate management approval.'});
     }
     if (method === 'POST' && route === '/api/auth/login') {
@@ -160,7 +154,10 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
       return json(res,202,{accepted:true,message:'If an eligible account exists, recovery instructions will be sent.'});
     }
     const identity = await auth.authenticate(req);
-    if (method === 'GET' && route === '/api/session') return json(res,200,{user:userDTO(await context(identity)),...auth.csrf(req,res)});
+    if (method === 'GET' && route === '/api/session') {
+      if(identity)await consumeIntent(req,res,identity);
+      return json(res,200,{user:userDTO(await context(identity)),...auth.csrf(req,res)});
+    }
     if (method === 'POST' && route === '/api/auth/logout') { await auth.logout(identity,res); return json(res,200,{signedOut:true,...auth.csrf(req,res)}); }
     if (method === 'POST' && route === '/api/auth/password') {
       if(!identity) throw new ApiError(401,'SIGN_IN_REQUIRED','Open the recovery link first.');
@@ -168,6 +165,16 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
       return json(res,200,await auth.updatePassword(identity,{password:text(input.password,'password',{min:12,max:128})},res));
     }
     const ctx = needUser(await context(identity));
+    if (method === 'GET' && route === '/api/application/draft') return json(res,200,{draft:await registration.state(identity)});
+    if (method === 'POST' && route === '/api/application/resume') {
+      const input=object(await body(req),['draftId','acknowledged'],['acknowledged']);
+      if(input.acknowledged!==true)throw new ApiError(400,'REVIEW_REQUIRED','Review your original application before resuming it.');
+      if(!identity.emailVerified||ctx.account.status!=='active')throw new ApiError(403,'VERIFY_EMAIL','An active account with a verified email is required.');
+      const draft=await registration.consume(identity,input.draftId===undefined?null:text(input.draftId,'saved application',{min:64,max:64}));
+      if(draft.state!=='submitted')throw new ApiError(409,'APPLICATION_NOT_RESUMED','The saved application requires individual review.');
+      const current=userDTO(await context(identity));
+      return json(res,200,{applicationStatus:current.applicationStatus,approvalRequired:current.applicationStatus!=='approved'});
+    }
     if (method === 'GET' && route === '/api/auth/factors') return json(res,200,{factors:await auth.listFactors(identity)});
     if (method === 'POST' && route === '/api/auth/mfa/enroll') { limit(req,'mfa'); return json(res,201,await auth.enrollFactor(identity)); }
     if (method === 'POST' && route === '/api/auth/mfa/verify') {
@@ -176,6 +183,8 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
       return json(res,200,{user:userDTO(await context(verified)),...auth.csrf(req,res)});
     }
     if(method==='POST' && route==='/api/application') {
+      const saved=await registration.state(identity);
+      if(saved.state!=='missing')throw new ApiError(409,'SAVED_APPLICATION_REQUIRED','Resume the original application without changing its role or company details.');
       const proposed=applicationInput(await body(req));
       await finishApplication(identity,proposed);
       return json(res,201,{applicationStatus:'pending',approvalRequired:true});

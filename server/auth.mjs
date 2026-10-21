@@ -156,8 +156,9 @@ export function createAuthService({ config, db }) {
       if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return;
       if (req.headers.origin !== config.appUrl || !equal(requestToken(req), req.headers['x-csrf-token'])) throw new AuthError('Request origin or CSRF token is invalid', 403, 'csrf_failed');
     },
-    async register({ email, password }) {
-      await provider('/signup', { method: 'POST', body: { email, password } });
+    async register({ email, password, registrationIntent }) {
+      await provider('/signup', { method: 'POST', body: { email, password,
+        ...(registrationIntent ? { data: { sb_registration_intent: registrationIntent } } : {}) } });
       // A signup result is not proof of an authenticated identity. In particular,
       // repeated signups can return an existing unconfirmed provider user ID.
       // Never expose it to callers as an authorization principal.
