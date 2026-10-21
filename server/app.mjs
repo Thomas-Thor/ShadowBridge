@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID, createHmac } from 'node:crypto';
 import { loadConfig } from './config.mjs';
 import { createRegistrationService } from './registration.mjs';
+import { routeRecruitment } from './recruitment.mjs';
 import { createDatabase } from './db.mjs';
 import { createAuthService } from './auth.mjs';
 import { assertMailRecipient } from './mail-policy.mjs';
@@ -287,11 +288,12 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
       needStaff(ctx);
       return txFor(ctx,async tx=>{
         const resource=route.slice('/api/admin/'.length).split('/')[0];
-        if(method==='GET') await requirePermission(tx,({'contact-queue':'contact.read',applications:'applications.read',companies:'companies.read',offers:'offers.read',rfqs:'rfqs.read',proposals:'proposals.read',opportunities:'opportunities.read',projects:'projects.read',commissions:'commissions.read',audit:'audit.read'})[resource] || 'security.manage');
+        if(method==='GET') await requirePermission(tx,({'contact-queue':'contact.read',accounts:'accounts.read',applications:'applications.read',companies:'companies.read',offers:'offers.read',rfqs:'rfqs.read',proposals:'proposals.read',opportunities:'opportunities.read',projects:'projects.read',commissions:'commissions.read',audit:'audit.read'})[resource] || 'security.manage');
+        const recruitment = await routeRecruitment({req,url,tx});
+        if(recruitment)return json(res,recruitment.status,recruitment.data);
         if(method==='GET') {
           const adminLists={
             'contact-queue':'SELECT public_id AS id,name,email,company,role,message,status,created_at AS "createdAt",reviewed_at AS "reviewedAt" FROM sb.contact_enquiries ORDER BY created_at DESC LIMIT 200',
-            applications:'SELECT a.*,c.legal_name AS "companyName",c.country,ac.email FROM sb.applications a JOIN sb.companies c ON c.id=a.company_id JOIN sb.accounts ac ON ac.user_id=a.user_id ORDER BY a.created_at DESC LIMIT 200',
             companies:'SELECT c.*,ac.email,ac.status AS "accountStatus",m.role,m.status AS "membershipStatus",m.user_id AS "userId" FROM sb.companies c JOIN sb.accounts ac ON ac.user_id=c.created_by LEFT JOIN sb.memberships m ON m.company_id=c.id ORDER BY c.created_at DESC LIMIT 200',
             offers:'SELECT o.public_id AS id,o.status,o.data,o.created_at AS "createdAt",c.id AS "companyId",c.legal_name AS "companyName" FROM sb.offers o JOIN sb.companies c ON c.id=o.company_id ORDER BY o.created_at DESC LIMIT 200',
             rfqs:'SELECT r.public_id AS id,r.status,r.data,r.created_at AS "createdAt",c.id AS "companyId",c.legal_name AS "companyName" FROM sb.rfqs r JOIN sb.companies c ON c.id=r.company_id ORDER BY r.created_at DESC LIMIT 200',
@@ -303,7 +305,6 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
           };
           const name=route.slice('/api/admin/'.length);if(adminLists[name]) {
             let items=(await tx.query(adminLists[name])).rows;
-            if(name==='applications')items=items.map(x=>({...x,userId:x.user_id,companyId:x.company_id,role:x.requested_role,company:{name:x.companyName,country:x.country},profile:{}}));
             if(name==='companies')items=items.map(x=>({...x,name:x.legal_name,companyName:x.legal_name,registrationNumber:x.registration_number}));
             return json(res,200,{items});
           }
@@ -317,7 +318,7 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
           return json(res,200,{item:saved});
         }
         match=route.match(/^\/api\/admin\/applications\/([A-Za-z0-9-]+)\/decision$/);
-        if(method==='POST'&&match){const input=object(await body(req),['decision','reason'],['decision']);await requirePermission(tx,input.decision==='approved'?'applications.approve':'applications.reject');await tx.query('SELECT sb.decide_application($1::uuid,$2,$3)',[identifier(match[1]),oneOf(input.decision,['approved','rejected'],'decision'),text(input.reason||'','reason')]);return json(res,200,{updated:true});}
+        if(method==='POST'&&match){const input=object(await body(req),['decision','reason'],['decision','reason']);await requirePermission(tx,input.decision==='approved'?'applications.approve':'applications.reject');await tx.query('SELECT sb.decide_application($1::uuid,$2,$3)',[identifier(match[1]),oneOf(input.decision,['approved','rejected'],'decision'),text(input.reason,'decision reason',{min:10,max:2000})]);return json(res,200,{updated:true});}
         match=route.match(/^\/api\/admin\/accounts\/([A-Za-z0-9-]+)\/status$/);
         if(method==='POST'&&match){await requirePermission(tx,'accounts.suspend');const input=object(await body(req),['status'],['status']);const status=oneOf(input.status,['active','suspended'],'status');const id=identifier(match[1]);if(id===identity.id&&status==='suspended')throw new ApiError(400,'SELF_SUSPENSION','Cannot suspend your current management account.');await tx.query('SELECT sb.suspend_account($1::uuid,$2)',[id,status]);return json(res,200,{updated:true});}
         match=route.match(/^\/api\/admin\/(offers|rfqs|proposals)\/([A-Za-z0-9-]+)\/decision$/);

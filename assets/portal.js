@@ -18,7 +18,7 @@
     ['categoryId', 'Product category', 'select', true, categoryOptions],
     ['subcategoryId', 'Product subcategory (optional)', 'select', false, subcategoryOptions],
   ];
-  const canManage = (permission) => managementAccess?.owner === true || managementAccess?.permissions?.includes(permission) === true;
+  const canManage = (permission) => Array.isArray(permission) ? permission.every(canManage) : managementAccess?.owner === true || managementAccess?.permissions?.includes(permission) === true;
   let closed = false;
   let sessionCheck;
   let epoch = 0;
@@ -461,6 +461,139 @@
       businessCatalog = await api('/api/catalog'); await refresh();
     }, { position: 0, active: true });
   }
+  const accountStageLabels = Object.freeze({
+    email_pending: 'Email confirmation pending', application_missing: 'Application not submitted',
+    pending_review: 'Application awaiting approval', approved: 'Application approved',
+    rejected: 'Application rejected', suspended: 'Account suspended',
+  });
+  function recordedDate(value) {
+    const date = value ? new Date(value) : null;
+    return date && Number.isFinite(date.valueOf()) ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(date) : 'Not recorded';
+  }
+  function managementPages({ parent, path, type, filterFields, render, emptyMessage, afterLoad }) {
+    let criteria = {}, page = 1, loadSequence = 0;
+    const summary = el('p', { class: 'portal-document-notice', 'aria-live': 'polite', 'data-recruitment-count': type });
+    const holder = el('div', { class: 'recruitment-records', 'aria-live': 'polite' });
+    const pagination = el('nav', { class: 'portal-actions recruitment-pagination', 'aria-label': type === 'account' ? 'Accounts pages' : 'Application pages' });
+    const filter = form(parent, filterFields, type === 'account' ? 'Filter accounts' : 'Filter applications', async data => {
+      criteria = data; page = 1; await load(); return false;
+    });
+    filter.dataset.preserveValues = 'true';
+    filter.setAttribute('aria-label', type === 'account' ? 'Account filters' : 'Application filters');
+    filter.querySelector(type === 'account' ? '[name="stage"] option[value=""]' : '[name="status"] option[value=""]').textContent = type === 'account' ? 'All account stages' : 'All application statuses';
+    parent.append(summary, holder, pagination);
+    async function load() {
+      if (closed) return;
+      const sequence = ++loadSequence;
+      holder.setAttribute('aria-busy', 'true');
+      pagination.replaceChildren();
+      try {
+        const query = new URLSearchParams({ page: String(page), limit: '12' });
+        for (const [key, value] of Object.entries(criteria)) if (value) query.set(key, value);
+        const result = await api(`${path}?${query}`);
+        if (sequence !== loadSequence || closed) return;
+        if (!Array.isArray(result.items) || !Number.isSafeInteger(result.total) || result.total < 0
+          || !Number.isSafeInteger(result.limit) || result.limit < 1 || result.limit > 24 || result.items.length > result.limit
+          || !Number.isSafeInteger(result.page) || result.page < 1 || !Number.isSafeInteger(result.pages) || result.pages < 0) throw new Error('Invalid response from the secure recruitment service.');
+        page = result.page;
+        holder.replaceChildren();
+        if (!result.items.length) empty(holder, emptyMessage);
+        for (const item of result.items) render(holder, item, load);
+        const noun = type === 'account' ? 'account' : 'application';
+        summary.textContent = `${result.total} ${noun}${result.total === 1 ? '' : 's'} match the current filters. Only this page has been loaded.`;
+        if (page > 1) pagination.append(button('Previous page', async () => { page--; await load(); }, true));
+        pagination.append(el('span', { text: result.pages ? `Page ${page} of ${result.pages}` : 'No matching pages' }));
+        if (page < result.pages) pagination.append(button('Next page', async () => { page++; await load(); }, true));
+        afterLoad?.(result);
+      } catch (error) {
+        if (sequence === loadSequence && !closed) {
+          holder.replaceChildren(el('p', { class: 'portal-error', text: error.message }));
+          summary.textContent = 'Recruitment records could not be loaded.';
+          pagination.replaceChildren();
+          afterLoad?.(null);
+        }
+      } finally { if (sequence === loadSequence) holder.removeAttribute('aria-busy'); }
+    }
+    load();
+    return load;
+  }
+  function managementAccounts() {
+    const parent = section('Accounts', 'Registration, email confirmation and application approval are separate stages. An active account or an approved application does not establish independent company verification. No access is granted by this list.');
+    const stages = el('section', { class: 'recruitment-stage-summary', 'aria-labelledby': 'account-stages-title' }, [el('h3', { id: 'account-stages-title', text: 'Matching accounts by stage' }), el('p', { text: 'Counts follow your search across all stages, independently of the selected stage filter.' })]);
+    const counts = el('dl', { class: 'recruitment-stages' }); stages.append(counts); parent.append(stages);
+    managementPages({ parent, path: '/api/admin/accounts', type: 'account',
+      filterFields: [['q', 'Search accounts', 'search'], ['stage', 'Account stage', 'select', false, Object.entries(accountStageLabels).map(([value, label]) => ({ value, label }))]],
+      emptyMessage: 'No accounts match these filters. Unconfirmed registrations appear here, while Applications contains confirmed submissions.',
+      afterLoad: result => {
+        counts.replaceChildren();
+        if (!result?.counts) { counts.append(el('div', { class: 'recruitment-stage-card' }, [el('dt', { text: 'Stage counts unavailable' }), el('dd', { text: '—' })])); return; }
+        for (const [key, label] of Object.entries(accountStageLabels)) {
+          const value = result.counts[key];
+          counts.append(el('div', { class: 'recruitment-stage-card' }, [el('dt', { text: label }), el('dd', { text: Number.isSafeInteger(value) && value >= 0 ? value : '—' })]));
+        }
+      },
+      render: (holder, item) => {
+        const card = recordCard(holder, { id: item.userId, status: accountStageLabels[item.stage] || 'Review required' }, item.email);
+        card.dataset.recruitmentRecord = 'account';
+        card.append(details({ ...item, emailState: item.emailVerified === true ? 'Confirmed' : 'Not confirmed', applicationState: item.applicationStatus || 'Not submitted', companyName: item.companyName || (item.applicationId ? 'Company details unavailable with current permissions' : 'No submitted company application'), registeredAt: recordedDate(item.createdAt), confirmedAt: recordedDate(item.emailVerifiedAt), decisionAt: recordedDate(item.reviewedAt) }, [['userId', 'Internal account ID'], ['status', 'Account access status'], ['emailState', 'Email confirmation'], ['confirmedAt', 'Email confirmed'], ['registeredAt', 'Registered'], ['applicationState', 'Application status'], ['role', 'Requested role'], ['companyName', 'Submitted company'], ['decisionAt', 'Application reviewed'], ['decisionReason', 'Latest decision reason']]));
+        if (canManage('applications.read')) card.append(el('a', { class: 'dashboard-inline-link', href: '/portal/admin/?module=applications', text: 'Open Applications' }));
+      },
+    });
+  }
+  function applicationDecisionHistory(card, applicationId) {
+    const host = el('section', { class: 'recruitment-history', hidden: true, 'aria-label': 'Application decision history' });
+    let page = 1, sequence = 0;
+    const records = el('ol', { class: 'recruitment-history-records', 'aria-live': 'polite' });
+    const pages = el('nav', { class: 'portal-actions recruitment-pagination', 'aria-label': 'Application decision history pages' });
+    host.append(el('h4', { text: 'Recorded decision history' }), el('p', { class: 'portal-document-notice', text: 'History is loaded in pages. An imported legacy snapshot records only the latest decision available before history tracking was introduced.' }), records, pages);
+    async function load() {
+      if (closed) return;
+      const current = ++sequence;
+      host.hidden = false; records.setAttribute('aria-busy', 'true'); pages.replaceChildren();
+      try {
+        const result = await api(`/api/admin/applications/${encodeURIComponent(applicationId)}/history?page=${page}&limit=12`);
+        if (current !== sequence || closed) return;
+        if (!Array.isArray(result.items) || !Number.isSafeInteger(result.total) || result.total < 0 || !Number.isSafeInteger(result.page) || result.page < 1
+          || !Number.isSafeInteger(result.pages) || result.pages < 0 || !Number.isSafeInteger(result.limit) || result.limit < 1 || result.limit > 24 || result.items.length > result.limit) throw new Error('Invalid response from the secure decision history service.');
+        page = result.page;
+        records.replaceChildren();
+        if (!result.items.length) records.append(el('li', { text: 'No recorded decisions are available for this application.' }));
+        for (const item of result.items) records.append(el('li', {}, [
+          el('strong', { text: `${item.decision || 'Decision'} · ${recordedDate(item.createdAt)}` }),
+          el('p', { text: item.reason || 'No reason was recorded in the legacy snapshot.' }),
+          el('small', { text: `${item.source === 'legacy_snapshot' ? 'Imported latest decision — earlier history unavailable' : 'Recorded decision'} · Reviewing account: ${item.actorId || 'Not recorded'}` }),
+        ]));
+        if (page > 1) pages.append(button('Previous history page', async () => { page--; await load(); }, true));
+        pages.append(el('span', { text: result.pages ? `Page ${page} of ${result.pages}` : 'No recorded pages' }));
+        if (page < result.pages) pages.append(button('Next history page', async () => { page++; await load(); }, true));
+      } catch (error) { if (current === sequence && !closed) records.replaceChildren(el('li', { class: 'portal-error', text: error.message })); }
+      finally { if (current === sequence) records.removeAttribute('aria-busy'); }
+    }
+    card.append(button('Load decision history', load, true), host);
+  }
+  function managementApplications() {
+    const parent = section('Company applications', 'Only email-confirmed submissions enter this queue. Review countries, sectors and the full business scope before making a decision. Application approval and independent company verification remain separate. Rejected applications are retained in the review history.');
+    managementPages({ parent, path: '/api/admin/applications', type: 'application',
+      filterFields: [['q', 'Search applications', 'search'], ['status', 'Application status', 'select', false, [{ value: 'pending', label: 'Awaiting approval' }, { value: 'approved', label: 'Approved applications' }, { value: 'rejected', label: 'Rejected applications — history' }]]],
+      emptyMessage: 'No confirmed company applications match these filters. Unconfirmed accounts are listed separately in Accounts.',
+      render: (holder, item, refresh) => {
+        const card = recordCard(holder, item, item.company?.name || item.companyName || item.id);
+        card.dataset.recruitmentRecord = 'application';
+        card.append(details({ ...item, confirmed: item.emailVerified === true ? 'Confirmed' : 'Not confirmed', received: recordedDate(item.createdAt), reviewed: recordedDate(item.reviewedAt) }, [['userId', 'Internal account ID'], ['email', 'Applicant email'], ['confirmed', 'Email confirmation'], ['companyId', 'Internal company ID'], ['role', 'Requested role'], ['accountStatus', 'Account access status'], ['status', 'Application status'], ['received', 'Received'], ['reviewed', 'Last reviewed'], ['reviewedBy', 'Reviewing account'], ['decisionReason', 'Latest decision reason']]));
+        card.append(details(item.company, [['name', 'Submitted company name'], ['country', 'Country of registration'], ['registrationNumber', 'Submitted registration number']]));
+        const profile = item.profile || {};
+        card.append(details({ countries: Array.isArray(profile.countries) && profile.countries.length ? profile.countries.join(', ') : 'Not provided', sectors: Array.isArray(profile.sectors) && profile.sectors.length ? profile.sectors.join(', ') : 'Not provided', summary: typeof profile.summary === 'string' && profile.summary ? profile.summary : 'Not provided' }, [['countries', 'Countries and markets'], ['sectors', 'Commercial sectors'], ['summary', 'Full business scope']]));
+        const decisions = ['approved', 'rejected'].filter(value => canManage(`applications.${value === 'approved' ? 'approve' : 'reject'}`));
+        applicationDecisionHistory(card, item.id);
+        if (decisions.length && item.status === 'pending') form(card, [['decision', 'Review decision', 'select', true, decisions], ['reason', 'Decision reason', 'textarea', true]], 'Record application decision', async data => {
+          await api(`/api/admin/applications/${encodeURIComponent(item.id)}/decision`, 'POST', data); await refresh();
+        });
+        if (item.userId && canManage('accounts.suspend')) form(card, [['status', 'Account status', 'select', true, ['suspended', 'active']]], 'Change account status', async data => {
+          await api(`/api/admin/accounts/${encodeURIComponent(item.userId)}/status`, 'POST', data); await refresh();
+        });
+      },
+    });
+  }
   async function adminWorkspace() {
     managementAccess = await api('/api/staff/access');
     if (closed) return;
@@ -475,6 +608,8 @@
     if (selected === 'team') { await managementTeam(); return; }
     if (selected === 'risk') { managementRisk(); return; }
     if (selected === 'categories') { await managementCategories(); return; }
+    if (selected === 'accounts') { managementAccounts(); return; }
+    if (selected === 'applications') { managementApplications(); return; }
     if (selected === 'contact') {
     const contactQueue = section('Contact enquiry queue', 'Confidential public enquiries for authorized management only. These records do not create member accounts or publish offers. Changing a status records your review; it does not send an email.');
     listLoader(contactQueue, '/api/admin/contact-queue', (holder, item, refresh) => {
@@ -489,20 +624,6 @@
         await refresh();
       }, { status: item.status });
     }, 'No contact enquiries have been received.');
-    }
-    if (selected === 'applications') {
-    const applications = section('Company applications', 'Management-only company details. Verify companies independently before approving any role.');
-    listLoader(applications, '/api/admin/applications', (holder, item, refresh) => {
-      const card = recordCard(holder, item, item.company?.name || item.companyName || item.id);
-      card.append(details({ ...item, company: item.company, profile: item.profile }, [['userId', 'Internal account ID'], ['email', 'Applicant email'], ['companyId', 'Internal company ID'], ['company', 'Company details'], ['profile', 'Commercial profile'], ['role', 'Requested role'], ['status', 'Application status'], ['createdAt', 'Received']]));
-      const decisions = ['approved', 'rejected'].filter(value => canManage(`applications.${value === 'approved' ? 'approve' : 'reject'}`));
-      if (decisions.length) form(card, [['decision', 'Review decision', 'select', true, decisions], ['reason', 'Decision reason', 'textarea', true]], 'Record application decision', async (data) => {
-        await api(`/api/admin/applications/${encodeURIComponent(item.id)}/decision`, 'POST', data); await refresh();
-      });
-      if (item.userId && canManage('accounts.suspend')) form(card, [['status', 'Account status', 'select', true, ['suspended', 'active']]], 'Change account status', async (data) => {
-        await api(`/api/admin/accounts/${encodeURIComponent(item.userId)}/status`, 'POST', data); await refresh();
-      });
-    }, 'No company applications are awaiting review.');
     }
     if (selected === 'companies') {
     const companies = section('Internal companies', 'Company identifiers and mappings are available only to authorized management. Never include these identifiers in released commercial summaries.');

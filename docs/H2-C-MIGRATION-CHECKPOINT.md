@@ -34,3 +34,8 @@ testowe nie są częścią commita.
 Następne kroki H2-C: rzeczywista regresja API i przeglądarki na nowej, izolowanej
 instalacji z zapisanymi migracjami, następnie regresja H2-A i H2-B. Ostateczny
 raport musi odróżniać te wyniki od powyższych prób SQL. **H3-A nie rozpoczęto.**
+
+Przygotowany interfejs i API zapisano przed pełną regresją. Celowane testy
+prezentacji: **4/4 PASS** (Chromium 1440/390/320, axe, filtry/paginacja, pełny
+profil i historia, czyszczenie sesji oraz odmowa przy niepełnych uprawnieniach).
+Używają fikcyjnych DTO — nie zastępują zaplanowanego testu rzeczywistego API.

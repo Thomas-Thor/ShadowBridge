@@ -89,7 +89,7 @@
   // the effective access returned by the BFF after its existing MFA/session gate.
   const managementModules = Object.freeze([
     ['overview', 'Overview', 'overview.read'], ['contact', 'Contact queue', 'contact.read'],
-    ['applications', 'Applications', 'applications.read'], ['companies', 'Companies', 'companies.read'],
+    ['accounts', 'Accounts', Object.freeze(['accounts.read', 'applications.read', 'counterparties.read'])], ['applications', 'Applications', 'applications.read'], ['companies', 'Companies', 'companies.read'],
     ['offers', 'Offers', 'offers.read'], ['rfqs', 'Buyer requests', 'rfqs.read'],
     ['proposals', 'Partner opportunities', 'proposals.read'], ['opportunities', 'Anonymous releases', 'opportunities.read'],
     ['projects', 'Projects', 'projects.read'], ['commissions', 'Commissions', 'commissions.read'],
@@ -110,7 +110,7 @@
   }
   function managementNavigation({ access, selected = 'overview' } = {}) {
     const navigation = create('nav', { class: 'portal-navigation', 'aria-label': 'Command Center modules' });
-    const allowed = permission => access?.owner === true || access?.permissions?.includes(permission) === true;
+    const allowed = permission => Array.isArray(permission) ? permission.every(allowed) : access?.owner === true || access?.permissions?.includes(permission) === true;
     for (const [key, label, permission] of managementModules) if (allowed(permission)) navigation.append(create('a', {
       href: key === 'offers' ? '/portal/offers/' : `/portal/admin/${key === 'overview' ? '' : `?module=${key}`}`,
       text: label, 'aria-current': selected === key ? 'page' : null, 'data-command-module': key,

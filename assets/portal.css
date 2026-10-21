@@ -34,6 +34,22 @@
 .portal-environment { display: inline-block; margin-bottom: 8px; color: var(--bronze-light); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
 .portal-document-notice { padding: 15px; border: 1px solid #555342; font-size: 11px; }
 .portal-page [hidden] { display: none !important; }
+.recruitment-stage-summary { margin-block: 24px; }
+.recruitment-stage-summary h3 { font-family: var(--sans); font-size: 14px; font-weight: 500; }
+.recruitment-stage-summary > p { color: var(--muted); font-size: 11px; line-height: 1.8; margin-top: 8px; }
+.recruitment-stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(155px, 100%), 1fr)); gap: 12px; margin-top: 14px; }
+.recruitment-stage-card { padding: 16px; min-width: 0; border: 1px solid var(--line); border-radius: 6px; background: #191c1e; }
+.recruitment-stage-card dt { color: #c6c5be; font-size: 11px; line-height: 1.7; }
+.recruitment-stage-card dd { margin: 9px 0 0; color: #f0ede7; font-size: 25px; font-variant-numeric: tabular-nums; }
+.recruitment-pagination { align-items: center; }
+.recruitment-pagination > span { color: var(--muted); font-size: 12px; padding: 8px 0; }
+.recruitment-history { margin-top: 18px; padding: 18px; border: 1px solid var(--line); border-radius: 6px; }
+.recruitment-history h4 { font-family: var(--sans); font-size: 13px; }
+.recruitment-history-records { padding-left: 18px; font-size: 12px; }
+.recruitment-history-records li { padding-block: 12px; border-bottom: 1px solid var(--line); }
+.recruitment-history-records strong { font-weight: 500; }
+.recruitment-history-records p { white-space: pre-wrap; }
+@media (max-width: 500px) { .recruitment-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); } .recruitment-stage-card { padding: 12px; } }
 @media (max-width: 800px) { .portal-grid { grid-template-columns: 1fr; gap: 0; } }
 @media (max-width: 650px) { .portal-shell { padding-top: 30px; } .portal-section { padding: 20px 16px; } .portal-record dl { grid-template-columns: 1fr; gap: 5px; } .portal-record dd { margin-bottom: 9px; } .portal-heading { gap: 18px; } .portal-navigation { gap: 6px 18px; } .portal-actions > .portal-button { flex: 1 1 auto; } }
 @media (prefers-reduced-motion: reduce) { .portal-button { transition: none; } }
