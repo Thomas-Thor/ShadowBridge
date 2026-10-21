@@ -73,7 +73,7 @@ export async function encryptArchive({archiveFile,backupFile,keyFile}) {
   return {backupFile:target,keyFile:keyPath};
 }
 
-async function decryptArchive({backupFile,keyFile,archiveFile}) {
+export async function decryptArchive({backupFile,keyFile,archiveFile}) {
   const source=await privatePath(backupFile,{existing:true,file:true});
   const target=await privatePath(archiveFile);
   await ensurePrivateParent(target);

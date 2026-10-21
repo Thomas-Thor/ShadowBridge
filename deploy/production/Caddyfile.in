@@ -1,0 +1,32 @@
+{
+	admin off
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>uri delete
+				request>headers delete
+			}
+		}
+	}
+}
+
+https://shadow-bridge.eu {
+	header {
+		Cache-Control "no-store"
+		-Server
+	}
+	reverse_proxy app:8088 {
+		header_up X-ShadowBridge-Proxy-Token {$SB_PROXY_TOKEN}
+		header_up X-ShadowBridge-Client-IP {remote_host}
+	}
+}
+
+# Never published on host ports. Auth remains private and internally verified TLS.
+https://auth-proxy:8444 {
+	tls /run/secrets/auth-proxy.crt /run/secrets/auth-proxy.key
+	handle_path /auth/v1/* {
+		reverse_proxy auth:9999
+	}
+	respond 404
+}

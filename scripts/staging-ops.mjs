@@ -29,6 +29,46 @@ export async function compose(directory, args, { capture = false } = {}) {
 async function initialized(directory) {
   return (await compose(directory, ['exec', '-T', 'postgres', 'psql', '-XAtq', '-U', 'postgres', '-d', 'shadowbridge', '-c', "SELECT CASE WHEN to_regclass('shadowbridge_migrations.applied') IS NULL THEN 0 ELSE 1 END"], { capture: true })) === '1';
 }
+
+// pg_dump deliberately excludes cluster-wide roles. Recovery below is accepted
+// only after an authenticated backup has been restored into a separately
+// guarded, previously empty project. Do not add this to startup or migrations:
+// 015 must retain its fail-closed collision guard on ordinary installations.
+export const restoredSentinelRoleSql = `DO $sentinel_recovery$
+DECLARE reserved pg_catalog.pg_authid;
+BEGIN
+ IF current_user<>'postgres' OR current_database()<>'shadowbridge' THEN
+  RAISE EXCEPTION 'Reserved role recovery requires the isolated recovery DBA' USING ERRCODE='42501';
+ END IF;
+ IF to_regclass('shadowbridge_migrations.applied') IS NULL THEN
+  RAISE EXCEPTION 'Recovered database has no migration provenance' USING ERRCODE='42501';
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM shadowbridge_migrations.applied
+  WHERE name='202610210015_sentinel_verification.sql') THEN RETURN; END IF;
+ SELECT * INTO reserved FROM pg_catalog.pg_authid WHERE rolname='shadowbridge_sentinel';
+ IF FOUND THEN
+  IF reserved.rolcanlogin OR reserved.rolinherit OR reserved.rolsuper
+   OR reserved.rolbypassrls OR reserved.rolcreatedb OR reserved.rolcreaterole
+   OR reserved.rolreplication OR reserved.rolconnlimit<>-1
+   OR reserved.rolpassword IS NOT NULL
+   OR reserved.rolvaliduntil IS NOT NULL
+   OR EXISTS(SELECT 1 FROM pg_catalog.pg_db_role_setting WHERE setrole=reserved.oid)
+   OR EXISTS(SELECT 1 FROM pg_catalog.pg_auth_members
+    WHERE roleid=reserved.oid OR member=reserved.oid)
+   OR EXISTS(SELECT 1 FROM pg_catalog.pg_shdepend
+    WHERE refclassid='pg_catalog.pg_authid'::regclass AND refobjid=reserved.oid) THEN
+   RAISE EXCEPTION 'Existing reserved recovery role requires administrative review' USING ERRCODE='42501';
+  END IF;
+  RETURN;
+ END IF;
+ CREATE ROLE shadowbridge_sentinel NOLOGIN NOINHERIT NOSUPERUSER NOBYPASSRLS
+  NOCREATEDB NOCREATEROLE NOREPLICATION;
+END $sentinel_recovery$;`;
+
+async function recoverRestoredSentinelRole(directory) {
+  await compose(directory, ['exec', '-T', 'postgres', 'psql', '-XqAt', '-v', 'ON_ERROR_STOP=1',
+    '-U', 'postgres', '-d', 'shadowbridge', '-c', restoredSentinelRoleSql], { capture: true });
+}
 export async function backupInstallation(directory) {
   const checked = await checkStaging({ directory });
   const running = (await compose(directory, ['ps', '--services', '--status', 'running'], { capture: true })).split('\n');
@@ -72,6 +112,7 @@ export async function restoreInstallation({ directory, project, httpsPort, backu
     child.once('error', () => { input.destroy(); reject(new Error('Recovery container could not be started.')); });
     child.once('exit', code => { input.destroy(); code === 0 ? resolve() : reject(new Error('Restore failed. Source untouched; new private target retained for inspection.')); });
   });
+  await recoverRestoredSentinelRole(directory);
   await operate({ action: 'start', directory });
   await rm(extraction, { recursive: true, force: true });
   console.log('Recovery completed in a NEW private project. Source installation and backups were not changed.');

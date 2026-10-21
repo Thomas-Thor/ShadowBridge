@@ -4,6 +4,20 @@ function required(env, name) {
   return value;
 }
 
+function proxyToken(value) {
+  if (value === undefined || value === '') return null;
+  if (typeof value !== 'string' || value.length > 256) throw new Error('PROXY_AUTH_TOKEN must contain at least 32 random bytes encoded as hexadecimal or base64');
+  let bytes;
+  if (/^[a-f0-9]{64,256}$/i.test(value) && value.length % 2 === 0) bytes = Buffer.from(value, 'hex');
+  else if (/^[A-Za-z0-9+/_-]+={0,2}$/.test(value)) {
+    bytes = Buffer.from(value, 'base64url');
+    const canonical = value.replace(/=+$/, '').replaceAll('+', '-').replaceAll('/', '_');
+    if (bytes.toString('base64url') !== canonical) bytes = null;
+  }
+  if (!bytes || bytes.length < 32) throw new Error('PROXY_AUTH_TOKEN must contain at least 32 random bytes encoded as hexadecimal or base64');
+  return value;
+}
+
 export function loadConfig(env = process.env) {
   const appEnv = required(env, 'APP_ENV');
   if (!['local', 'test', 'production'].includes(appEnv)) throw new Error('APP_ENV must be local, test or production');
@@ -14,10 +28,15 @@ export function loadConfig(env = process.env) {
   const localHosts = ['127.0.0.1', 'localhost', '[::1]'];
   const production = appEnv === 'production';
   const mailDeliveryMode = env.MAIL_DELIVERY_MODE || (production ? 'disabled' : 'captured');
-  if (!['disabled','captured','allowlist'].includes(mailDeliveryMode)) throw new Error('MAIL_DELIVERY_MODE must be disabled, captured or allowlist');
+  if (!['disabled','captured','allowlist','smtp'].includes(mailDeliveryMode)) throw new Error('MAIL_DELIVERY_MODE must be disabled, captured, allowlist or smtp');
+  const transactionalMailEnabled = production && env.TRANSACTIONAL_MAIL_ENABLED === 'true';
+  if (mailDeliveryMode === 'smtp' && !transactionalMailEnabled) throw new Error('SMTP delivery requires production and TRANSACTIONAL_MAIL_ENABLED=true');
   const testEmailAllowlist = Object.freeze((env.TEST_EMAIL_ALLOWLIST || '').split(',').map(value=>value.trim().toLowerCase()).filter(Boolean));
   if (testEmailAllowlist.length > 20 || testEmailAllowlist.some(email=>email.includes('*') || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new Error('Use at most 20 exact test email addresses');
   if (mailDeliveryMode === 'allowlist' && !testEmailAllowlist.length) throw new Error('Allowlisted mail requires explicit TEST_EMAIL_ALLOWLIST');
+  const proxyAuthToken = proxyToken(env.PROXY_AUTH_TOKEN);
+  const releaseSha = env.RELEASE_SHA || null;
+  if (releaseSha !== null && (typeof releaseSha !== 'string' || !/^[a-f0-9]{40}$/i.test(releaseSha))) throw new Error('RELEASE_SHA must be a full 40-character hexadecimal commit SHA');
   if (production && (app.protocol !== 'https:' || provider.protocol !== 'https:')) throw new Error('Production APP_URL and SUPABASE_URL must use HTTPS');
   if (!production && (!localHosts.includes(app.hostname) || !localHosts.includes(provider.hostname))) throw new Error('Local/test providers and website must bind to loopback origins');
   const host = env.HOST || '127.0.0.1';
@@ -42,7 +61,8 @@ export function loadConfig(env = process.env) {
     supabaseAnonKey: required(env, 'SUPABASE_ANON_KEY'),
     databaseUrl, sessionDatabaseUrl, sessionEncryptionKey,
     secureCookies: production || app.protocol === 'https:',
-    mailDeliveryMode, testEmailAllowlist,
+    mailDeliveryMode, testEmailAllowlist, transactionalMailEnabled,
+    proxyAuthToken, releaseSha: releaseSha?.toLowerCase() || null,
     sessionLifetimeSeconds: 60 * 60 * 24 * 7,
   });
 }

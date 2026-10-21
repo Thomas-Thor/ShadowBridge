@@ -18,6 +18,9 @@
     "staging:prepare": "node scripts/staging-prepare.mjs",
     "staging:check": "node scripts/staging-prepare.mjs --check",
     "staging:ops": "node scripts/staging-ops.mjs",
+    "production:deploy": "node scripts/production-ops.mjs deploy",
+    "production:verify": "node scripts/production-ops.mjs verify",
+    "production:ops": "node scripts/production-ops.mjs",
     "build:preview": "node scripts/build-preview.mjs"
   },
   "dependencies": { "pg": "8.16.3" }

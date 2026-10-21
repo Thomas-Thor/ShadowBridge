@@ -12,3 +12,16 @@ test('mail fails closed, exact approved recipients only; local capture permits f
   assert.throws(()=>assertMailRecipient({},approved),error=>error.status===503);
   assert.doesNotThrow(()=>assertMailRecipient({mailDeliveryMode:'captured'},approved));
 });
+
+test('SMTP permits transactional recipients only after explicit production enablement', () => {
+  const email = 'applicant@fictional-business.invalid';
+  for (const config of [
+    { mailDeliveryMode: 'smtp' },
+    { mailDeliveryMode: 'smtp', appEnv: 'production' },
+    { mailDeliveryMode: 'smtp', appEnv: 'production', transactionalMailEnabled: false },
+    { mailDeliveryMode: 'smtp', appEnv: 'production', transactionalMailEnabled: 'true' },
+    { mailDeliveryMode: 'smtp', appEnv: 'local', transactionalMailEnabled: true },
+    { mailDeliveryMode: 'smtp', appEnv: 'test', transactionalMailEnabled: true },
+  ]) assert.throws(() => assertMailRecipient(config, email), error => error.status === 503 && error.code === 'MAIL_NOT_ENABLED');
+  assert.doesNotThrow(() => assertMailRecipient({ mailDeliveryMode: 'smtp', appEnv: 'production', transactionalMailEnabled: true }, email));
+});

@@ -1,0 +1,60 @@
+{
+  "kind": "real-production-profile-integration",
+  "startedAt": "2026-10-21T16:54:20.535Z",
+  "cases": [
+    {
+      "name": "built images, public routes, release identity and no Basic Auth",
+      "result": "PASS"
+    },
+    {
+      "name": "real registration, email confirmation, owner MFA and seven staff roles",
+      "result": "PASS"
+    },
+    {
+      "name": "Supplier offer, Buyer RFQ, anonymous assignment and Partner project",
+      "result": "PASS"
+    },
+    {
+      "name": "contact form commits controlled queue; CSRF and management access remain enforced",
+      "result": "PASS"
+    },
+    {
+      "name": "real browser desktop/mobile member dashboards and OWNER MFA",
+      "result": "PASS"
+    },
+    {
+      "name": "restart preserves accounts, passwords, MFA and existing API sessions",
+      "result": "PASS"
+    },
+    {
+      "name": "encrypted database/config backup restores into new isolated PostgreSQL with all protected records",
+      "result": "PASS"
+    },
+    {
+      "name": "real recovery email, password reset, invalid CSRF and normal logout",
+      "result": "PASS"
+    },
+    {
+      "name": "operator public verification checks the actual local HTTPS gateway",
+      "result": "PASS"
+    },
+    {
+      "name": "actual rollback restores saved images and private gateway without data loss",
+      "result": "PASS"
+    }
+  ],
+  "mocksUsed": false,
+  "externalEmailSent": false,
+  "publicAcmeTested": false,
+  "productionDomainDeployed": false,
+  "imageBuildTested": true,
+  "backupRestoreVerified": true,
+  "backupPreserved": true,
+  "finishedAt": "2026-10-21T18:22:21.638Z",
+  "result": "PASS",
+  "fixtureStoppedWithoutVolumeRemoval": true,
+  "fixtureOnlyLoopback": true,
+  "smtpCaptureOnly": true,
+  "restoreTargetStoppedWithoutVolumeRemoval": true,
+  "rollbackVerified": true
+}

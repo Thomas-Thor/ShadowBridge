@@ -9,6 +9,7 @@ import { routeRecruitment } from './recruitment.mjs';
 import { createDatabase } from './db.mjs';
 import { createAuthService } from './auth.mjs';
 import { assertMailRecipient } from './mail-policy.mjs';
+import { clientAddress } from './client-address.mjs';
 import { requirePermission, routeStaffManagement } from './staff-management.mjs';
 import { routeTaxonomy, categoryId } from './taxonomy.mjs';
 import { currencyCodes } from '../assets/business-config.js';
@@ -38,13 +39,14 @@ function headers(res, config) {
   if (config.secureCookies) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  if (config.releaseSha) res.setHeader('X-ShadowBridge-Release', config.releaseSha);
 }
 export function createApp({ config = loadConfig(), db = createDatabase({ connectionString: config.databaseUrl, sessionConnectionString: config.sessionDatabaseUrl }) } = {}) {
   const auth = createAuthService({ config, db });
   const registration = createRegistrationService({ db, auth });
   const attempts = new Map();
   function limit(req, name) {
-    const key = `${req.socket.remoteAddress}:${name}`; const now = Date.now();
+    const key = `${clientAddress(req, config)}:${name}`; const now = Date.now();
     const previous = attempts.get(key); const current = previous && now - previous.start < 300000 ? previous : { count: 0, start: now };
     if (++current.count > 40) throw new ApiError(429, 'RATE_LIMITED', 'Please wait before trying again.');
     attempts.set(key, current);
@@ -113,7 +115,7 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
   async function api(req, res, url) {
     const route = url.pathname; const method = req.method;
     if (method === 'GET' && route === '/api/catalog') { const result=await routeTaxonomy({req,url,tx:db.pool,body}); return json(res,result.status,result.data); }
-    if (method === 'GET' && route === '/api/config') return json(res, 200, { backendEnabled: true, environment: config.appEnv, ...auth.csrf(req, res) });
+    if (method === 'GET' && route === '/api/config') return json(res, 200, { backendEnabled: true, environment: config.appEnv, ...(config.releaseSha ? { releaseSha: config.releaseSha } : {}), ...auth.csrf(req, res) });
     auth.enforceSession(req);
     if (!['GET','HEAD'].includes(method)) auth.enforceCSRF(req);
     if (method === 'POST' && route === '/api/contact') {
@@ -127,8 +129,8 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
         role: oneOf(input.role, ['buyer','supplier','partner','other'], 'role'),
         message: text(input.message, 'message', {min:20,max:5000}),
       };
-      // Trust only the actual peer. Forwarded headers cannot reset the intake limit.
-      const clientKey = createHmac('sha256', config.sessionEncryptionKey).update(`contact:${req.socket.remoteAddress}`).digest('hex');
+      // Only the authenticated private edge can replace the actual peer address.
+      const clientKey = createHmac('sha256', config.sessionEncryptionKey).update(`contact:${clientAddress(req, config)}`).digest('hex');
       const saved = await db.sessionPool.query('SELECT sb.enqueue_contact($1::jsonb,$2::text) AS receipt', [JSON.stringify(enquiry),clientKey]);
       return json(res,201,{accepted:true,receipt:saved.rows[0].receipt,message:'Your enquiry has been saved to the private ShadowBridge review queue. No email has been sent.'});
     }
@@ -423,6 +425,6 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const config=loadConfig();const app=createApp({config});
-  app.server.listen(config.port,config.host,()=>console.log(`ShadowBridge ${config.appEnv} backend ready on ${config.host}:${config.port}. No production deployment performed.`));
+  app.server.listen(config.port,config.host,()=>console.log(`ShadowBridge ${config.appEnv} backend ready on ${config.host}:${config.port}.`));
   for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>app.close().then(()=>process.exit(0)));
 }

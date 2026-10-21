@@ -40,3 +40,38 @@ test('external email is disabled by default and staging requires a bounded exact
   assert.throws(()=>loadConfig({...env,MAIL_DELIVERY_MODE:'allowlist',TEST_EMAIL_ALLOWLIST:'*@example.invalid'}), /exact/);
   assert.deepEqual(loadConfig({...env,MAIL_DELIVERY_MODE:'allowlist',TEST_EMAIL_ALLOWLIST:'Owner@shadowbridge.invalid'}).testEmailAllowlist, ['owner@shadowbridge.invalid']);
 });
+
+test('public SMTP requires both production and an explicit transactional-mail switch', () => {
+  const env = { ...fixture(), MAIL_DELIVERY_MODE: 'smtp' };
+  for (const enabled of [undefined, '', 'false', 'TRUE', '1']) {
+    assert.throws(() => loadConfig({ ...env, TRANSACTIONAL_MAIL_ENABLED: enabled }), /TRANSACTIONAL_MAIL_ENABLED/);
+  }
+  for (const appEnv of ['local', 'test']) {
+    assert.throws(() => loadConfig({ ...env, APP_ENV: appEnv, TRANSACTIONAL_MAIL_ENABLED: 'true' }), /production/);
+  }
+  const approved = loadConfig({ ...env, TRANSACTIONAL_MAIL_ENABLED: 'true' });
+  assert.equal(approved.mailDeliveryMode, 'smtp');
+  assert.equal(approved.transactionalMailEnabled, true);
+  assert.equal(loadConfig({ ...fixture(), TRANSACTIONAL_MAIL_ENABLED: 'true' }).mailDeliveryMode, 'disabled', 'The switch alone must not enable delivery');
+});
+
+test('proxy attestation is opt-in and refuses short or malformed secrets', () => {
+  const env = fixture();
+  assert.equal(loadConfig(env).proxyAuthToken, null);
+  for (const encoding of ['hex', 'base64', 'base64url']) {
+    const value = randomBytes(32).toString(encoding);
+    assert.equal(loadConfig({ ...env, PROXY_AUTH_TOKEN: value }).proxyAuthToken, value);
+  }
+  for (const value of ['weak', randomBytes(16).toString('hex'), 'x'.repeat(257), ' '+randomBytes(32).toString('base64'), 'not:a:token', ['invalid']]) {
+    assert.throws(() => loadConfig({ ...env, PROXY_AUTH_TOKEN: value }), /PROXY_AUTH_TOKEN/);
+  }
+});
+
+test('release identity accepts only a full commit SHA and is absent by default', () => {
+  const env = fixture(), sha = randomBytes(20).toString('hex');
+  assert.equal(loadConfig(env).releaseSha, null);
+  assert.equal(loadConfig({ ...env, RELEASE_SHA: sha.toUpperCase() }).releaseSha, sha);
+  for (const value of ['main', sha.slice(0, 7), sha+'0', 'g'.repeat(40), sha+'\r\nX-Injected: bad']) {
+    assert.throws(() => loadConfig({ ...env, RELEASE_SHA: value }), /RELEASE_SHA/);
+  }
+});
