@@ -82,10 +82,14 @@ wolumeny, bazę, klucz szyfrowania oraz sieci i ustawić tylko publiczne adresy:
 N8N_HOST: automation.shadow-bridge.eu
 N8N_PROTOCOL: https
 N8N_PROXY_HOPS: "1"
-WEBHOOK_URL: https://automation.shadow-bridge.eu/
+N8N_WEBHOOK_URL: https://automation.shadow-bridge.eu/
 N8N_EDITOR_BASE_URL: https://automation.shadow-bridge.eu
 N8N_SECURE_COOKIE: "true"
 ```
+
+Od n8n 2.35.0 używamy `N8N_WEBHOOK_URL` zamiast przestarzałego `WEBHOOK_URL`.
+Kontrola wymaga nowej nazwy; sama stara zmienna nie spełnia warunku. Jeśli obecna
+konfiguracja już zawiera poprawne `N8N_WEBHOOK_URL`, nie trzeba jej zmieniać.
 
 To nie jest zamiennik całego pliku environment. Przed zmianą operator zachowuje
 kopię istniejącej konfiguracji automatyzacji oraz jej danych. Jeżeli wymaga ona
@@ -142,6 +146,13 @@ zatrzymuje się do kontroli operatora; nie wykonuje resetu bazy. Stan
 `rollback_failed` oraz checkpoint należy zachować.
 
 ## Testy wykonane lokalnie
+
+Poprawka `N8N_WEBHOOK_URL`: ponownie wykonano **7/7** testów
+`node --test tests/n8n-gateway.test.mjs` oraz kontrolę składni skryptu.
+Nowy scenariusz obejmuje poprawny URL z końcowym `/` i bez niego, brak nowej
+zmiennej mimo obecności starej oraz pusty/błędny adres nowej zmiennej.
+Poniższe wyniki pełnego pakietu pochodzą z commita `f7715b8`; nie powtarzano
+testów Caddy/TLS, ponieważ ta poprawka zmienia wyłącznie walidację środowiska.
 
 - **30/30** testów jednostkowych/kontroli plików: 6 nowych oraz 24 istniejące
   testy profilu i operacji produkcyjnych. Obejmują odmowę migracji/app changes,

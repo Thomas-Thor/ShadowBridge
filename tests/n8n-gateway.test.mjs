@@ -10,7 +10,7 @@ import { publicComposeArguments } from '../scripts/production-ops.mjs';
 import { productionBase, automationOrigin, edgeNetwork, n8nContainer, caddyImage, prepareGatewayProfile, checkGatewayProfile, saveGatewayState, sha } from '../scripts/n8n-gateway-profile.mjs';
 import { assertPatchPaths, assertN8n, assertGatewayOnly, gatewayUp, verifyGateway, completeGatewayChange } from '../scripts/n8n-gateway.mjs';
 
-const n8n=()=>({Name:'/'+n8nContainer,State:{Running:true},NetworkSettings:{Networks:{[edgeNetwork]:{}}},HostConfig:{PortBindings:{'5678/tcp':[{HostIp:'127.0.0.1',HostPort:'5678'}]}},Config:{Env:['N8N_HOST=automation.shadow-bridge.eu','N8N_PROTOCOL=https','N8N_PROXY_HOPS=1','WEBHOOK_URL='+automationOrigin+'/','N8N_EDITOR_BASE_URL='+automationOrigin,'N8N_ENCRYPTION_KEY=FICTIONAL_DO_NOT_PRINT']}});
+const n8n=()=>({Name:'/'+n8nContainer,State:{Running:true},NetworkSettings:{Networks:{[edgeNetwork]:{}}},HostConfig:{PortBindings:{'5678/tcp':[{HostIp:'127.0.0.1',HostPort:'5678'}]}},Config:{Env:['N8N_HOST=automation.shadow-bridge.eu','N8N_PROTOCOL=https','N8N_PROXY_HOPS=1','N8N_WEBHOOK_URL='+automationOrigin+'/','N8N_EDITOR_BASE_URL='+automationOrigin,'N8N_ENCRYPTION_KEY=FICTIONAL_DO_NOT_PRINT']}});
 const network=()=>({Name:edgeNetwork,Internal:true,Driver:'bridge'});
 const base=()=>({name:'shadowbridge-contabo-fictional',services:{gateway:{image:caddyImage,networks:{private:{aliases:['auth-proxy']},public:{}},ports:[{target:80,published:'80'},{target:443,published:'443'}],volumes:[{type:'bind',source:'/fictional/base/Caddyfile',target:'/etc/caddy/Caddyfile',read_only:true},{type:'volume',source:'caddy-data',target:'/data'}]},postgres:{image:'postgres:17',networks:{private:{}}},app:{image:'existing-app'}},networks:{private:{internal:true},public:{}}});
 const merged=()=>{const m=base();m.services.gateway.volumes[0].source='/fictional/overlay/Caddyfile';m.services.gateway.networks.automation_edge={};m.networks.automation_edge={name:edgeNetwork,external:true};return m;};
@@ -24,6 +24,18 @@ test('existing n8n must use a private edge, correct proxy origins and loopback h
  assert.doesNotThrow(()=>assertN8n(n8n(),network()));
  for(const change of [n=>n.HostConfig.PortBindings['5678/tcp'][0].HostIp='0.0.0.0',n=>n.Config.Env=n.Config.Env.filter(e=>!e.startsWith('N8N_PROXY_HOPS=')),n=>n.Config.Env.push('N8N_SECURE_COOKIE=false'),n=>n.State.Running=false,n=>delete n.NetworkSettings.Networks[edgeNetwork]]){const n=n8n();change(n);assert.throws(()=>assertN8n(n,network()));}
  assert.throws(()=>assertN8n(n8n(),{...network(),Internal:false}));
+});
+test('n8n 2.35+ requires N8N_WEBHOOK_URL; legacy WEBHOOK_URL alone cannot satisfy preflight',()=>{
+ for(const value of [automationOrigin,automationOrigin+'/']){
+  const n=n8n();n.Config.Env=n.Config.Env.filter(e=>!e.startsWith('N8N_WEBHOOK_URL='));n.Config.Env.push('N8N_WEBHOOK_URL='+value);
+  assert.doesNotThrow(()=>assertN8n(n,network()));
+ }
+ const legacy=n8n();legacy.Config.Env=legacy.Config.Env.filter(e=>!e.startsWith('N8N_WEBHOOK_URL='));legacy.Config.Env.push('WEBHOOK_URL='+automationOrigin+'/');
+ assert.throws(()=>assertN8n(legacy,network()),/N8N_WEBHOOK_URL=https:\/\/automation\.shadow-bridge\.eu\//);
+ for(const value of ['', 'http://automation.shadow-bridge.eu/', 'https://unrelated.invalid/',automationOrigin+'/wrong-path']){
+  const n=n8n();n.Config.Env=n.Config.Env.filter(e=>!e.startsWith('N8N_WEBHOOK_URL='));n.Config.Env.push('N8N_WEBHOOK_URL='+value,'WEBHOOK_URL='+automationOrigin+'/');
+  assert.throws(()=>assertN8n(n,network()),/N8N_WEBHOOK_URL=/);
+ }
 });
 test('merged Compose can change only the Caddyfile mount and gateway edge attachment',()=>{
  assert.doesNotThrow(()=>assertGatewayOnly(base(),merged(),'/fictional/overlay'));

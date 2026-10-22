@@ -55,5 +55,33 @@
     "scripts/production-ops.mjs": "b18b8f5cd84c312b00e23e140b82dbdae4f4990fb1140d2d8d342fe27c3db582"
   },
   "migration016Included": false,
-  "productionDeploymentPerformed": false
+  "productionDeploymentPerformed": false,
+  "historicalEvidence": {
+    "commit": "f7715b83cd0cb6acd01749fedf8ea0a8436a922b",
+    "sections": [
+      "unitAndFileChecks",
+      "runtime",
+      "sourceHashes"
+    ],
+    "rerunForWebhookNameCorrection": false
+  },
+  "webhookNameCorrection": {
+    "variable": "N8N_WEBHOOK_URL",
+    "legacyVariableDoesNotSatisfyPreflight": "WEBHOOK_URL",
+    "unitTests": {
+      "command": "node --test tests/n8n-gateway.test.mjs",
+      "passed": 7,
+      "failed": 0
+    },
+    "syntaxCheck": {
+      "command": "node --check scripts/n8n-gateway.mjs",
+      "result": "PASS"
+    },
+    "sourceHashes": {
+      "scripts/n8n-gateway.mjs": "660e6f52e6c0ce268455366adba3fbb7e08b666855f77e4023ef6aad22873e5d",
+      "tests/n8n-gateway.test.mjs": "538abe262f28f19ad1224d3f58314407e73e71f931e8e6d982fd9d269c9fbf53"
+    },
+    "contaboChanged": false,
+    "finishedAt": "2026-10-22T21:32:16.741Z"
+  }
 }

@@ -31,8 +31,8 @@ export function assertN8n(n8n,network){
  const bindings=Object.values(n8n.HostConfig?.PortBindings||{}).flat().filter(Boolean);
  must(bindings.every(p=>['127.0.0.1','::1'].includes(p.HostIp)),'STOP: n8n ma port opublikowany poza localhost.');
  const env=Object.fromEntries((n8n.Config?.Env||[]).map(line=>{const i=line.indexOf('=');return [line.slice(0,i),line.slice(i+1)];}));
- const expected={N8N_HOST:'automation.shadow-bridge.eu',N8N_PROTOCOL:'https',N8N_PROXY_HOPS:'1',WEBHOOK_URL:automationOrigin+'/',N8N_EDITOR_BASE_URL:automationOrigin};
- const missing=Object.entries(expected).filter(([k,v])=>(['WEBHOOK_URL','N8N_EDITOR_BASE_URL'].includes(k)?(env[k]||'').replace(/\/$/,''):env[k])!==(k==='WEBHOOK_URL'?v.replace(/\/$/,''):v)).map(([k,v])=>k+'='+v);
+ const expected={N8N_HOST:'automation.shadow-bridge.eu',N8N_PROTOCOL:'https',N8N_PROXY_HOPS:'1',N8N_WEBHOOK_URL:automationOrigin+'/',N8N_EDITOR_BASE_URL:automationOrigin};
+ const missing=Object.entries(expected).filter(([k,v])=>(['N8N_WEBHOOK_URL','N8N_EDITOR_BASE_URL'].includes(k)?(env[k]||'').replace(/\/$/,''):env[k])!==(k==='N8N_WEBHOOK_URL'?v.replace(/\/$/,''):v)).map(([k,v])=>k+'='+v);
  must(!missing.length,'Przed publikacją ustaw w istniejącej konfiguracji n8n (bez zmiany sekretów/wolumenów): '+missing.join(', '));
  must(env.N8N_SECURE_COOKIE!=='false','STOP: N8N_SECURE_COOKIE nie może być false przy publicznym HTTPS.');
 }
