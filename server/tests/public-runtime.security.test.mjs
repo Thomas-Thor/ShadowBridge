@@ -19,7 +19,7 @@ function environment() {
 }
 
 for (const hasRelease of [false, true]) {
-  test(`public configuration ${hasRelease ? 'identifies an explicit release' : 'preserves its existing shape without a release'} without exposing secrets`, async t => {
+  test(`public configuration ${hasRelease ? 'identifies an explicit release' : 'advertises no-email capabilities without a release'} without exposing secrets`, async t => {
     const env = environment();
     if (hasRelease) env.RELEASE_SHA = randomBytes(20).toString('hex');
     const config = loadConfig(env);
@@ -31,11 +31,12 @@ for (const hasRelease of [false, true]) {
     const response = await fetch(`http://127.0.0.1:${app.server.address().port}/api/config`);
     assert.equal(response.status, 200);
     const body = await response.json();
-    const expectedKeys = ['backendEnabled', 'csrfToken', 'environment', ...(hasRelease ? ['releaseSha'] : [])].sort();
+    const expectedKeys = ['backendEnabled', 'csrfToken', 'environment', 'capabilities', ...(hasRelease ? ['releaseSha'] : [])].sort();
     assert.deepEqual(Object.keys(body).sort(), expectedKeys);
     assert.equal(body.backendEnabled, true);
     assert.equal(body.environment, 'production');
     assert.equal(body.releaseSha, env.RELEASE_SHA);
+    assert.deepEqual(body.capabilities, { registration: false, passwordRecovery: false, emailVerification: false });
     assert.equal(response.headers.get('x-shadowbridge-release'), env.RELEASE_SHA || null);
     assert.match(response.headers.get('cache-control'), /no-store/);
     assert.match(response.headers.get('set-cookie'), /Secure/);

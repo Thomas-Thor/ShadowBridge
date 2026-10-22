@@ -9,3 +9,34 @@ Ta procedura jest przeznaczona dla właściciela i wyznaczonego operatora infras
 5. **Utrata uprawnienia OWNER albo całego konta:** wyłącznie operator DBA może wywołać `sb.bootstrap_owner` dla istniejącego, aktywnego i potwierdzonego konta po tej samej zewnętrznej weryfikacji. Lokalny odpowiednik to `npm run bootstrap:admin -- --email=ZWERYFIKOWANY_ADRES --grant-owner`, wykonywany przez operatora ze sprawdzoną konfiguracją lokalnej bazy, a nie przez zwykłego użytkownika. Operacja jest audytowana, nie tworzy hasła, nie wyłącza MFA i nie jest dostępna rolom API/sesji. Nie wolno automatycznie promować wszystkich dawnych `staff_grants`.
 
 Przed użyciem na rzeczywistych danych trzeba uzgodnić osobę upoważnioną do odzyskania, bezpieczny dostęp do infrastruktury i kluczy backupu oraz przećwiczyć tę procedurę na osobnym koncie testowym. Obecnie nie ma publicznego formularza odzyskiwania roli OWNER ani automatycznego obejścia MFA.
+
+## Odzyskanie samego hasła bez SMTP
+
+W trybie bez wysyłki poczty publiczne odzyskiwanie hasła jest wyłączone. Dla
+istniejącego OWNER przygotowano wyłącznie narzędzie operatora infrastruktury:
+
+```sh
+node scripts/owner-password-recovery.mjs --dir=.local/contabo-private --email=DOTYCHCZASOWY_ADRES_OWNER --incident=INC-2026-000001
+```
+
+Uruchom na serwerze, w istniejącym repozytorium, z uprawnieniami do jego prywatnej
+konfiguracji i Dockera, po niezależnym potwierdzeniu tożsamości i zapisaniu
+incydentu. Nowe hasło wpisuje się dwukrotnie w ukrytym pytaniu; nie podaje się go
+w poleceniu, pliku, zmiennej środowiskowej lub czacie.
+
+Narzędzie odmawia działania dla niepotwierdzonego, nieaktywnego albo innego niż
+OWNER konta oraz przy braku istniejącego potwierdzonego czynnika TOTP. Przed
+zmianą wykonuje zaszyfrowany backup. Korzysta z oficjalnego, prywatnego API GoTrue
+do zmiany **wyłącznie hasła**, a następnie kończy sesje BFF tego OWNER. GoTrue
+kończy jego sesje dostawcy i tokeny odświeżania. Sprawdzane są niezmienione role,
+potwierdzenie adresu i zapisy MFA; rozpoczęcie, wynik i błąd trafiają do audytu.
+
+To administracyjna procedura awaryjna, nie publiczny sposób logowania i nie
+automatyczna weryfikacja kodu TOTP. Po zmianie trzeba normalnie się zalogować
+nowym hasłem i **dotychczasowym MFA**. Narzędzie nie usuwa, nie podmienia ani nie
+zakłada czynnika MFA. Utrata authenticatora wymaga odrębnej, kontrolowanej
+procedury opisanej powyżej; ta komenda nie rozwiązuje takiej utraty.
+
+Testy `tests/owner-password-recovery.test.mjs` sprawdzają payload, krótki JWT i
+granice kodu; same nie potwierdzają wykonania zmiany na działającym GoTrue.
+Nie uruchamiaj narzędzia przy zwykłej aktualizacji lub gdy OWNER może się zalogować.

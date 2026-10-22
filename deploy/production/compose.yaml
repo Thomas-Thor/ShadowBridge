@@ -52,7 +52,8 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
     secrets: [internal-ca.crt]
-    networks: [private, public]
+    # Public no-mail mode needs no SMTP egress. GoTrue stays private.
+    networks: [private]
     read_only: true
     tmpfs: [/tmp]
     security_opt: ["no-new-privileges:true"]

@@ -115,7 +115,10 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
   async function api(req, res, url) {
     const route = url.pathname; const method = req.method;
     if (method === 'GET' && route === '/api/catalog') { const result=await routeTaxonomy({req,url,tx:db.pool,body}); return json(res,result.status,result.data); }
-    if (method === 'GET' && route === '/api/config') return json(res, 200, { backendEnabled: true, environment: config.appEnv, ...(config.releaseSha ? { releaseSha: config.releaseSha } : {}), ...auth.csrf(req, res) });
+    if (method === 'GET' && route === '/api/config') return json(res, 200, { backendEnabled: true, environment: config.appEnv, ...(config.releaseSha ? { releaseSha: config.releaseSha } : {}), ...(config.mailDeliveryMode === 'disabled' ? { capabilities: { registration: false, passwordRecovery: false, emailVerification: false } } : {}), ...auth.csrf(req, res) });
+    if (config.mailDeliveryMode === 'disabled' && method === 'POST' && ['/api/auth/register','/api/auth/recover','/api/auth/resend-verification','/api/auth/password'].includes(route)) {
+      throw new ApiError(503, 'MAIL_NOT_ENABLED', 'Registration and email-based account recovery are temporarily unavailable. Existing members can sign in. Contact the authorized operator for controlled account recovery.');
+    }
     auth.enforceSession(req);
     if (!['GET','HEAD'].includes(method)) auth.enforceCSRF(req);
     if (method === 'POST' && route === '/api/contact') {
@@ -397,6 +400,7 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
       const url=new URL(req.url,config.appUrl);
       if(url.pathname==='/health'){await db.pool.query('SELECT 1');return json(res,200,{ok:true,environment:config.appEnv});}
       if(req.method==='GET'&&['/auth/confirm','/auth/recover'].includes(url.pathname)){
+        if(config.mailDeliveryMode==='disabled')throw new ApiError(503,'MAIL_NOT_ENABLED','Email verification and email-based account recovery are temporarily unavailable. Existing members can sign in.');
         const token=url.searchParams.get('token')||url.searchParams.get('token_hash');
         if(!token)throw new ApiError(400,'INVALID_LINK','Verification link is invalid.');
         if(url.pathname==='/auth/confirm'){const verified=await auth.confirmEmail({token},res,req);await consumeIntent(req,res,verified);}else await auth.confirmRecovery({token},res,req);

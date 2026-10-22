@@ -15,17 +15,18 @@ test('public profile preserves a new fictional private installation and its secr
   const releaseSha = randomBytes(20).toString('hex');
   const smtpPassword = randomBytes(8).toString('hex');
   const hash = value => createHash('sha256').update(value).digest('hex');
+  const prepareSmtp = options => prepareProduction({ ...options, mailMode: 'smtp' });
   try {
     await prepareStaging({ directory, project });
     const privateManifestBefore = hash(await readFile(path.join(directory, 'manifest.json')));
     let prepared;
     await t.test('explicit release and local Gmail app password are required', async () => {
-      await assert.rejects(prepareProduction({ directory, smtpPassword }), /release SHA/);
-      await assert.rejects(prepareProduction({ directory, releaseSha, smtpPassword: 'ordinary-password' }), /16 letters/);
-      await assert.rejects(prepareProduction({ directory, releaseSha, smtpPassword: smtpPassword + '\n' }), /locally/);
+      await assert.rejects(prepareSmtp({ directory, smtpPassword }), /release SHA/);
+      await assert.rejects(prepareSmtp({ directory, releaseSha, smtpPassword: 'ordinary-password' }), /16 letters/);
+      await assert.rejects(prepareSmtp({ directory, releaseSha, smtpPassword: smtpPassword + '\n' }), /locally/);
     });
     await t.test('new public files retain all authentication and database secrets', async () => {
-      prepared = await prepareProduction({ directory, releaseSha, smtpPassword });
+      prepared = await prepareSmtp({ directory, releaseSha, smtpPassword });
       assert.equal(prepared.created, true);
       assert.equal(prepared.project, project);
       assert.equal(prepared.origin, 'https://shadow-bridge.eu');
@@ -54,9 +55,9 @@ test('public profile preserves a new fictional private installation and its secr
     });
     await t.test('repeated preparation is stable and refuses release or secret replacement', async () => {
       const before = hash(await readFile(path.join(prepared.directory, 'manifest.json')));
-      assert.equal((await prepareProduction({ directory, releaseSha })).created, false);
-      await assert.rejects(prepareProduction({ directory, releaseSha: randomBytes(20).toString('hex') }), /another release/);
-      await assert.rejects(prepareProduction({ directory, releaseSha, smtpPassword: randomBytes(8).toString('hex') }), /SMTP credential differs/);
+      assert.equal((await prepareSmtp({ directory, releaseSha })).created, false);
+      await assert.rejects(prepareSmtp({ directory, releaseSha: randomBytes(20).toString('hex') }), /another release/);
+      await assert.rejects(prepareSmtp({ directory, releaseSha, smtpPassword: randomBytes(8).toString('hex') }), /SMTP credential differs/);
       assert.equal(hash(await readFile(path.join(prepared.directory, 'manifest.json'))), before);
     });
     await t.test('tampering and unsafe modes fail closed without overwriting config', async () => {
@@ -66,7 +67,7 @@ test('public profile preserves a new fictional private installation and its secr
       await chmod(file, 0o600);
       const original = await readFile(file);
       await writeFile(file, Buffer.concat([original, Buffer.from('# deliberate test modification\n')]));
-      await assert.rejects(prepareProduction({ directory, releaseSha }), /fingerprint changed/);
+      await assert.rejects(prepareSmtp({ directory, releaseSha }), /fingerprint changed/);
       assert.equal((await readFile(file)).equals(original), false);
       await writeFile(file, original);
       await checkProduction({ directory });
@@ -126,6 +127,67 @@ test('public gateway template authenticates edge client identity without Basic A
   assert.equal((compose.match(/^\s+ports:/gm) || []).length, 1);
   assert.match(compose, /- "80:80"\n\s+- "443:443"/);
   assert.match(compose, /database:\/var\/lib\/postgresql\/data/);
-  assert.match(compose, /networks: \[private, public\]/);
+  assert.doesNotMatch(compose, /networks: \[private, public\]/);
   assert.doesNotMatch(compose, /network_mode: host|privileged: true/);
+});
+
+test('no-mail release needs no SMTP and preserves the existing installation and profiles', async t => {
+  const suffix=randomBytes(6).toString('hex');
+  const directory=path.join(repositoryRoot,'.local',`production-no-mail-config-test-${suffix}`);
+  const oldSha=randomBytes(20).toString('hex'),releaseSha=randomBytes(20).toString('hex'),nextSha=randomBytes(20).toString('hex');
+  const smtpPassword=randomBytes(8).toString('hex');
+  const hash=value=>createHash('sha256').update(value).digest('hex');
+  try {
+    await prepareStaging({directory,project:`shadowbridge-stageg-no-mail-${suffix}`});
+    const privateBefore=hash(await readFile(path.join(directory,'manifest.json')));
+    const legacy=await prepareProduction({directory,releaseSha:oldSha,smtpPassword,mailMode:'smtp'});
+    const legacyBefore=hash(await readFile(path.join(legacy.directory,'manifest.json')));
+    const previousProxy=(await readEnv(path.join(legacy.directory,'app.env'))).PROXY_AUTH_TOKEN;
+    let profile,next;
+    await t.test('default profile disables signup and SMTP without disabling password login or MFA',async()=>{
+      profile=await prepareProduction({directory,releaseSha});
+      assert.equal(profile.mailMode,'disabled');
+      assert.equal(profile.directory,path.join(directory,'production-no-mail',releaseSha));
+      assert.equal((await checkProduction({directory})).directory,profile.directory);
+      const app=await readEnv(path.join(profile.directory,'app.env')),auth=await readEnv(path.join(profile.directory,'auth.env'));
+      const originalApp=await readEnv(path.join(directory,'app.env')),originalAuth=await readEnv(path.join(directory,'auth.env'));
+      assert.equal(app.MAIL_DELIVERY_MODE,'disabled');assert.equal(app.TRANSACTIONAL_MAIL_ENABLED,'false');
+      assert.equal(app.PROXY_AUTH_TOKEN,previousProxy);
+      for(const key of ['DATABASE_URL','SESSION_DATABASE_URL','SESSION_ENCRYPTION_KEY','SUPABASE_ANON_KEY','SUPABASE_URL'])assert.equal(app[key],originalApp[key]);
+      for(const key of ['GOTRUE_DB_DATABASE_URL','GOTRUE_JWT_SECRET','GOTRUE_MAILER_AUTOCONFIRM','GOTRUE_MFA_TOTP_VERIFY_ENABLED','GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED','GOTRUE_EXTERNAL_EMAIL_ENABLED'])assert.equal(auth[key],originalAuth[key]);
+      assert.equal(auth.GOTRUE_DISABLE_SIGNUP,'true');assert.equal(auth.GOTRUE_EXTERNAL_EMAIL_ENABLED,'true');
+      assert.equal(auth.GOTRUE_SMTP_HOST,'127.0.0.1');assert.equal(auth.GOTRUE_SMTP_PORT,'1');
+      assert.equal(Object.hasOwn(auth,'GOTRUE_SMTP_USER'),false);assert.equal(Object.hasOwn(auth,'GOTRUE_SMTP_PASS'),false);
+      assert.equal((await readFile(path.join(profile.directory,'auth.env'),'utf8')).includes(smtpPassword),false);
+      assert.equal((await prepareProduction({directory,releaseSha})).created,false);
+      await assert.rejects(prepareProduction({directory,releaseSha,smtpPassword}),/No SMTP credential/);
+    });
+    await t.test('a newer no-mail release preserves old profiles, keys and the Docker project',async()=>{
+      const before=hash(await readFile(path.join(profile.directory,'manifest.json')));
+      next=await prepareProduction({directory,releaseSha:nextSha});
+      assert.equal(next.project,profile.project);
+      assert.equal((await readEnv(path.join(next.directory,'app.env'))).PROXY_AUTH_TOKEN,previousProxy);
+      assert.equal(hash(await readFile(path.join(profile.directory,'manifest.json'))),before);
+      assert.equal(hash(await readFile(path.join(legacy.directory,'manifest.json'))),legacyBefore);
+      assert.equal(hash(await readFile(path.join(directory,'manifest.json'))),privateBefore);
+      assert.equal((await checkProduction({directory})).releaseSha,nextSha);
+      assert.equal((await checkProduction({directory,mailMode:'smtp'})).releaseSha,oldSha);
+    });
+    await t.test('forged no-mail manifest cannot re-enable signup or change critical secrets',async()=>{
+      const file=path.join(next.directory,'auth.env'),manifestFile=path.join(next.directory,'manifest.json');
+      const original=await readFile(file),manifestOriginal=await readFile(manifestFile);
+      const changed=Buffer.from(original.toString().replace('GOTRUE_DISABLE_SIGNUP=true','GOTRUE_DISABLE_SIGNUP=false'));
+      const manifest=JSON.parse(manifestOriginal);manifest.hashes['auth.env']=hash(changed);
+      await writeFile(file,changed);await writeFile(manifestFile,JSON.stringify(manifest));
+      await assert.rejects(checkProduction({directory}),/No-mail Auth/);
+      await writeFile(file,original);await writeFile(manifestFile,manifestOriginal);
+      await checkProduction({directory});
+    });
+    await t.test('a partial new profile fails without overwriting it or changing the selector',async()=>{
+      const partial=randomBytes(20).toString('hex'),target=path.join(directory,'production-no-mail',partial);
+      await mkdir(target,{mode:0o700});
+      await assert.rejects(prepareProduction({directory,releaseSha:partial}));
+      assert.equal((await checkProduction({directory})).releaseSha,nextSha);
+    });
+  }finally{await rm(directory,{recursive:true,force:true});}
 });

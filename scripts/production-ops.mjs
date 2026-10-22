@@ -131,6 +131,27 @@ export async function proveBackup({ directory,backupFile,keyFile,expected }) {
   }
 }
 
+// Deployment validates the existing backup without creating another database,
+// project or environment. Full restore tests from the earlier report remain
+// historical; an authenticated archive/catalog check is not a restore test.
+export async function verifyBackupArchive({directory,backupFile,keyFile}) {
+  const source=await checkStaging({directory});
+  const extraction=path.join(repositoryRoot,'.local','restore-verify-'+randomBytes(6).toString('hex'));
+  const recovered=await decryptBackup({backupFile,keyFile,destination:extraction});
+  try {
+    guard(recovered.project===source.project,'Kopia pochodzi z innej instalacji.');
+    const env={...process.env,...await readEnv(path.join(source.directory,'compose.env'))};
+    await new Promise((resolve,reject)=>{
+      const child=spawn('docker',composeArguments(source.directory,['exec','-T','postgres','pg_restore','--list']),{cwd:repositoryRoot,env,stdio:['pipe','ignore','pipe']});
+      const input=createReadStream(recovered.databaseDump);
+      input.on('error',()=>{child.kill();reject(new Error('Nie można odczytać kopii.'));});child.stdin.on('error',()=>{});child.stderr.resume();input.pipe(child.stdin);
+      child.once('error',()=>{input.destroy();reject(new Error('Nie uruchomiono kontroli kopii.'));});
+      child.once('exit',code=>{input.destroy();code===0?resolve():reject(new Error('Kopia nie przeszła kontroli katalogu pg_restore. Niczego nie odtworzono.'));});
+    });
+    return {archiveAuthenticated:true,catalogReadable:true,restored:false,newInfrastructureCreated:false};
+  } finally {await rm(extraction,{recursive:true,force:true});}
+}
+
 const publicConfigurationFiles=['compose.env','app.env','auth.env','proxy-token','Caddyfile','manifest.json'];
 export async function savePublicConfiguration(profile, folder) {
   // Separate encrypted companion: Gmail/proxy settings are absent from the
@@ -160,10 +181,17 @@ export async function recoverPublicConfiguration({directory,checkpoint}={}) {
   return {directory:target};
 }
 
-export async function verifyPublic(releaseSha, { request = globalThis.fetch } = {}) {
+export async function verifyPublic(releaseSha, { request = globalThis.fetch, mailDisabled=false } = {}) {
   const read=async pathname=>{const result=await request(productionOrigin+pathname,{redirect:'manual',signal:AbortSignal.timeout(15000)});guard(result.headers.get('x-shadowbridge-release')===releaseSha,`Domena nie obsługuje oczekiwanego wydania: ${pathname}`);return result;};
   const health=await read('/health');guard(health.status===200 && (await health.json()).ok===true,'Backend domeny nie przeszedł kontroli zdrowia.');
   const config=await read('/api/config');const data=await config.json();guard(config.status===200 && data.backendEnabled===true && data.releaseSha===releaseSha,'Domena nadal wskazuje starą stronę lub niewłaściwy backend.');
+  if(mailDisabled){
+    guard(data.capabilities?.registration===false && data.capabilities?.passwordRecovery===false && data.capabilities?.emailVerification===false,'Ścieżki e-mail nie są wyłączone.');
+    for(const route of ['/api/auth/register','/api/auth/recover','/api/auth/resend-verification']){
+      const response=await request(productionOrigin+route,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}',redirect:'manual',signal:AbortSignal.timeout(15000)});
+      guard(response.status===503 && (await response.json()).code==='MAIL_NOT_ENABLED','Ścieżka e-mail nadal przyjmuje żądania: '+route);
+    }
+  }
   for(const page of ['/','/member-sign-in/','/apply/buyer/','/apply/supplier/','/apply/partner/','/legal/','/cartel/'])guard((await read(page)).status===200,`Nie działa podstrona ${page}`);
   for(const page of ['/portal/admin/','/portal/buyer/','/portal/supplier/','/portal/partner/','/portal/offers/']){const r=await read(page);guard(r.status===303 && r.headers.get('location')==='/member-sign-in/',`Niepoprawna ochrona panelu ${page}`);}
   for(const page of ['/.env','/.git/config','/server/app.mjs','/auth/v1/settings','/prototypes/'])guard((await read(page)).status===404,`Niepożądany publiczny zasób ${page}`);
@@ -184,7 +212,7 @@ function currentRelease() {
   return execFileSync('git',['rev-parse','HEAD'],{cwd:repositoryRoot,encoding:'utf8'}).trim();
 }
 
-export async function deployProduction({ directory,ipv4,smtpPassword,waitForDns } = {}) {
+export async function deployProduction({ directory,ipv4='169.58.232.69' } = {}) {
   directory ||= await autoDirectory();
   const source=await checkStaging({directory});directory=source.directory;
   const releaseSha=currentRelease();
@@ -199,9 +227,9 @@ export async function deployProduction({ directory,ipv4,smtpPassword,waitForDns 
     resume=running.filter(name=>['app','auth'].includes(name));
     guard(running.includes('postgres') && running.includes('app') && running.includes('auth'),'Istniejąca baza, API i Auth muszą działać przed aktualizacją.');
     guard(isIP(ipv4)===4 && Object.values(networkInterfaces()).flat().filter(Boolean).some(item=>item.address===ipv4),'Podaj publiczny IPv4 przypisany do tego VPS. Niczego nie zatrzymano.');
-    const profile=await prepareProduction({directory,smtpPassword,releaseSha});
+    await checkDomain(ipv4);
+    const profile=await prepareProduction({directory,releaseSha,mailMode:'disabled'});
     publicCompose(profile,['config','--quiet']);
-    const auth=await readEnv(path.join(profile.directory,'auth.env'));await checkGmail(auth.GOTRUE_SMTP_PASS);
     // Check port ownership before stopping anything. Only an existing gateway
     // in THIS project may own public ports on an already activated installation.
     const exposed=safeDocker(['ps','--format','{{json .}}']).trim().split('\n').filter(Boolean).map(line=>JSON.parse(line));
@@ -228,18 +256,15 @@ export async function deployProduction({ directory,ipv4,smtpPassword,waitForDns 
     const ledger=JSON.parse(await psql(directory,'SELECT json_agg(t ORDER BY name) FROM shadowbridge_migrations.applied t'));
     validateApplied(await migrationSources(),ledger);
     const backup=await backupInstallation(directory);
-    const recovery=await proveBackup({directory,...backup,expected:before});
-    console.log('Kopia zaszyfrowana i rzeczywiste odtworzenie w oddzielnej bazie: OK. Oryginalne dane zachowane.');
-    await writeFile(path.join(folder,'checkpoint.json'),JSON.stringify({releaseSha,project:profile.project,backup,recovery,createdAt:new Date().toISOString(),status:'backup-restored-before-update'},null,2)+'\n',{mode:0o600,flag:'wx'});
+    const recovery=await verifyBackupArchive({directory,...backup});
+    console.log('Kopia zaszyfrowana i katalog pg_restore: OK. Nie tworzono dodatkowej bazy ani środowiska.');
+    await writeFile(path.join(folder,'checkpoint.json'),JSON.stringify({releaseSha,project:profile.project,backup,recovery,createdAt:new Date().toISOString(),status:'backup-authenticated-before-update'},null,2)+'\n',{mode:0o600,flag:'wx'});
     // Build first: a build/network error resumes the previous private services.
     publicCompose(profile,['build','app','migrator']);
-    // The old website may remain on GitHub Pages until backup/restore/build are
-    // complete. DNS is changed by the owner in Porkbun, never by this script.
-    for(;;){try{await checkDomain(ipv4);break;}catch(error){if(!waitForDns)throw error;await waitForDns(error.message);}}
     publicCompose(profile,['run','--rm','--no-deps','migrator']);
     assertPreserved(before,await databaseFingerprints(directory),{allowMigrationBackfill:true});
-    // SMTP is enabled only in the Auth container. No service has a host port
-    // except Caddy, and the database volume/project stays exactly the same.
+    // Email and signup are disabled. Only Caddy has public host ports, and the
+    // database volume/project stays exactly the same.
     activated=true;
     if(legacy){
       // No rm/down/prune. All legacy configuration, certificates and volumes
@@ -253,12 +278,13 @@ export async function deployProduction({ directory,ipv4,smtpPassword,waitForDns 
     for(let attempt=0;attempt<12;attempt++) {
       try{
         publicCompose(profile,['exec','-T','app','node','-e',"fetch(process.env.SUPABASE_URL+'/auth/v1/health',{signal:AbortSignal.timeout(10000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]);
-        verified=await verifyPublic(releaseSha);break;
+        verified=await verifyPublic(releaseSha,{mailDisabled:true});break;
       }catch(error){lastError=error;await new Promise(resolve=>setTimeout(resolve,5000));}
     }
     if(!verified)throw lastError;
     await writeFile(path.join(folder,'result.json'),JSON.stringify({...verified,backup,recovery,completedAt:new Date().toISOString()},null,2)+'\n',{mode:0o600,flag:'wx'});
     console.log(`ZWERYFIKOWANO: ${productionOrigin}; wydanie ${releaseSha}. Brak Basic Auth; panele wymagają normalnego logowania i MFA.`);
+    console.log('Rejestracja i ścieżki e-mail są tymczasowo wyłączone; istniejące konta, MFA i kolejka kontaktowa pozostają aktywne.');
     console.log('Sprawdź własne konto OWNER/MFA oraz testowe role w przeglądarce. Instalator nie zna Twojego hasła i nie tworzył żadnych kont.');
     console.log(`Kopia i klucz: ${backup.backupFile} / ${backup.keyFile}. Zachowaj je oddzielnie także poza VPS. Dodatkowa konfiguracja publiczna: ${folder}.`);
     return verified;
@@ -314,11 +340,9 @@ if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.
     for(const arg of args){const match=/^--(dir|ipv4|checkpoint)=(.+)$/.exec(arg);guard(match,'Dozwolone: --dir=, --ipv4=, --checkpoint=. Hasła podaje się wyłącznie w ukrytym pytaniu.');options[match[1]==='dir'?'directory':match[1]]=match[2];}
     if(action==='deploy'){
       options.directory ||= await autoDirectory();
-      options.ipv4 ||= await prompt('Publiczny IPv4 tego Contabo:');
-      try{await checkProduction({directory:options.directory});}catch(error){if(error.code!=='ENOENT')throw error;options.smtpPassword=await prompt('Hasło APLIKACJI Gmail shadowbridge.trade@gmail.com (ukryte):',{secret:true});}
-      options.waitForDns=async message=>{console.log(message);await prompt('Po sprawdzeniu rekordów i propagacji DNS naciśnij Enter, aby sprawdzić ponownie (Ctrl+C przerywa):');};
+      options.ipv4 ||= '169.58.232.69';
       await deployProduction(options);
-    }else if(action==='verify'){const profile=await checkProduction({directory:options.directory||await autoDirectory()});await verifyPublic(profile.releaseSha);console.log(`PASS: ${productionOrigin}, SHA ${profile.releaseSha}.`);}
+    }else if(action==='verify'){const profile=await checkProduction({directory:options.directory||await autoDirectory()});await verifyPublic(profile.releaseSha,{mailDisabled:profile.mailMode==='disabled'});console.log(`PASS: ${productionOrigin}, SHA ${profile.releaseSha}.`);}
     else if(action==='rollback')await rollbackPrivate(options);
     else if(action==='recover-config')await recoverPublicConfiguration(options);
     else throw new Error('Użyj deploy, verify, rollback albo recover-config.');

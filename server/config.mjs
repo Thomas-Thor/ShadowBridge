@@ -62,6 +62,9 @@ export function loadConfig(env = process.env) {
     databaseUrl, sessionDatabaseUrl, sessionEncryptionKey,
     secureCookies: production || app.protocol === 'https:',
     mailDeliveryMode, testEmailAllowlist, transactionalMailEnabled,
+    registrationEnabled: mailDeliveryMode !== 'disabled',
+    passwordRecoveryEnabled: mailDeliveryMode !== 'disabled',
+    emailVerificationEnabled: mailDeliveryMode !== 'disabled',
     proxyAuthToken, releaseSha: releaseSha?.toLowerCase() || null,
     sessionLifetimeSeconds: 60 * 60 * 24 * 7,
   });

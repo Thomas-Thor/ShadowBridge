@@ -1,5 +1,9 @@
 # ShadowBridge — przejście z prywatnej instalacji na główną domenę
 
+**Aktualizacja 22.10.2026:** obowiązuje teraz
+[procedura bez poczty](CONTABO-NO-MAIL.md). Poniższy opis Gmaila i tworzenia
+oddzielnego projektu odzyskiwania jest historyczny; nie jest bieżącą procedurą.
+
 **Stan 21.10.2026: pakiet sprawdzony lokalnie, niewdrożony na Contabo.**
 Codex nie ma w tej sesji adresu dostępowego/klucza SSH do VPS. Proxy środowiska
 odrzuca także odczyt `https://shadow-bridge.eu` (CONNECT 403), a lokalny resolver

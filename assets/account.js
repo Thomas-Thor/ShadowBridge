@@ -7,6 +7,7 @@
   let enabled = false;
   let changed = false;
   let checking;
+  let capabilities = { registration: true, passwordRecovery: true, emailVerification: true };
   const pending = new Set();
   const sessionChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('shadowbridge-session') : null;
   const changedMessage = 'The account in this browser changed or signed out. Reload this page before continuing. For simultaneous accounts, use separate browser profiles or a private window.';
@@ -19,8 +20,15 @@
     notice.scrollIntoView({ block: 'nearest', behavior: 'auto' });
   }
   function unlock(form, value) {
-    form.querySelector('fieldset').disabled = !value;
-    form.querySelector('button[type="submit"]').disabled = !value;
+    const allowed = formAllowed(form);
+    form.querySelector('fieldset').disabled = !value || !allowed;
+    form.querySelector('button[type="submit"]').disabled = !value || !allowed;
+  }
+  function formAllowed(form) {
+    const kind = form.dataset.accountForm;
+    if (kind === 'register') return capabilities.registration !== false;
+    if (kind === 'recover' || kind === 'password') return capabilities.passwordRecovery !== false;
+    return true;
   }
   function sessionChanged() {
     if (changed) return;
@@ -63,7 +71,7 @@
   for (const form of forms) {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (!enabled || !csrfToken) return;
+      if (!enabled || !csrfToken || !formAllowed(form)) return;
       if (!form.reportValidity()) return;
       const data = new FormData(form);
       const password = data.get('password');
@@ -117,9 +125,21 @@
       const config = await response.json();
       if (changed) return;
       if (config.backendEnabled !== true || typeof config.csrfToken !== 'string' || !config.csrfToken) throw new Error('Unavailable');
+      if (config.capabilities && typeof config.capabilities === 'object') capabilities = { ...capabilities, ...config.capabilities };
       csrfToken = config.csrfToken; enabled = true;
       for (const form of forms) unlock(form, true);
+      if (capabilities.passwordRecovery === false) {
+        const login = document.querySelector('#sign-in-form');
+        const password = document.querySelector('#password-form');
+        if (login && password) { login.hidden = false; password.hidden = true; }
+        const recoveryDescription = document.querySelector('#account-recovery > p');
+        if (recoveryDescription) recoveryDescription.textContent = 'Email-based recovery is temporarily unavailable. Contact the authorized operator for controlled account recovery; MFA is not reset automatically.';
+      }
       const environment = config.environment === 'local' ? 'Local development' : 'Secure member service';
+      if (capabilities.registration === false || capabilities.passwordRecovery === false) {
+        report('Existing member access', 'Existing members can sign in. Registration, email verification and email-based password recovery are temporarily unavailable. Contact the authorized operator for controlled account recovery.');
+        return;
+      }
       report(environment, recovery
         ? 'Set a new password only if you followed your requested recovery email. The server validates your recovery session.'
         : 'Email verification and individual company approval are required. Registration does not grant private access.');

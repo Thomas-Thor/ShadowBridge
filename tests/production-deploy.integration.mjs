@@ -34,7 +34,7 @@ async function prepare() {
   const id=randomBytes(5).toString('hex');
   const checked=await prepareStaging({directory:'.local/production-test-'+id,project:'shadowbridge-stageg-production-'+id,httpsPort:18465,httpPort:18466});
   const releaseSha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
-  const production=await prepareProduction({directory:checked.directory,smtpPassword:randomBytes(8).toString('hex'),releaseSha});
+  const production=await prepareProduction({directory:checked.directory,smtpPassword:randomBytes(8).toString('hex'),releaseSha,mailMode:'smtp'});
   assert.equal(docker(['ps','-aq','--filter','label=com.docker.compose.project='+checked.project]).trim(),'');
   assert.equal(docker(['volume','ls','-q','--filter','label=com.docker.compose.project='+checked.project]).trim(),'');
   const certs=path.join(checked.directory,'certs');
