@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { checkStaging, readEnv, repositoryRoot } from './staging-prepare.mjs';
 import { migrationSources } from './staging-migrate.mjs';
 import { backupStaging, decryptBackup, restoreConfiguration } from './staging-backup.mjs';
+import { archiveHasVault, privateArchiveCatalog, restoredVaultRolesSql } from './vault-recovery-roles.mjs';
 
 export function composeArguments(directory, args) {
   const project = JSON.parse(readFileSync(path.join(directory, 'manifest.json'), 'utf8')).project;
@@ -102,6 +103,11 @@ export async function restoreInstallation({ directory, project, httpsPort, backu
   // --clean affects only the bootstrap-created empty schemas in this new,
   // independently guarded project. It is never accepted against an existing DB.
   const restoreEnvironment = { ...process.env, ...await readEnv(path.join(directory, 'compose.env')) };
+  // pg_dump excludes cluster roles, but function ownership/ACLs need these
+  // reserved NOLOGIN principals before pg_restore. Older archives must NOT
+  // receive them: migration 016 deliberately rejects pre-existing principals.
+  const catalog=await privateArchiveCatalog({args:composeArguments(directory,['exec','-T','postgres','pg_restore','--list']),environment:restoreEnvironment,cwd:repositoryRoot,dumpFile:recovered.databaseDump});
+  if(archiveHasVault(catalog))await compose(directory,['exec','-T','postgres','psql','-XqAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','shadowbridge','-c',restoredVaultRolesSql],{capture:true});
   await new Promise((resolve, reject) => {
     const child = spawn('docker', composeArguments(directory, ['exec', '-T', 'postgres', 'pg_restore', '--clean', '--if-exists', '--exit-on-error', '-U', 'postgres', '-d', 'shadowbridge']), { cwd: repositoryRoot, env: restoreEnvironment, stdio: ['pipe', 'ignore', 'pipe'] });
     const input = createReadStream(recovered.databaseDump);

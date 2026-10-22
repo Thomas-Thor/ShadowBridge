@@ -1,0 +1,87 @@
+{
+  "stage": "OWNER VAULT V1",
+  "backend": {
+    "kind": "real-owner-vault-foundation",
+    "cases": [
+      {
+        "name": "isolated real GoTrue accounts, seven staff roles and original OWNER MFA established",
+        "result": "PASS"
+      },
+      {
+        "name": "backup, collision refusal and migration 015→016 preserve accounts, sessions, roles and MFA",
+        "result": "PASS"
+      },
+      {
+        "name": "real HTTP OWNER+MFA enforcement, all other roles denied, CSRF and private audit",
+        "result": "PASS"
+      },
+      {
+        "name": "names and shared emails never merge people; strong keys deduplicate; conflicts require review",
+        "result": "PASS"
+      },
+      {
+        "name": "bounded search, pages, manual review/version control and immutable private history",
+        "result": "PASS"
+      },
+      {
+        "name": "FORCE RLS, raw table denial, non-owner impersonation attempts and Sentinel/policy isolation",
+        "result": "PASS"
+      },
+      {
+        "name": "write-only agent binding, no match disclosure, retry safety, concurrency and rate limit",
+        "result": "PASS"
+      },
+      {
+        "name": "real counters and Europe/Oslo overnight boundaries include both DST changes",
+        "result": "PASS"
+      },
+      {
+        "name": "no CRM details in staff overview/audit; original sessions and OWNER factor still valid",
+        "result": "PASS"
+      }
+    ],
+    "mocksUsed": false,
+    "externalEmailSent": false,
+    "existingInstallationModified": false,
+    "contaboDeployed": false,
+    "result": "PASS",
+    "fixtureStopped": true,
+    "existingRunningContainersPreserved": true,
+    "finishedAt": "2026-10-22T20:35:30.166Z"
+  },
+  "restore": {
+    "kind": "real-owner-vault-restore",
+    "cases": [
+      {
+        "name": "empty-target Vault recovery creates only the two reserved NOLOGIN roles",
+        "result": "PASS"
+      },
+      {
+        "name": "full pg_dump restores function ownership, data, RLS and minimal ACLs into an isolated PostgreSQL",
+        "result": "PASS"
+      }
+    ],
+    "mocksUsed": false,
+    "contaboDeployed": false,
+    "existingInstallationModified": false,
+    "result": "PASS",
+    "fixtureStopped": true,
+    "finishedAt": "2026-10-22T20:36:59.389Z"
+  },
+  "unitAndSourceChecks": {
+    "distinctTests": 32,
+    "result": "PASS",
+    "realDatabase": false
+  },
+  "sourceHashes": {
+    "supabase/migrations/202610220016_owner_vault.sql": "7a4a4293871dc9596f18b9b39d905d27da428abed755a50746a48b6624b86985",
+    "server/owner-vault.mjs": "e12d42dcf479ca6341a114ffd6e17f7d54bf8fd73aa185d7a88ad134b8f2710b",
+    "server/app.mjs": "21a42e6ec7eb4d1502589b298b5762d06eb96c2714db4aaf222348ac2a63e1e2",
+    "scripts/vault-recovery-roles.mjs": "861d05643c38ba773d0c14a8541b9b02ddcfb1f3a22026fd371f9780514569e3",
+    "scripts/staging-ops.mjs": "8d70163d4c9e9eddf8af58ea9ea8f10ff79111deafc7cb4559a1af0dccaa0f43",
+    "scripts/production-ops.mjs": "fbd5c27c4fb2286e77dbf282395f360c5c89ebe4aba2ea066b5d34fdcc073c91"
+  },
+  "productionChanged": false,
+  "ownerDatabaseMigrated": false,
+  "externalIntegrationsActivated": false
+}

@@ -15,6 +15,7 @@ import { prepareProduction, checkProduction, productionOrigin } from './producti
 import { backupInstallation, compose as privateCompose, composeArguments, restoredSentinelRoleSql } from './staging-ops.mjs';
 import { decryptBackup, restoreConfiguration, encryptArchive, decryptArchive } from './staging-backup.mjs';
 import { migrationSources, validateApplied } from './staging-migrate.mjs';
+import { archiveHasVault, privateArchiveCatalog, restoredVaultRolesSql } from './vault-recovery-roles.mjs';
 
 const guard = (ok, message) => { if (!ok) throw new Error(message); };
 const safeDocker = (args, options = {}) => {
@@ -76,10 +77,10 @@ export async function checkGmail(password) {
 // Compare all application tables and security-critical GoTrue records without
 // printing records, hashes, passwords, tokens, MFA material or personal data.
 export async function databaseFingerprints(directory) {
-  const tables = JSON.parse(await psql(directory,"SELECT json_agg(schemaname||'.'||tablename ORDER BY schemaname,tablename) FROM pg_tables WHERE schemaname='sb' OR schemaname='auth' AND tablename IN ('users','identities','mfa_factors','sessions','refresh_tokens')"));
+  const tables = JSON.parse(await psql(directory,"SELECT json_agg(schemaname||'.'||tablename ORDER BY schemaname,tablename) FROM pg_tables WHERE schemaname IN ('sb','owner_vault') OR schemaname='auth' AND tablename IN ('users','identities','mfa_factors','sessions','refresh_tokens')"));
   const result={};
   for(const table of tables) {
-    guard(/^(?:sb|auth)\.[a-z_]+$/.test(table),'Niepoprawna nazwa tabeli kopii.');
+    guard(/^(?:sb|auth|owner_vault)\.[a-z_]+$/.test(table),'Niepoprawna nazwa tabeli kopii.');
     result[table]=await psql(directory,`SELECT md5(coalesce(string_agg(value,',' ORDER BY value),'')) FROM (SELECT to_jsonb(t)::text AS value FROM ${table} t) rows`);
   }
   // An upgrade may ADD permission keys. Protect every existing key/flag while
@@ -113,6 +114,8 @@ export async function proveBackup({ directory,backupFile,keyFile,expected }) {
     await privateCompose(target.directory,['up','-d','--wait','--wait-timeout','120','postgres'],{capture:true});
     guard(await psql(target.directory,"SELECT to_regclass('auth.users') IS NULL AND to_regnamespace('sb') IS NULL")==='t','Cel odzyskiwania nie jest pusty. Niczego nie nadpisano.');
     const env={...process.env,...await readEnv(path.join(target.directory,'compose.env'))};
+    const catalog=await privateArchiveCatalog({args:composeArguments(target.directory,['exec','-T','postgres','pg_restore','--list']),environment:env,cwd:repositoryRoot,dumpFile:recovered.databaseDump});
+    if(archiveHasVault(catalog))await psql(target.directory,restoredVaultRolesSql);
     await new Promise((resolve,reject)=>{
       const child=spawn('docker',composeArguments(target.directory,['exec','-T','postgres','pg_restore','--clean','--if-exists','--exit-on-error','-U','postgres','-d','shadowbridge']),{cwd:repositoryRoot,env,stdio:['pipe','ignore','pipe']});
       const input=createReadStream(recovered.databaseDump);input.once('error',()=>{child.kill();reject(new Error('Nie można odczytać odzyskiwanej kopii.'));});

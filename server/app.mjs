@@ -14,6 +14,7 @@ import { requirePermission, routeStaffManagement } from './staff-management.mjs'
 import { routeTaxonomy, categoryId } from './taxonomy.mjs';
 import { currencyCodes } from '../assets/business-config.js';
 import { routeOffersWorkspace } from './offers-workspace.mjs';
+import { routeOwnerVault } from './owner-vault.mjs';
 import { ApiError, object, text, oneOf, number, list, identifier, profile, businessData, assertNonIdentifyingText } from './validation.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -196,6 +197,19 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
       return json(res,201,{applicationStatus:'pending',approvalRequired:true});
     }
     if (ctx.account.status !== 'active') throw new ApiError(403,'ACCOUNT_SUSPENDED','This account is suspended. Contact ShadowBridge.');
+    if(route.startsWith('/api/owner/vault')) {
+      limit(req,'owner-vault');
+      return txFor(ctx,async tx=>{
+        const routed=await routeOwnerVault({req,url,tx,body});
+        return json(res,routed.status,routed.data);
+      }).catch(async error=>{
+        const reason=error.code==='54000'?'rate_limit':error.code==='42501'?'not_allowed':error.status===400||['22023','22P02','23514'].includes(error.code)?'invalid_input':'storage_error';
+        // A separate transaction records only an error class after rollback;
+        // payloads, e-mails and database error strings never enter the audit.
+        await txFor(ctx,tx=>tx.query('SELECT owner_vault.record_failure($1)',[reason])).catch(()=>{});
+        throw error;
+      });
+    }
     if(route.startsWith('/api/staff/')) {
       needStaff(ctx);
       return txFor(ctx,async tx=>{
