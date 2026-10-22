@@ -1,0 +1,59 @@
+{
+  "baseRelease": "7f794a298713d820af033ba2174cd60bfaa81e4b",
+  "branch": "fix/n8n-https-gateway",
+  "unitAndFileChecks": {
+    "new": 6,
+    "existingRegression": 24,
+    "result": "PASS"
+  },
+  "runtime": {
+    "kind": "n8n-gateway-local-wire",
+    "realCaddy": true,
+    "realDockerCompose": true,
+    "realVerifiedLocalTLS": true,
+    "upstream": "fictional-node-protocol-fixtures",
+    "realN8nTested": false,
+    "contaboChanged": false,
+    "publicAcmeTested": false,
+    "cases": [
+      {
+        "name": "real production Compose merge is gateway-only, with external internal-edge reference",
+        "result": "PASS"
+      },
+      {
+        "name": "existing main route works before change; production extension validates with actual Caddy",
+        "result": "PASS"
+      },
+      {
+        "name": "gateway-only recreation enables HTTPS, redirects, proxy headers and normal sign-in path",
+        "result": "PASS"
+      },
+      {
+        "name": "WebSocket upgrade traverses actual Caddy over verified TLS",
+        "result": "PASS"
+      },
+      {
+        "name": "restart preserves edge attachment and Caddy volumes; n8n protocol service is not recreated",
+        "result": "PASS"
+      },
+      {
+        "name": "rollback restores main route and prior manual network attachment without changing volumes/upstream",
+        "result": "PASS"
+      }
+    ],
+    "result": "PASS",
+    "fixtureStopped": true,
+    "isolatedEdgeRetained": true,
+    "originalRunningContainersPreserved": true,
+    "finishedAt": "2026-10-22T21:20:54.437Z"
+  },
+  "sourceHashes": {
+    "deploy/automation/Caddyfile.append": "b2d433cb4d5a10f8b986eb72df6141f1d4ef3bb4c416b6fa24444d190caa4289",
+    "scripts/n8n-gateway.mjs": "7431fdda459e47bc97ae751ba4903c25a14d667d38ea7eec51d707331f8b6119",
+    "scripts/n8n-gateway-profile.mjs": "8e7ec3e81e72b96e0b992dd7f8a10a999409860662714adb201b31aaaff5d873",
+    "scripts/production-config.mjs": "aac21a7863459ab8b11daeb4bfd56307ad904169d47e3f1de321504b95d52122",
+    "scripts/production-ops.mjs": "b18b8f5cd84c312b00e23e140b82dbdae4f4990fb1140d2d8d342fe27c3db582"
+  },
+  "migration016Included": false,
+  "productionDeploymentPerformed": false
+}

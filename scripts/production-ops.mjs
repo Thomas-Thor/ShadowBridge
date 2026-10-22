@@ -24,7 +24,7 @@ const safeDocker = (args, options = {}) => {
 export function publicComposeArguments(profile, args) {
   guard(/^shadowbridge-(?:contabo|stageg)-[a-z0-9-]+$/.test(profile.project), 'Niepoprawna tożsamość instalacji.');
   return ['compose', '--project-name', profile.project, '--env-file', path.join(profile.directory,'compose.env'),
-    '-f', path.join(repositoryRoot,'deploy/production/compose.yaml'), ...args];
+    '-f', path.join(repositoryRoot,'deploy/production/compose.yaml'), ...(profile.gatewayOverride?['-f',profile.gatewayOverride]:[]), ...args];
 }
 export function publicCompose(profile, args) {
   return safeDocker(publicComposeArguments(profile,args), { env: { ...process.env, ...profile.composeEnvironment } }).trim();
