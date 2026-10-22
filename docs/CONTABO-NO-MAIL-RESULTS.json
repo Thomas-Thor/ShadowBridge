@@ -1,0 +1,35 @@
+{
+  "kind": "real-preserved-no-mail-integration",
+  "cases": [
+    {
+      "name": "existing backup authenticated and catalog checked without a new database",
+      "result": "PASS"
+    },
+    {
+      "name": "no-mail configuration starts on existing volumes and preserves accounts/passwords/MFA/roles",
+      "result": "PASS"
+    },
+    {
+      "name": "public routes and email endpoints reflect no-mail mode with no new accounts",
+      "result": "PASS"
+    },
+    {
+      "name": "existing Buyer and OWNER sign in; Command Center requires original MFA",
+      "result": "PASS"
+    },
+    {
+      "name": "controlled OWNER password recovery preserves MFA and revokes only OWNER sessions",
+      "result": "PASS"
+    }
+  ],
+  "mocksUsed": false,
+  "newEnvironmentCreated": false,
+  "externalEmailSent": false,
+  "contaboDeployed": false,
+  "imageBuildTested": false,
+  "runtimeBindMounted": true,
+  "result": "PASS",
+  "existingProjectsAndVolumesPreserved": true,
+  "fixtureStopped": true,
+  "finishedAt": "2026-10-22T17:30:07.215Z"
+}

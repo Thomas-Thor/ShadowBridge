@@ -55,13 +55,34 @@ operator po weryfikacji tożsamości może skorzystać z procedury
 hasło przez prywatne oficjalne API GoTrue, kończy sesje tego OWNER i zachowuje
 dotychczasowe MFA. Zwykła aktualizacja nigdy go nie uruchamia.
 
-## Checkpoint
+## Wyniki i checkpoint
 
 Zachowano ukończone wyniki: konfiguracja profilu 15/15, runtime/UI 11/11,
 narzędzie OWNER 4/4 (testy jednostkowe/granic kodu). Nowe testy instalatora 9/9.
-Nie są to wyniki publikacji na VPS. Próba z prawdziwym lokalnym backendem dla
-bieżącego trybu bez poczty i narzędzia OWNER pozostaje do wykonania w zachowanym,
-fikcyjnym projekcie; nie wolno przedstawiać jej jako zaliczonej.
+Są to wyniki testów jednostkowych/granic kodu, nie publikacji na VPS.
+
+Ukończono dodatkowo **5/5 rzeczywistych grup integracyjnych** na zachowanej
+fikcyjnej instalacji PostgreSQL + GoTrue + Node + Caddy, bez nowego projektu:
+
+1. Zaszyfrowany backup i kontrola katalogu archiwum na istniejącym PostgreSQL.
+2. Start konfiguracji bez poczty przy zachowaniu kont, zapisów haseł, MFA i ról.
+3. Strony i kontrola SHA oraz zablokowane ścieżki e-mail bez tworzenia kont.
+4. Logowanie Buyer, odczyt istniejących RFQ, OWNER wymagający dotychczasowego
+   TOTP przed Command Center i rzeczywisty zapis kolejki kontaktowej.
+5. Administracyjna zmiana hasła fikcyjnego OWNER, odrzucenie starego hasła,
+   unieważnienie wyłącznie jego sesji, zachowana sesja Buyer i ponowne logowanie
+   OWNER nadal wymagające tego samego MFA.
+
+Poprawiono oczekiwanie na gotowość Auth po backupie w narzędziu odzyskiwania.
+Nie wysyłano e-maili, nie dodawano projektów ani wolumenów; fikcyjną instalację
+zatrzymano. Pierwotny lokalny projekt właściciela pozostał nienaruszony.
+Skrypt: `tests/no-mail-deployment.integration.mjs`,
+[wynik](CONTABO-NO-MAIL-RESULTS.json).
+
+Runtime testowano z bieżącymi źródłami zamontowanymi tylko do odczytu w istniejącym
+kontenerze. Nie wykonano nowej budowy obrazu, pełnego uruchomienia instalatora
+produkcyjnego na Contabo, publicznego ACME ani logowania rzeczywistego OWNER na
+domenie. Te operacje wymagają dostępu serwerowego, którego Codex nie posiada.
 
 Historyczne wyniki z pocztą testową i pełnym odtworzeniem są osobno w
 [CONTABO-PUBLIC-RESULTS.json](CONTABO-PUBLIC-RESULTS.json). Nie będą powtarzane.

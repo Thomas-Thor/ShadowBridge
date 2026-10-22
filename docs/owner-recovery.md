@@ -39,4 +39,9 @@ procedury opisanej powyżej; ta komenda nie rozwiązuje takiej utraty.
 
 Testy `tests/owner-password-recovery.test.mjs` sprawdzają payload, krótki JWT i
 granice kodu; same nie potwierdzają wykonania zmiany na działającym GoTrue.
+22.10.2026 wykonano również rzeczywistą próbę na zachowanym fikcyjnym OWNER:
+oficjalny GoTrue zmienił hasło bez poczty, stare hasło i sesje OWNER przestały
+działać, sesja innej firmy pozostała aktywna, a nowe logowanie do Command Center
+wymagało tego samego TOTP. Nie zmieniono rzeczywistego OWNER na Contabo.
+Wynik: [CONTABO-NO-MAIL-RESULTS.json](CONTABO-NO-MAIL-RESULTS.json).
 Nie uruchamiaj narzędzia przy zwykłej aktualizacji lub gdy OWNER może się zalogować.
