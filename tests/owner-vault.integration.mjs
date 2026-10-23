@@ -2,7 +2,7 @@
 // local project. Never loads .local/development.env or an existing installation.
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID, createHmac } from 'node:crypto';
-import { mkdir, writeFile, readFile, chmod } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, chmod, statfs } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:net';
 import path from 'node:path';
@@ -44,6 +44,8 @@ const fingerprint=async()=> (await admin.query(`SELECT jsonb_build_object(
  'roles',(SELECT md5(coalesce(jsonb_agg(to_jsonb(t) ORDER BY user_id,role_key)::text,'[]')) FROM sb.staff_role_assignments t)
  ) AS f`)).rows[0].f;
 try {
+ const space=await statfs(root);assert.ok(space.bavail*space.bsize>512*1024*1024,'At least 512 MiB free is required before an isolated fixture');
+ await mkdir(path.join(root,'.local'),{recursive:true,mode:0o700});
  await mkdir(directory,{mode:0o700});
  await writeFile(path.join(directory,'fixture.json'),JSON.stringify({kind:'shadowbridge-owner-vault-isolated-v1',project})+'\n',{mode:0o600,flag:'wx'});
  await writeFile(path.join(directory,'bootstrap.sh'),await readFile(path.join(root,'deploy/staging/bootstrap.sh')),{mode:0o644,flag:'wx'});
@@ -66,7 +68,8 @@ try {
  for(let i=0;i<80;i++){try{if((await fetch(authOrigin+'/health')).ok)break;}catch{}if(i===79)throw new Error('GoTrue readiness failed');await new Promise(r=>setTimeout(r,250));}
  const connection=role=>`postgres://${role==='postgres'?'postgres':'shadowbridge_'+role}:${secrets[role]}@127.0.0.1:${port('postgres')}/shadowbridge`;
  admin=new pg.Client({connectionString:connection('postgres')});await admin.connect();
- const sources=await migrationSources();assert.equal(sources.length,16);
+ // This is the V1 regression even when later additive migrations exist.
+ const sources=(await migrationSources()).filter(s=>Number(s.name.slice(8,12))<=16);assert.equal(sources.length,16);
  for(const source of sources.slice(0,15))await admin.query(source.sql);
  await admin.query('CREATE SCHEMA shadowbridge_migrations;CREATE TABLE shadowbridge_migrations.applied(name text PRIMARY KEY,sha256 text NOT NULL,applied_at timestamptz DEFAULT now())');
  for(const source of sources.slice(0,15))await admin.query('INSERT INTO shadowbridge_migrations.applied(name,sha256) VALUES($1,$2)',[source.name,source.sha256]);
@@ -202,6 +205,10 @@ try {
   const mfa=(await admin.query('SELECT id FROM auth.mfa_factors WHERE user_id=$1 AND status=\'verified\'',[owner.user.id])).rows;assert.equal(mfa[0].id,owner.factorId);
   for(const actor of Object.values(actors))assert.equal((await actor.client.request('/api/session',{expected:200})).data.user.id,actor.user.id);
  });
+ if(process.env.SHADOWBRIDGE_TEST_VAULT_V2==='1') {
+  result.kind='real-owner-vault-v2';
+  await (await import('./owner-vault-v2.cases.mjs')).runWorkspaceTests({root,directory,compose,admin,db,actors,h,phase,result,record,intake,fingerprint,denied});
+ }
  result.result='PASS';
 } catch(error){result.result='FAIL';result.failedCase=current;result.errorType=error.name;await writeFile(path.join(directory,'failure.json'),JSON.stringify({phase:current,message:error.message,stack:error.stack})+'\n',{mode:0o600});console.error('FAIL: '+current+' ('+error.name+'); private diagnostics retained.');process.exitCode=1;}
 finally {

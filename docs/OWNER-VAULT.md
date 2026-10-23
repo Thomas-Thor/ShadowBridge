@@ -1,5 +1,8 @@
 # OWNER VAULT — fundament V1
 
+Interfejs i addytywne API V2 opisano w [OWNER-VAULT-V2.md](OWNER-VAULT-V2.md).
+Historia i wyniki V1 poniżej pozostają opisem tego wcześniejszego checkpointu.
+
 Stan: implementacja w repozytorium, **bez wdrożenia i bez importu danych Vincenta**.
 Migracja `202610220016_owner_vault.sql` dodaje osobny prywatny schemat w PostgreSQL
 istniejącej platformy. To izolacja logiczna i uprawnienia, nie osobny serwer ani

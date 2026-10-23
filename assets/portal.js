@@ -31,6 +31,7 @@
     for (const controller of pending) controller.abort();
     pending.clear(); csrfToken = null; session = null;
     memberDashboard?.clear();
+    window.ShadowOwnerVault?.clearPrivate();
     window.ShadowDashboard?.clearPrivate();
     root.replaceChildren(); nav.replaceChildren(); nav.hidden = true;
     document.querySelector('#portal-account')?.replaceChildren();
@@ -66,6 +67,7 @@
       if (closed || requestEpoch !== epoch) throw new Error(changedMessage);
       if (!response.ok) {
         if (response.status === 401 || result.code === 'session_changed' || result.code === 'csrf_failed') sessionChanged();
+        if (path.startsWith('/api/owner/vault') && response.status === 403 && result.code !== 'FRESH_MFA_REQUIRED') sessionChanged();
         throw new Error(closed ? changedMessage : result.error || 'The secure service could not complete this request.');
       }
       return result;
@@ -80,6 +82,10 @@
         && JSON.stringify([...(result.user.roles || [])].sort()) === JSON.stringify([...(session.roles || [])].sort());
       if (result.csrfToken !== csrfToken || (session && !sameAccess)) {
         sessionChanged(); throw new Error(changedMessage);
+      }
+      if (managementAccess?.owner === true) {
+        const current = await request('/api/staff/access');
+        if (current.owner !== true) { sessionChanged(); throw new Error(changedMessage); }
       }
     })();
     try { await sessionCheck; } finally { sessionCheck = null; }
@@ -347,6 +353,8 @@
     const parent = section(managementAccess.owner ? 'Owner Overview' : 'Command Center Overview', 'A concise view of the work you are authorized to supervise. Open a module to view its confidential records.');
     const overview = await api('/api/staff/overview');
     if (closed) return;
+    if (managementAccess.owner && window.ShadowOwnerVault) await window.ShadowOwnerVault.overview({ host: parent, api, access: managementAccess });
+    if (closed) return;
     if (window.ShadowCommandDashboard) {
       const activity = section('Recent activity', 'Recent authorized actions recorded by the server.');
       window.ShadowCommandDashboard.render({ host: parent, activityHost: activity, overview, access: managementAccess });
@@ -602,6 +610,10 @@
     const selected = new URLSearchParams(location.search).get('module') || 'overview';
     const moduleNav = window.ShadowDashboard.managementNavigation({ access: managementAccess, selected }); root.append(moduleNav);
     window.ShadowDashboard?.placeModules(moduleNav);
+    if (selected === 'vault') {
+      if (!managementAccess.owner || !window.ShadowOwnerVault) { status('Module unavailable.', 'OWNER VAULT requires the active OWNER role and MFA.', true); return; }
+      window.ShadowOwnerVault.mount({ host: root, api, access: managementAccess, form, ownerReconfirmation }); return;
+    }
     const available = modules.find(([key]) => key === selected);
     if (!available || !canManage(available[2])) { status('Module unavailable.', 'Your assigned management permissions do not allow access to this module.', true); return; }
     if (selected === 'overview') { await managementOverview(); return; }

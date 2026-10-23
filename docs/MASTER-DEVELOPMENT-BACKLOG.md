@@ -1,5 +1,12 @@
 # ShadowBridge — plan zależności i backlog
 
+Aktualizacja 23.10.2026: fundament V1 ukończony w `6d200ee`; prywatny interfejs
+V2, kontrolowane edycje i kolejka rozstrzygnięć — osobna gałąź
+`feature/owner-vault-v2`, [opis i granice](OWNER-VAULT-V2.md).
+V3/integracje, automatyczna retencja, Market i C.A.R.T.E.L. pozostają przyszłymi
+etapami. International to obecny projekt prywatny/premium; Scout pozostaje
+odrębnym pilotem sourcingowym, nie publicznym katalogiem Market.
+
 Stan kodu: 22.10.2026, baza `7f794a2`, gałąź `feature/secure-b2b-mvp`.
 To plan prac w repozytorium, nie potwierdzenie wdrożenia na Contabo.
 

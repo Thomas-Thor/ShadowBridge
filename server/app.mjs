@@ -46,10 +46,10 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
   const auth = createAuthService({ config, db });
   const registration = createRegistrationService({ db, auth });
   const attempts = new Map();
-  function limit(req, name) {
-    const key = `${clientAddress(req, config)}:${name}`; const now = Date.now();
+  function limit(req, name, principal = '', maximum = 40) {
+    const key = `${clientAddress(req, config)}:${name}:${principal}`; const now = Date.now();
     const previous = attempts.get(key); const current = previous && now - previous.start < 300000 ? previous : { count: 0, start: now };
-    if (++current.count > 40) throw new ApiError(429, 'RATE_LIMITED', 'Please wait before trying again.');
+    if (++current.count > maximum) throw new ApiError(429, 'RATE_LIMITED', 'Please wait before trying again.');
     attempts.set(key, current);
     if (attempts.size > 10000) for (const [id, item] of attempts) if (now - item.start > 300000) attempts.delete(id);
   }
@@ -198,12 +198,14 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
     }
     if (ctx.account.status !== 'active') throw new ApiError(403,'ACCOUNT_SUSPENDED','This account is suspended. Contact ShadowBridge.');
     if(route.startsWith('/api/owner/vault')) {
-      limit(req,'owner-vault');
+      // Verified identity only: ordinary paginated reads cannot exhaust the
+      // write budget or block another account behind the same address.
+      limit(req,method==='GET'?'owner-vault-read':'owner-vault-write',ctx.identity.id,method==='GET'?240:40);
       return txFor(ctx,async tx=>{
         const routed=await routeOwnerVault({req,url,tx,body});
         return json(res,routed.status,routed.data);
       }).catch(async error=>{
-        const reason=error.code==='54000'?'rate_limit':error.code==='42501'?'not_allowed':error.status===400||['22023','22P02','23514'].includes(error.code)?'invalid_input':'storage_error';
+        const reason=error.code==='54000'?'rate_limit':error.code==='42501'?'not_allowed':[400,409].includes(error.status)||['22023','22P02','23514'].includes(error.code)?'invalid_input':'storage_error';
         // A separate transaction records only an error class after rollback;
         // payloads, e-mails and database error strings never enter the audit.
         await txFor(ctx,tx=>tx.query('SELECT owner_vault.record_failure($1)',[reason])).catch(()=>{});

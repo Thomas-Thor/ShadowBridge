@@ -1,6 +1,10 @@
 import { ApiError, object, text, oneOf, identifier } from './validation.mjs';
 
 const optional = (value, name, max) => value === undefined ? '' : text(value, name, { max });
+const version = value => {
+  if (!Number.isSafeInteger(value) || value < 1) throw new ApiError(400, 'INVALID_INPUT', 'Use the current record version.');
+  return value;
+};
 function httpsUrl(value, name) {
   value = optional(value, name, 500);
   if (!value) return '';
@@ -46,6 +50,50 @@ export async function routeOwnerVault({ req, url, tx, body }) {
   const allowed = (await tx.query('SELECT owner_vault.check_access() AS allowed')).rows[0].allowed;
   if (!allowed) return { status: 403, data: { code: 'OWNER_REQUIRED', error: 'Owner Vault requires an active OWNER account and MFA.' } };
   const result = (status, data) => ({ status, data });
+  if (method === 'GET' && route === '/api/owner/vault/workspace/statistics') {
+    if ([...url.searchParams].length) throw new ApiError(400, 'INVALID_INPUT', 'Statistics uses the server clock.');
+    return result(200, (await tx.query('SELECT owner_vault.workspace_statistics() AS data')).rows[0].data);
+  }
+  const workspace = route.match(/^\/api\/owner\/vault\/workspace\/(contacts|companies|intakes|history)(?:\/([a-f0-9-]+))?$/i);
+  if (method === 'GET' && workspace) {
+    const allowed = ['q', 'status', 'page', 'limit', 'companyId', 'period', 'country', 'queue'];
+    for (const key of url.searchParams.keys()) if (!allowed.includes(key) || url.searchParams.getAll(key).length > 1) throw new ApiError(400, 'INVALID_INPUT', 'Unknown or repeated Vault filter.');
+    const data = (await tx.query('SELECT owner_vault.read_workspace($1,$2,$3,$4,$5,$6::uuid,$7::uuid,$8,$9,$10) AS data', [workspace[1],
+      text(url.searchParams.get('q') || '', 'query', { max: 100 }),
+      oneOf(url.searchParams.get('status') || '', ['', 'unconfirmed', 'confirmed', 'review_required', 'accepted', 'duplicate_prevented', 'dismissed'], 'status'),
+      integer(url.searchParams.get('page'), 1, 10000), integer(url.searchParams.get('limit'), 25, 50), workspace[2] ? identifier(workspace[2]) : null,
+      url.searchParams.get('companyId') ? identifier(url.searchParams.get('companyId')) : null,
+      oneOf(url.searchParams.get('period') || '', ['', 'overnight'], 'period'),
+      text(url.searchParams.get('country') || '', 'country', { max: 2 }).toUpperCase(),
+      oneOf(url.searchParams.get('queue') || '', ['', 'open', 'resolved'], 'review queue')])).rows[0].data;
+    return result(200, data);
+  }
+  const edit = route.match(/^\/api\/owner\/vault\/(contacts|companies)\/([a-f0-9-]+)$/i);
+  const resolve = route.match(/^\/api\/owner\/vault\/intakes\/([a-f0-9-]+)\/resolve$/i);
+  if (method === 'PATCH' && edit) {
+    const input = object(await body(req), ['data', 'version', 'reason'], ['data', 'version', 'reason']);
+    const data = vaultEdit(edit[1], input.data);
+    try {
+      await tx.query('SELECT owner_vault.edit_record($1,$2::uuid,$3::jsonb,$4,$5)', [edit[1] === 'contacts' ? 'contact' : 'company', identifier(edit[2]), JSON.stringify(data), version(input.version), text(input.reason, 'change reason', { min: 10, max: 500 })]);
+    } catch (error) {
+      if (error.code === '40001') throw new ApiError(409, 'VAULT_CONFLICT', 'The record changed or an identity key belongs to another contact. Reload and review; nothing was overwritten.');
+      throw error;
+    }
+    return result(200, { updated: true });
+  }
+  if (method === 'POST' && resolve) {
+    const input = object(await body(req), ['decision', 'contactId', 'version', 'reason'], ['decision', 'version', 'reason']);
+    const decision = oneOf(input.decision, ['dismiss', 'link_existing'], 'resolution');
+    const contactId = input.contactId == null || input.contactId === '' ? null : identifier(input.contactId);
+    if ((decision === 'link_existing') !== (contactId !== null)) throw new ApiError(400, 'INVALID_INPUT', 'Link only a recorded candidate; dismissal has no contact.');
+    try {
+      await tx.query('SELECT owner_vault.resolve_intake($1::uuid,$2,$3::uuid,$4,$5)', [identifier(resolve[1]), decision, contactId, version(input.version), text(input.reason, 'resolution reason', { min: 10, max: 500 })]);
+    } catch (error) {
+      if (error.code === '40001') throw new ApiError(409, 'VAULT_CONFLICT', 'This review changed or strong identity/company evidence still conflicts. No identities were reassigned. Reload or dismiss with a documented reason.');
+      throw error;
+    }
+    return result(200, { resolved: true });
+  }
   if (method === 'GET' && route === '/api/owner/vault/statistics') {
     if ([...url.searchParams].length) throw new ApiError(400, 'INVALID_INPUT', 'Statistics uses the server clock.');
     return result(200, (await tx.query('SELECT owner_vault.statistics() AS data')).rows[0].data);
@@ -76,4 +124,18 @@ export async function routeOwnerVault({ req, url, tx, body }) {
     return result(200, { updated: true });
   }
   throw new ApiError(404, 'NOT_FOUND', 'Vault endpoint not found.');
+}
+
+export function vaultEdit(section, input) {
+  if (section === 'companies') {
+    const p = object(input, ['name', 'sector', 'website', 'verificationStatus'], ['name', 'sector', 'website', 'verificationStatus']);
+    return { name: text(p.name, 'company name', { min: 2, max: 200 }), sector: text(p.sector, 'sector', { max: 200 }), website: httpsUrl(p.website, 'company website'),
+      verificationStatus: oneOf(p.verificationStatus, ['unconfirmed', 'confirmed', 'review_required'], 'company verification') };
+  }
+  if (section !== 'contacts') throw new ApiError(400, 'INVALID_INPUT', 'Invalid Vault editor.');
+  const p = object(input, ['fullName', 'title', 'workEmail', 'emailKind', 'professionalUrl'], ['fullName', 'title', 'workEmail', 'emailKind', 'professionalUrl']);
+  const email = text(p.workEmail, 'work email', { max: 254 }).toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ApiError(400, 'INVALID_INPUT', 'Invalid work email.');
+  return { fullName: text(p.fullName, 'full name', { min: 2, max: 200 }), title: text(p.title, 'title', { max: 200 }), workEmail: email,
+    emailKind: oneOf(p.emailKind, ['individual', 'shared', 'unknown'], 'email kind'), professionalUrl: httpsUrl(p.professionalUrl, 'professional profile') };
 }

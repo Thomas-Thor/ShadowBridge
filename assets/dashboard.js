@@ -115,6 +115,7 @@
       href: key === 'offers' ? '/portal/offers/' : `/portal/admin/${key === 'overview' ? '' : `?module=${key}`}`,
       text: label, 'aria-current': selected === key ? 'page' : null, 'data-command-module': key,
     }));
+    if (access?.owner === true) navigation.append(create('a', { href: '/portal/admin/?module=vault', text: 'OWNER VAULT', 'aria-current': selected === 'vault' ? 'page' : null, 'data-command-module': 'vault' }));
     return navigation;
   }
   function mountShell({ navigation, role = 'home' } = {}) {
