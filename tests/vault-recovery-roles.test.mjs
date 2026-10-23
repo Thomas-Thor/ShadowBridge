@@ -25,8 +25,8 @@ test('existing restore prepares roles after empty guard, only for a Vault archiv
 test('preservation fingerprints include every Vault table and the legacy restore helper knows its roles',async()=>{
  const source=await readFile(new URL('../scripts/production-ops.mjs',import.meta.url),'utf8');
  const fingerprint=source.slice(source.indexOf('export async function databaseFingerprints'),source.indexOf('export function assertPreserved'));
- assert.match(fingerprint,/schemaname IN \('sb','owner_vault'\)/);
- assert.match(fingerprint,/\(\?:sb\|auth\|owner_vault\)/);
+ assert.match(fingerprint,/schemaname IN \('sb','owner_vault','portal','auth'\)/);
+ assert.match(fingerprint,/\(\?:sb\|auth\|owner_vault\|portal\)/);
  const proof=source.slice(source.indexOf('export async function proveBackup'),source.indexOf('export async function verifyBackupArchive'));
  assert.ok(proof.indexOf('if(archiveHasVault(catalog))')<proof.indexOf("'pg_restore','--clean'"));
 });

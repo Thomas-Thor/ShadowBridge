@@ -1,0 +1,210 @@
+{
+  "status": "CHECKPOINT_NOT_RELEASE_READY",
+  "date": "2026-10-23",
+  "branch": "release/shadowbridge-international-r1",
+  "productionBase": "7f794a298713d820af033ba2174cd60bfaa81e4b",
+  "inputs": {
+    "gateway": "9a64cc0a0e4831e786e19bc1101a4126d66756ff",
+    "vaultV1": "6d200ee084872b6c3123346e2f77c61010c94049",
+    "vaultV2": "188cdafd8a91f215fd2c10aa4f893f482cb54564"
+  },
+  "unitAndGuards": {
+    "existingTargetedPassed": 55,
+    "changedSubsetRecheckedPassed": 13,
+    "subsetIsNotAdditionalTests": true,
+    "newR1TestsPassed": 3,
+    "stagingPackageGuardsPassed": 2,
+    "containsSyntheticHttpCases": true
+  },
+  "realVault": {
+    "cases": [
+      {
+        "name": "isolated real GoTrue accounts, seven staff roles and original OWNER MFA established",
+        "result": "PASS"
+      },
+      {
+        "name": "backup, collision refusal and migration 015→016 preserve accounts, sessions, roles and MFA",
+        "result": "PASS"
+      },
+      {
+        "name": "real HTTP OWNER+MFA enforcement, all other roles denied, CSRF and private audit",
+        "result": "PASS"
+      },
+      {
+        "name": "names and shared emails never merge people; strong keys deduplicate; conflicts require review",
+        "result": "PASS"
+      },
+      {
+        "name": "bounded search, pages, manual review/version control and immutable private history",
+        "result": "PASS"
+      },
+      {
+        "name": "FORCE RLS, raw table denial, non-owner impersonation attempts and Sentinel/policy isolation",
+        "result": "PASS"
+      },
+      {
+        "name": "write-only agent binding, no match disclosure, retry safety, concurrency and rate limit",
+        "result": "PASS"
+      },
+      {
+        "name": "real counters and Europe/Oslo overnight boundaries include both DST changes",
+        "result": "PASS"
+      },
+      {
+        "name": "no CRM details in staff overview/audit; original sessions and OWNER factor still valid",
+        "result": "PASS"
+      },
+      {
+        "name": "V2 backup + migration 016→017 preserve existing Vault, accounts, sessions and MFA",
+        "result": "PASS"
+      },
+      {
+        "name": "V2 real OWNER+MFA gate, all nine other roles denied and SQL ACL/RLS maintained",
+        "result": "PASS"
+      },
+      {
+        "name": "V2 bounded lists, source provenance, independent company details, filters and search",
+        "result": "PASS"
+      },
+      {
+        "name": "V2 real versioned edits, conflict prevention, CSRF, fresh MFA and immutable change evidence",
+        "result": "PASS"
+      },
+      {
+        "name": "V2 review decisions preserve original intakes and prevent conflicting merges",
+        "result": "PASS"
+      },
+      {
+        "name": "V2 real statistics, clickable-list equivalence and Oslo overnight 13/15h boundaries",
+        "result": "PASS"
+      },
+      {
+        "name": "V2 real Chromium desktop/mobile: sign-in+MFA, cards, navigation, editing, privacy and logout",
+        "result": "PASS"
+      },
+      {
+        "name": "V2 bounded read budget rejects excess requests without blocking a different verified account",
+        "result": "PASS"
+      }
+    ],
+    "result": "PASS",
+    "mocksUsed": false,
+    "firstRunnerStoppedAfterTheseCasesOnAnR1TestEndpointTypo": true
+  },
+  "realR1": {
+    "cases": [
+      {
+        "name": "R1 no-mail capabilities fail closed; contact enquiries actually persist with CSRF and restricted review",
+        "result": "PASS"
+      },
+      {
+        "name": "R1 seven staff roles obey their actual permission sets and cannot alter OWNER",
+        "result": "PASS"
+      },
+      {
+        "name": "R1 real supplier offer + buyer RFQ + delegated decisions update the operational counters",
+        "result": "PASS"
+      },
+      {
+        "name": "R1 independent second buyer stays isolated from assigned opportunities, offers, RFQs and Vault",
+        "result": "PASS"
+      },
+      {
+        "name": "R1 actual role dashboards and public/contact/login pages: desktop/mobile and accessibility",
+        "result": "PASS"
+      },
+      {
+        "name": "R1 actual application restart and rollback to production 7f794a2 preserve 017 data and existing authenticated sessions",
+        "result": "PASS"
+      },
+      {
+        "name": "R1 encrypted full backup restores 017 data, passwords, sessions, MFA and ACLs into an independent socket-only cluster",
+        "result": "PASS"
+      }
+    ],
+    "result": "PASS",
+    "mocksUsed": false,
+    "checkpointResumesUsed": true
+  },
+  "realGateway": {
+    "kind": "r1-real-caddy-tls-retained-fixture",
+    "cases": [
+      {
+        "name": "actual merged Caddy serves main route with verified local TLS",
+        "result": "PASS"
+      },
+      {
+        "name": "automation route and normal sign-in have HTTPS/noindex and no Basic Auth",
+        "result": "PASS"
+      },
+      {
+        "name": "proxy identity protection and WebSocket upgrade traverse real TLS Caddy",
+        "result": "PASS"
+      },
+      {
+        "name": "loopback-only ports and retained container identities",
+        "result": "PASS"
+      }
+    ],
+    "realN8n": false,
+    "realApplicationUpstream": false,
+    "contaboChanged": false,
+    "containersRecreated": false,
+    "result": "PASS",
+    "originalRunningContainersPreserved": true
+  },
+  "dataRecovery": {
+    "encrypted": true,
+    "restored": true,
+    "fullRowEquality": true,
+    "tableCount": 71,
+    "separatePostgresCluster": true,
+    "separateContainer": false,
+    "networkListener": false,
+    "sourcePreserved": true
+  },
+  "untested": {
+    "officialImageBuild": true,
+    "fullProductionComposeWithTlsDbAndAuth": true,
+    "dockerImageRollback": true,
+    "completeStackAndPersistentCaddyRecovery": true,
+    "realN8nRuntime": true,
+    "publicAcme": true,
+    "actualOwnerAccountRole": true
+  },
+  "publicEndpoints": {
+    "main": "CONNECT_PROXY_403_NOT_APPLICATION_RESPONSE",
+    "automation": "CONNECT_PROXY_403_NOT_APPLICATION_RESPONSE",
+    "retriedOutsideSandbox": true
+  },
+  "restrictions": {
+    "deployed": false,
+    "productionDatabaseModified": false,
+    "dnsChanged": false,
+    "secretsOrOwnerMfaModified": false,
+    "marketIncluded": false,
+    "scoutOrImportersActivated": false,
+    "containersOrVolumesRemoved": false,
+    "externalEmailSent": false
+  },
+  "sourceHashes": {
+    "scripts/international-r1.mjs": "e7dd3ceb224942cbc757eb51e5deed9a9a2261e298112fc37625df54bc25c56b",
+    "scripts/production-ops.mjs": "410fa4e5a24b61ebdd542230c251089569ec4d24ef4ac5b0a63006db173cbe97",
+    "scripts/production-config.mjs": "aac21a7863459ab8b11daeb4bfd56307ad904169d47e3f1de321504b95d52122",
+    "scripts/n8n-gateway-profile.mjs": "8e7ec3e81e72b96e0b992dd7f8a10a999409860662714adb201b31aaaff5d873",
+    "scripts/n8n-gateway.mjs": "660e6f52e6c0ce268455366adba3fbb7e08b666855f77e4023ef6aad22873e5d",
+    "deploy/staging/Dockerfile": "3042cb40369654c052d82ed559a4ce29abbb2a39aaa17b16f4c34bd5a2b4328b",
+    "deploy/production/compose.yaml": "8419746e90fa3a055b4006652c35e9870d6347159162f8f8811be000f19617dd",
+    "deploy/production/Caddyfile.in": "414913b978f12ba7adcd47b681d5daad8f311cca745e9ea5880ea9732e1a0320",
+    "deploy/production/caddy-entrypoint.sh": "6ffa8573784757749f0626a79a4ec34659c1154e0769a24fc3607a8692b21225",
+    "deploy/automation/Caddyfile.append": "b2d433cb4d5a10f8b986eb72df6141f1d4ef3bb4c416b6fa24444d190caa4289",
+    "supabase/migrations/202610220016_owner_vault.sql": "7a4a4293871dc9596f18b9b39d905d27da428abed755a50746a48b6624b86985",
+    "supabase/migrations/202610230017_owner_vault_workspace.sql": "5c4bc2069e080b6ce623bece92b0c10f289aa5794a4fe44357463e29fabbce6e",
+    "server/app.mjs": "efe75eb217135c58005c2813c1fb69ce945aaaa516c8ba7516b7ff1248a63428",
+    "server/owner-vault.mjs": "ba2ffeb00fb7fe4cc9f555f19797b01e0e67629089689360d50bb5a384c88aeb",
+    "tests/international-r1.cases.mjs": "a1ff98e5d12575d1401e7051c711b5e4aa5c361d01e75c60c766df4099b1633a",
+    "tests/international-r1.integration.mjs": "049241f754fbc0b2214f5a6d84a8f378eee44abe419185d35987808fd89dbe3d",
+    "tests/international-r1-gateway.integration.mjs": "30e6ea477fea0073295a226d295e61eca45994851ffd3d2ef1c498a2829b8ad4",
+    "tests/international-r1.test.mjs": "4673b16115058a99465354383e1d313cd2900de56e379cc6072f0a19c1bbb9e0"
+  }
+}

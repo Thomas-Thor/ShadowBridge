@@ -19,7 +19,7 @@ test('DNS requires exactly the existing server IPv4, no stale AAAA or CNAME',()=
   for(const change of [{addresses:[]},{addresses:['203.0.113.43']},{addresses:['203.0.113.42','203.0.113.43']},{ipv6:['2001:db8::1']},{aliases:['old.github.io']},{localAddresses:['127.0.0.1']},{ipv4:'invalid'}])assert.throws(()=>assertDnsRecords({...dns,...change}));
 });
 test('restore equality protects every existing table and rejects lost rows',()=>{
-  const before={'auth.users':'hash1','auth.mfa_factors':'hash2','sb.sessions':'hash3'};
+  const before={'auth.users':'hash1','auth.mfa_factors':'hash2','sb.sessions':'hash3','portal.opportunities':'hash4','auth.mfa_amr_claims':'hash5'};
   assert.doesNotThrow(()=>assertPreserved(before,{...before,'sb.new_table':'new'}));
   for(const name of Object.keys(before))assert.throws(()=>assertPreserved(before,{...before,[name]:'changed'}));
   assert.throws(()=>assertPreserved(before,{}));

@@ -1,0 +1,19 @@
+
+# n8n keeps its own existing account authentication. No Basic Auth or CRM token.
+https://automation.shadow-bridge.eu {
+	header {
+		-Server
+		Cache-Control "no-store"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Robots-Tag "noindex, nofollow, noarchive"
+		Strict-Transport-Security "max-age=31536000"
+	}
+	reverse_proxy shadowbridge-automation-n8n-1:5678 {
+		# Forwarded identity is constructed by this one trusted edge. Caddy sets
+		# X-Forwarded-For/Proto/Host and supports WebSocket upgrades automatically.
+		header_up -Forwarded
+		header_up -X-ShadowBridge-Proxy-Token
+		header_up -X-ShadowBridge-Client-IP
+	}
+}

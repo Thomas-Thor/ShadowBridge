@@ -8,6 +8,8 @@ RUN --mount=type=secret,id=build-ca,required=false \
     npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS runtime
+ARG SHADOWBRIDGE_RELEASE_SHA=""
+LABEL org.opencontainers.image.revision=$SHADOWBRIDGE_RELEASE_SHA
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules
@@ -25,6 +27,8 @@ EXPOSE 8088
 CMD ["node", "server/app.mjs"]
 
 FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS migrator
+ARG SHADOWBRIDGE_RELEASE_SHA=""
+LABEL org.opencontainers.image.revision=$SHADOWBRIDGE_RELEASE_SHA
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules

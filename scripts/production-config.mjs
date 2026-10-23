@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile, lstat, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { checkStaging, readEnv, repositoryRoot } from './staging-prepare.mjs';
 import { loadConfig } from '../server/config.mjs';
+import { selectedGatewayOverride } from './n8n-gateway-profile.mjs';
 
 export const productionOrigin = 'https://shadow-bridge.eu';
 const sender = 'shadowbridge.trade@gmail.com';
@@ -110,7 +111,7 @@ export async function prepareProduction({ directory, smtpPassword, releaseSha, m
   return { ...checked, created: true };
 }
 
-export async function checkProduction({ directory, mailMode, releaseSha } = {}) {
+export async function checkProduction({ directory, mailMode, releaseSha, includeAutomation = true } = {}) {
   const source = await checkStaging({ directory });
   guard(mailMode === undefined || ['smtp', 'disabled'].includes(mailMode), 'Invalid public mail mode.');
   const chosen = await profileTarget(source, { mailMode, releaseSha });
@@ -141,6 +142,8 @@ export async function checkProduction({ directory, mailMode, releaseSha } = {}) 
   const composeEnvironment = await readEnv(path.join(target, 'compose.env'));
   guard(Object.keys(composeEnvironment).length === 3 && composeEnvironment.STAGING_DIR === source.directory && composeEnvironment.STAGING_PROJECT === source.project && composeEnvironment.PRODUCTION_DIR === target, 'Public configuration must retain the existing Docker project and volume identity.');
   guard((await readFile(path.join(target, 'Caddyfile'), 'utf8')) === await readFile(path.join(repositoryRoot, 'deploy/production/Caddyfile.in'), 'utf8'), 'Production gateway differs from the reviewed template.');
-  return { directory: target, sourceDirectory: source.directory, project: source.project, origin: productionOrigin,
+  const profile={ directory: target, sourceDirectory: source.directory, project: source.project, origin: productionOrigin,
     releaseSha: manifest.releaseSha, mailMode: chosen.mailMode, composeEnvironment };
+  const gatewayOverride=includeAutomation?await selectedGatewayOverride(profile):null;
+  return {...profile,...(gatewayOverride?{gatewayOverride}:{})};
 }

@@ -25,7 +25,7 @@ const safeDocker = (args, options = {}) => {
 export function publicComposeArguments(profile, args) {
   guard(/^shadowbridge-(?:contabo|stageg)-[a-z0-9-]+$/.test(profile.project), 'Niepoprawna tożsamość instalacji.');
   return ['compose', '--project-name', profile.project, '--env-file', path.join(profile.directory,'compose.env'),
-    '-f', path.join(repositoryRoot,'deploy/production/compose.yaml'), ...args];
+    '-f', path.join(repositoryRoot,'deploy/production/compose.yaml'), ...(profile.gatewayOverride?['-f',profile.gatewayOverride]:[]), ...args];
 }
 export function publicCompose(profile, args) {
   return safeDocker(publicComposeArguments(profile,args), { env: { ...process.env, ...profile.composeEnvironment } }).trim();
@@ -77,10 +77,10 @@ export async function checkGmail(password) {
 // Compare all application tables and security-critical GoTrue records without
 // printing records, hashes, passwords, tokens, MFA material or personal data.
 export async function databaseFingerprints(directory) {
-  const tables = JSON.parse(await psql(directory,"SELECT json_agg(schemaname||'.'||tablename ORDER BY schemaname,tablename) FROM pg_tables WHERE schemaname IN ('sb','owner_vault') OR schemaname='auth' AND tablename IN ('users','identities','mfa_factors','sessions','refresh_tokens')"));
+  const tables = JSON.parse(await psql(directory,"SELECT json_agg(schemaname||'.'||tablename ORDER BY schemaname,tablename) FROM pg_tables WHERE schemaname IN ('sb','owner_vault','portal','auth')"));
   const result={};
   for(const table of tables) {
-    guard(/^(?:sb|auth|owner_vault)\.[a-z_]+$/.test(table),'Niepoprawna nazwa tabeli kopii.');
+    guard(/^(?:sb|auth|owner_vault|portal)\.[a-z_]+$/.test(table),'Niepoprawna nazwa tabeli kopii.');
     result[table]=await psql(directory,`SELECT md5(coalesce(string_agg(value,',' ORDER BY value),'')) FROM (SELECT to_jsonb(t)::text AS value FROM ${table} t) rows`);
   }
   // An upgrade may ADD permission keys. Protect every existing key/flag while
