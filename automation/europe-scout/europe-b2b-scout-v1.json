@@ -1,0 +1,908 @@
+{
+  "name": "ShadowBridge — European B2B Scout V1 (pilot only)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "manual-pilot",
+      "name": "Manual pilot",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "oslo-night-0315",
+      "name": "Oslo night 0315",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15 3 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "source-approvals",
+      "name": "Source approvals",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "approvals",
+              "name": "approvals",
+              "type": "object",
+              "value": {
+                "NO": false,
+                "CZ": false
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "read-initial-journal",
+      "name": "Read initial journal",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        840,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "shadowbridge_europe_scout_pilot_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "scout_key",
+              "condition": "eq",
+              "keyValue": "europe-scout-v1"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 2
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "rotate-sources-and-sectors",
+      "name": "Rotate sources and sectors",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "plan",
+              "name": "plan",
+              "type": "object",
+              "value": "={{ (function scout(action, arg) {\n  const KEY = 'europe-scout-v1';\n  const sources = {\n    NO: { name: 'Brønnøysundregistrene / Enhetsregisteret', url: 'https://data.brreg.no/enhetsregisteret/api/enheter', forms: ['AS', 'ASA'] },\n    CZ: { name: 'ARES / Ministry of Finance Czech Republic', url: 'https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat', forms: ['112', '121'] },\n  };\n  const sectors = ['28', '25', '22', '10', '46'];\n  const empty = () => ({ version: 1, companies: {}, days: {}, sources: {}, cursors: {}, events: [], commit: 'initial' });\n  const fail = (message) => { throw new Error(`SCOUT: ${message}`); };\n  const parse = (row) => {\n    if (!row || row.scout_key !== KEY || !Number.isSafeInteger(row.revision) || row.revision < 0 || !Number.isSafeInteger(row.id)) fail('Missing/invalid journal row. Import exactly one seed row.');\n    if (typeof row.state_json !== 'string' || row.state_json.length > 1500000) fail('Invalid journal size.');\n    const s = JSON.parse(row.state_json);\n    const map = value => value !== null && typeof value === 'object' && !Array.isArray(value);\n    if (s?.version !== 1 || !map(s.companies) || !map(s.days) || !map(s.sources) || !map(s.cursors) || !Array.isArray(s.events)) fail('Invalid journal schema.');\n    if (Object.keys(s.companies).length > 500 || s.events.length > 100 || Object.keys(s.days).length > 32) fail('Journal bounds exceeded.');\n    return s;\n  };\n  const clock = () => {\n    const time = Date.parse(arg.now);\n    if (!Number.isFinite(time) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(arg.day)) fail('Invalid Oslo clock.');\n    return time;\n  };\n  const pack = (row, state, nonce) => {\n    state.commit = nonce;\n    const keys = Object.keys(state.days).sort();\n    for (const k of keys.slice(0, Math.max(0, keys.length - 32))) delete state.days[k];\n    state.events = state.events.slice(-100);\n    const state_json = JSON.stringify(state);\n    if (state_json.length > 1500000) fail('Journal full: manual review/export required.');\n    return { id: row.id, previous: row.revision, revision: row.revision + 1, state_json, nonce };\n  };\n  const text = (value, limit = 240) => typeof value === 'string' ? value.trim().slice(0, limit) : null;\n  const site = (value) => {\n    const v = text(value, 500);\n    // Preserve only source-provided explicit HTTP(S) URLs. Never follow them.\n    return v && /^https?:\\/\\/[^\\s/@]+(?:[/:?#][^\\s]*)?$/i.test(v) ? v : null;\n  };\n  const records = (country, body, sector, now) => {\n    const list = country === 'NO' ? body?._embedded?.enheter : body?.ekonomickeSubjekty;\n    if (!Array.isArray(list) || list.length > 25) fail('Unexpected source response schema/page size.');\n    return list.flatMap((r) => {\n      const id = String(country === 'NO' ? r.organisasjonsnummer ?? '' : r.ico ?? '');\n      const name = text(country === 'NO' ? r.navn : r.obchodniJmeno);\n      const form = String(country === 'NO' ? r.organisasjonsform?.kode ?? '' : r.pravniForma ?? '');\n      if (!new RegExp(country === 'NO' ? '^\\\\d{9}$' : '^\\\\d{8}$').test(id) || !name || !sources[country].forms.includes(form)) return [];\n      if (r.slettedato || r.datumZaniku || r.konkurs || r.underAvvikling) return [];\n      const codes = country === 'NO'\n        ? [r.naeringskode1, r.naeringskode2, r.naeringskode3].filter(x => typeof x?.kode === 'string').map(x => ({ code: x.kode, description: text(x.beskrivelse) }))\n        : (Array.isArray(r.czNace) ? r.czNace : []).filter(x => typeof x === 'string').map(x => ({ code: x, description: null }));\n      if (!codes.some(x => x.code.replace(/\\./g, '').startsWith(sector))) return [];\n      const city = text(country === 'NO' ? r.forretningsadresse?.poststed : r.sidlo?.nazevObce, 120);\n      const website = country === 'NO' ? site(r.hjemmeside) : null;\n      const key = `${country}:${id}`;\n      return [{ key, legalName: name, country, city, registrationNumber: id, legalForm: form,\n        activityCodes: codes.slice(0, 10), activityClassification: country === 'NO' ? 'Source SN classification (version not asserted)' : 'Source CZ-NACE classification (version not asserted)',\n        website, potentialCooperation: sector === '46' ? 'wholesale_distribution_review' : 'manufacturing_review',\n        surplusEvidence: 'not_provided_by_registry', status: city ? 'unconfirmed' : 'review_required',\n        source: { system: country === 'NO' ? 'brreg-enhetsregisteret' : 'ares', recordId: id, name: sources[country].name,\n          url: country === 'NO' ? `${sources.NO.url}/${id}` : `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${id}` }, acquiredAt: now }];\n    });\n  };\n  if (action === 'seed') return { scout_key: KEY, revision: 0, state_json: JSON.stringify(empty()) };\n  if (action === 'jobs') {\n    clock();\n    if (arg.rows.length !== 1) fail('Expected exactly one pilot journal row; no writes performed.');\n    parse(arg.rows[0]);\n    const dayNumber = Math.floor(Date.parse(`${arg.day}T12:00:00Z`) / 86400000);\n    const order = dayNumber % 2 ? ['CZ', 'NO'] : ['NO', 'CZ'];\n    return { jobs: order.map((country, index) => ({ country, index, sector: sectors[(dayNumber + index) % sectors.length] })) };\n  }\n  if (action === 'reserve') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal row missing or duplicated.');\n    const state = parse(row), { country, sector } = arg.job;\n    if (!sources[country] || !sectors.includes(sector)) fail('Unknown source/sector.');\n    const skip = reason => ({ fetch: false, reason, country });\n    if (!arg.approvals || arg.approvals[country] !== true) return skip('Source terms/live access require operator approval.');\n    const src = state.sources[country] ?? {};\n    if (src.blocked || (src.nextAllowedAt ?? 0) > now || (src.inFlight?.until ?? 0) > now) return skip('Source blocked, cooling down or reserved.');\n    const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n    const dailySource = day.bySource[country] ?? { added: 0, requests: 0 };\n    if (day.added >= 50 || dailySource.added >= 25 || day.requests >= 8 || dailySource.requests >= 4 || Object.keys(state.companies).length >= 500) return skip('Pilot budget/full journal limit.');\n    const page = state.cursors[`${country}:${sector}`] ?? 0;\n    const requestId = `${arg.execution}:${arg.job.index}:${row.revision}`;\n    day.requests++; dailySource.requests++; day.bySource[country] = dailySource; state.days[arg.day] = day;\n    state.sources[country] = { ...src, inFlight: { requestId, until: now + 120000 }, nextAllowedAt: now + 2000 };\n    const params = `naeringskode=${sector}&organisasjonsform=AS,ASA&konkurs=false&underAvvikling=false&size=25&page=${page}&sort=organisasjonsnummer,asc`;\n    const query = { fetch: true, country, sector, page, requestId, reservationDay: arg.day,\n      method: country === 'NO' ? 'GET' : 'POST', url: country === 'NO' ? `${sources.NO.url}?${params}` : sources.CZ.url,\n      body: { czNace: [sector], pravniForma: ['112', '121'], start: page * 25, pocet: 25 } };\n    return { ...query, update: pack(row, state, requestId) };\n  }\n  if (action === 'won') {\n    const row = arg.rows[0], update = arg.update;\n    return arg.rows.length === 1 && row?.revision === update.revision && row?.state_json === update.state_json;\n  }\n  if (action === 'commit') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal missing/duplicated at commit.');\n    const state = parse(row), q = arg.query, src = state.sources[q.country];\n    if (src?.inFlight?.requestId !== q.requestId) fail('Reservation expired/replaced; response not committed.');\n    const status = Number(arg.response?.statusCode ?? 0);\n    let added = 0, outcome = 'deferred', candidates = [];\n    if (status === 200) {\n      try {\n        const body = typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body;\n        candidates = records(q.country, body, q.sector, arg.now);\n        outcome = 'ok';\n      } catch (error) { outcome = 'schema_error'; src.blocked = true; }\n    } else if (status && status !== 429 && status < 500) { outcome = `http_${status}`; src.blocked = true; }\n    if (outcome === 'ok') {\n      const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n      const dailySource = day.bySource[q.country] ?? { added: 0, requests: 0 };\n      for (const c of candidates) {\n        if (Object.hasOwn(state.companies, c.key)) continue;\n        if (day.added >= 50 || dailySource.added >= 25 || Object.keys(state.companies).length >= 500) break;\n        state.companies[c.key] = c;\n        day.added++; dailySource.added++; added++;\n      }\n      day.bySource[q.country] = dailySource; state.days[arg.day] = day;\n      // Re-fetch this page after a partial/budget-full commit, to avoid losing candidates.\n      const remaining = candidates.some(c => !Object.hasOwn(state.companies, c.key));\n      if (!remaining) {\n        const count = q.country === 'NO'\n          ? (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body)._embedded.enheter.length\n          : (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body).ekonomickeSubjekty.length;\n        state.cursors[`${q.country}:${q.sector}`] = count === 25 && q.page < 399 ? q.page + 1 : 0;\n      }\n      src.nextAllowedAt = now + 2000;\n    } else {\n      const headers = arg.response?.headers ?? {};\n      const raw = Object.entries(headers).find(([key]) => key.toLowerCase() === 'retry-after')?.[1];\n      const retry = typeof raw === 'string' && /^\\d+$/.test(raw) ? now + Number(raw) * 1000 : Date.parse(String(raw ?? ''));\n      if (typeof raw === 'string' && /^\\d+$/.test(raw) && (!Number.isSafeInteger(retry) || retry > 8640000000000000)) src.blocked = true;\n      src.nextAllowedAt = Math.max(now + 15 * 60000, Number.isFinite(retry) ? retry : 0);\n    }\n    delete src.inFlight;\n    state.events.push({ at: arg.now, country: q.country, sector: q.sector, page: q.page, status, outcome, added });\n    return { update: pack(row, state, `${q.requestId}:commit`), outcome, added };\n  }\n  if (action === 'summary') {\n    if (arg.rows.length !== 1) fail('Invalid summary journal.');\n    const state = parse(arg.rows[0]);\n    return { pilotOnly: true, ownerVaultIntegration: 'disabled', day: arg.day, totals: state.days[arg.day] ?? { added: 0, requests: 0 },\n      storedCompanies: Object.keys(state.companies).length, capacity: 500, sourceState: state.sources, recentEvents: state.events.slice(-10) };\n  }\n  fail('Unknown action.');\n})(\"jobs\", {rows:$input.all().map(x=>x.json),now:$now.toISO(),day:$now.setZone(\"Europe/Oslo\").toISODate()}) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "split-jobs",
+      "name": "Split jobs",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "fieldToSplitOut": "plan.jobs",
+        "include": "noOtherFields",
+        "options": {
+          "destinationFieldName": "job"
+        }
+      }
+    },
+    {
+      "id": "each-source",
+      "name": "Each source",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        0,
+        260
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "read-reservation",
+      "name": "Read reservation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        280,
+        260
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "shadowbridge_europe_scout_pilot_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "scout_key",
+              "condition": "eq",
+              "keyValue": "europe-scout-v1"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 2
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "draft-reservation",
+      "name": "Draft reservation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        260
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "query",
+              "name": "query",
+              "type": "object",
+              "value": "={{ (function scout(action, arg) {\n  const KEY = 'europe-scout-v1';\n  const sources = {\n    NO: { name: 'Brønnøysundregistrene / Enhetsregisteret', url: 'https://data.brreg.no/enhetsregisteret/api/enheter', forms: ['AS', 'ASA'] },\n    CZ: { name: 'ARES / Ministry of Finance Czech Republic', url: 'https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat', forms: ['112', '121'] },\n  };\n  const sectors = ['28', '25', '22', '10', '46'];\n  const empty = () => ({ version: 1, companies: {}, days: {}, sources: {}, cursors: {}, events: [], commit: 'initial' });\n  const fail = (message) => { throw new Error(`SCOUT: ${message}`); };\n  const parse = (row) => {\n    if (!row || row.scout_key !== KEY || !Number.isSafeInteger(row.revision) || row.revision < 0 || !Number.isSafeInteger(row.id)) fail('Missing/invalid journal row. Import exactly one seed row.');\n    if (typeof row.state_json !== 'string' || row.state_json.length > 1500000) fail('Invalid journal size.');\n    const s = JSON.parse(row.state_json);\n    const map = value => value !== null && typeof value === 'object' && !Array.isArray(value);\n    if (s?.version !== 1 || !map(s.companies) || !map(s.days) || !map(s.sources) || !map(s.cursors) || !Array.isArray(s.events)) fail('Invalid journal schema.');\n    if (Object.keys(s.companies).length > 500 || s.events.length > 100 || Object.keys(s.days).length > 32) fail('Journal bounds exceeded.');\n    return s;\n  };\n  const clock = () => {\n    const time = Date.parse(arg.now);\n    if (!Number.isFinite(time) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(arg.day)) fail('Invalid Oslo clock.');\n    return time;\n  };\n  const pack = (row, state, nonce) => {\n    state.commit = nonce;\n    const keys = Object.keys(state.days).sort();\n    for (const k of keys.slice(0, Math.max(0, keys.length - 32))) delete state.days[k];\n    state.events = state.events.slice(-100);\n    const state_json = JSON.stringify(state);\n    if (state_json.length > 1500000) fail('Journal full: manual review/export required.');\n    return { id: row.id, previous: row.revision, revision: row.revision + 1, state_json, nonce };\n  };\n  const text = (value, limit = 240) => typeof value === 'string' ? value.trim().slice(0, limit) : null;\n  const site = (value) => {\n    const v = text(value, 500);\n    // Preserve only source-provided explicit HTTP(S) URLs. Never follow them.\n    return v && /^https?:\\/\\/[^\\s/@]+(?:[/:?#][^\\s]*)?$/i.test(v) ? v : null;\n  };\n  const records = (country, body, sector, now) => {\n    const list = country === 'NO' ? body?._embedded?.enheter : body?.ekonomickeSubjekty;\n    if (!Array.isArray(list) || list.length > 25) fail('Unexpected source response schema/page size.');\n    return list.flatMap((r) => {\n      const id = String(country === 'NO' ? r.organisasjonsnummer ?? '' : r.ico ?? '');\n      const name = text(country === 'NO' ? r.navn : r.obchodniJmeno);\n      const form = String(country === 'NO' ? r.organisasjonsform?.kode ?? '' : r.pravniForma ?? '');\n      if (!new RegExp(country === 'NO' ? '^\\\\d{9}$' : '^\\\\d{8}$').test(id) || !name || !sources[country].forms.includes(form)) return [];\n      if (r.slettedato || r.datumZaniku || r.konkurs || r.underAvvikling) return [];\n      const codes = country === 'NO'\n        ? [r.naeringskode1, r.naeringskode2, r.naeringskode3].filter(x => typeof x?.kode === 'string').map(x => ({ code: x.kode, description: text(x.beskrivelse) }))\n        : (Array.isArray(r.czNace) ? r.czNace : []).filter(x => typeof x === 'string').map(x => ({ code: x, description: null }));\n      if (!codes.some(x => x.code.replace(/\\./g, '').startsWith(sector))) return [];\n      const city = text(country === 'NO' ? r.forretningsadresse?.poststed : r.sidlo?.nazevObce, 120);\n      const website = country === 'NO' ? site(r.hjemmeside) : null;\n      const key = `${country}:${id}`;\n      return [{ key, legalName: name, country, city, registrationNumber: id, legalForm: form,\n        activityCodes: codes.slice(0, 10), activityClassification: country === 'NO' ? 'Source SN classification (version not asserted)' : 'Source CZ-NACE classification (version not asserted)',\n        website, potentialCooperation: sector === '46' ? 'wholesale_distribution_review' : 'manufacturing_review',\n        surplusEvidence: 'not_provided_by_registry', status: city ? 'unconfirmed' : 'review_required',\n        source: { system: country === 'NO' ? 'brreg-enhetsregisteret' : 'ares', recordId: id, name: sources[country].name,\n          url: country === 'NO' ? `${sources.NO.url}/${id}` : `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${id}` }, acquiredAt: now }];\n    });\n  };\n  if (action === 'seed') return { scout_key: KEY, revision: 0, state_json: JSON.stringify(empty()) };\n  if (action === 'jobs') {\n    clock();\n    if (arg.rows.length !== 1) fail('Expected exactly one pilot journal row; no writes performed.');\n    parse(arg.rows[0]);\n    const dayNumber = Math.floor(Date.parse(`${arg.day}T12:00:00Z`) / 86400000);\n    const order = dayNumber % 2 ? ['CZ', 'NO'] : ['NO', 'CZ'];\n    return { jobs: order.map((country, index) => ({ country, index, sector: sectors[(dayNumber + index) % sectors.length] })) };\n  }\n  if (action === 'reserve') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal row missing or duplicated.');\n    const state = parse(row), { country, sector } = arg.job;\n    if (!sources[country] || !sectors.includes(sector)) fail('Unknown source/sector.');\n    const skip = reason => ({ fetch: false, reason, country });\n    if (!arg.approvals || arg.approvals[country] !== true) return skip('Source terms/live access require operator approval.');\n    const src = state.sources[country] ?? {};\n    if (src.blocked || (src.nextAllowedAt ?? 0) > now || (src.inFlight?.until ?? 0) > now) return skip('Source blocked, cooling down or reserved.');\n    const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n    const dailySource = day.bySource[country] ?? { added: 0, requests: 0 };\n    if (day.added >= 50 || dailySource.added >= 25 || day.requests >= 8 || dailySource.requests >= 4 || Object.keys(state.companies).length >= 500) return skip('Pilot budget/full journal limit.');\n    const page = state.cursors[`${country}:${sector}`] ?? 0;\n    const requestId = `${arg.execution}:${arg.job.index}:${row.revision}`;\n    day.requests++; dailySource.requests++; day.bySource[country] = dailySource; state.days[arg.day] = day;\n    state.sources[country] = { ...src, inFlight: { requestId, until: now + 120000 }, nextAllowedAt: now + 2000 };\n    const params = `naeringskode=${sector}&organisasjonsform=AS,ASA&konkurs=false&underAvvikling=false&size=25&page=${page}&sort=organisasjonsnummer,asc`;\n    const query = { fetch: true, country, sector, page, requestId, reservationDay: arg.day,\n      method: country === 'NO' ? 'GET' : 'POST', url: country === 'NO' ? `${sources.NO.url}?${params}` : sources.CZ.url,\n      body: { czNace: [sector], pravniForma: ['112', '121'], start: page * 25, pocet: 25 } };\n    return { ...query, update: pack(row, state, requestId) };\n  }\n  if (action === 'won') {\n    const row = arg.rows[0], update = arg.update;\n    return arg.rows.length === 1 && row?.revision === update.revision && row?.state_json === update.state_json;\n  }\n  if (action === 'commit') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal missing/duplicated at commit.');\n    const state = parse(row), q = arg.query, src = state.sources[q.country];\n    if (src?.inFlight?.requestId !== q.requestId) fail('Reservation expired/replaced; response not committed.');\n    const status = Number(arg.response?.statusCode ?? 0);\n    let added = 0, outcome = 'deferred', candidates = [];\n    if (status === 200) {\n      try {\n        const body = typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body;\n        candidates = records(q.country, body, q.sector, arg.now);\n        outcome = 'ok';\n      } catch (error) { outcome = 'schema_error'; src.blocked = true; }\n    } else if (status && status !== 429 && status < 500) { outcome = `http_${status}`; src.blocked = true; }\n    if (outcome === 'ok') {\n      const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n      const dailySource = day.bySource[q.country] ?? { added: 0, requests: 0 };\n      for (const c of candidates) {\n        if (Object.hasOwn(state.companies, c.key)) continue;\n        if (day.added >= 50 || dailySource.added >= 25 || Object.keys(state.companies).length >= 500) break;\n        state.companies[c.key] = c;\n        day.added++; dailySource.added++; added++;\n      }\n      day.bySource[q.country] = dailySource; state.days[arg.day] = day;\n      // Re-fetch this page after a partial/budget-full commit, to avoid losing candidates.\n      const remaining = candidates.some(c => !Object.hasOwn(state.companies, c.key));\n      if (!remaining) {\n        const count = q.country === 'NO'\n          ? (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body)._embedded.enheter.length\n          : (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body).ekonomickeSubjekty.length;\n        state.cursors[`${q.country}:${q.sector}`] = count === 25 && q.page < 399 ? q.page + 1 : 0;\n      }\n      src.nextAllowedAt = now + 2000;\n    } else {\n      const headers = arg.response?.headers ?? {};\n      const raw = Object.entries(headers).find(([key]) => key.toLowerCase() === 'retry-after')?.[1];\n      const retry = typeof raw === 'string' && /^\\d+$/.test(raw) ? now + Number(raw) * 1000 : Date.parse(String(raw ?? ''));\n      if (typeof raw === 'string' && /^\\d+$/.test(raw) && (!Number.isSafeInteger(retry) || retry > 8640000000000000)) src.blocked = true;\n      src.nextAllowedAt = Math.max(now + 15 * 60000, Number.isFinite(retry) ? retry : 0);\n    }\n    delete src.inFlight;\n    state.events.push({ at: arg.now, country: q.country, sector: q.sector, page: q.page, status, outcome, added });\n    return { update: pack(row, state, `${q.requestId}:commit`), outcome, added };\n  }\n  if (action === 'summary') {\n    if (arg.rows.length !== 1) fail('Invalid summary journal.');\n    const state = parse(arg.rows[0]);\n    return { pilotOnly: true, ownerVaultIntegration: 'disabled', day: arg.day, totals: state.days[arg.day] ?? { added: 0, requests: 0 },\n      storedCompanies: Object.keys(state.companies).length, capacity: 500, sourceState: state.sources, recentEvents: state.events.slice(-10) };\n  }\n  fail('Unknown action.');\n})(\"reserve\", {rows:$input.all().map(x=>x.json),job:$('Each source').item.json.job,approvals:JSON.parse(JSON.stringify($('Source approvals').first().json.approvals)),execution:$execution.id,now:$now.toISO(),day:$now.setZone(\"Europe/Oslo\").toISODate()}) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "source-eligible",
+      "name": "Source eligible",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check",
+              "leftValue": "={{ $json.query.fetch }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "reserve-atomically",
+      "name": "Reserve atomically",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        260
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "shadowbridge_europe_scout_pilot_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "scout_key",
+              "condition": "eq",
+              "keyValue": "europe-scout-v1"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.query.update.id }}"
+            },
+            {
+              "keyName": "revision",
+              "condition": "eq",
+              "keyValue": "={{ $json.query.update.previous }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "revision": "={{ $json.query.update.revision }}",
+            "state_json": "={{ $json.query.update.state_json }}"
+          },
+          "schema": [
+            {
+              "id": "revision",
+              "displayName": "revision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "state_json",
+              "displayName": "state_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "reservation-won",
+      "name": "Reservation won",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1400,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check",
+              "leftValue": "={{ (function scout(action, arg) {\n  const KEY = 'europe-scout-v1';\n  const sources = {\n    NO: { name: 'Brønnøysundregistrene / Enhetsregisteret', url: 'https://data.brreg.no/enhetsregisteret/api/enheter', forms: ['AS', 'ASA'] },\n    CZ: { name: 'ARES / Ministry of Finance Czech Republic', url: 'https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat', forms: ['112', '121'] },\n  };\n  const sectors = ['28', '25', '22', '10', '46'];\n  const empty = () => ({ version: 1, companies: {}, days: {}, sources: {}, cursors: {}, events: [], commit: 'initial' });\n  const fail = (message) => { throw new Error(`SCOUT: ${message}`); };\n  const parse = (row) => {\n    if (!row || row.scout_key !== KEY || !Number.isSafeInteger(row.revision) || row.revision < 0 || !Number.isSafeInteger(row.id)) fail('Missing/invalid journal row. Import exactly one seed row.');\n    if (typeof row.state_json !== 'string' || row.state_json.length > 1500000) fail('Invalid journal size.');\n    const s = JSON.parse(row.state_json);\n    const map = value => value !== null && typeof value === 'object' && !Array.isArray(value);\n    if (s?.version !== 1 || !map(s.companies) || !map(s.days) || !map(s.sources) || !map(s.cursors) || !Array.isArray(s.events)) fail('Invalid journal schema.');\n    if (Object.keys(s.companies).length > 500 || s.events.length > 100 || Object.keys(s.days).length > 32) fail('Journal bounds exceeded.');\n    return s;\n  };\n  const clock = () => {\n    const time = Date.parse(arg.now);\n    if (!Number.isFinite(time) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(arg.day)) fail('Invalid Oslo clock.');\n    return time;\n  };\n  const pack = (row, state, nonce) => {\n    state.commit = nonce;\n    const keys = Object.keys(state.days).sort();\n    for (const k of keys.slice(0, Math.max(0, keys.length - 32))) delete state.days[k];\n    state.events = state.events.slice(-100);\n    const state_json = JSON.stringify(state);\n    if (state_json.length > 1500000) fail('Journal full: manual review/export required.');\n    return { id: row.id, previous: row.revision, revision: row.revision + 1, state_json, nonce };\n  };\n  const text = (value, limit = 240) => typeof value === 'string' ? value.trim().slice(0, limit) : null;\n  const site = (value) => {\n    const v = text(value, 500);\n    // Preserve only source-provided explicit HTTP(S) URLs. Never follow them.\n    return v && /^https?:\\/\\/[^\\s/@]+(?:[/:?#][^\\s]*)?$/i.test(v) ? v : null;\n  };\n  const records = (country, body, sector, now) => {\n    const list = country === 'NO' ? body?._embedded?.enheter : body?.ekonomickeSubjekty;\n    if (!Array.isArray(list) || list.length > 25) fail('Unexpected source response schema/page size.');\n    return list.flatMap((r) => {\n      const id = String(country === 'NO' ? r.organisasjonsnummer ?? '' : r.ico ?? '');\n      const name = text(country === 'NO' ? r.navn : r.obchodniJmeno);\n      const form = String(country === 'NO' ? r.organisasjonsform?.kode ?? '' : r.pravniForma ?? '');\n      if (!new RegExp(country === 'NO' ? '^\\\\d{9}$' : '^\\\\d{8}$').test(id) || !name || !sources[country].forms.includes(form)) return [];\n      if (r.slettedato || r.datumZaniku || r.konkurs || r.underAvvikling) return [];\n      const codes = country === 'NO'\n        ? [r.naeringskode1, r.naeringskode2, r.naeringskode3].filter(x => typeof x?.kode === 'string').map(x => ({ code: x.kode, description: text(x.beskrivelse) }))\n        : (Array.isArray(r.czNace) ? r.czNace : []).filter(x => typeof x === 'string').map(x => ({ code: x, description: null }));\n      if (!codes.some(x => x.code.replace(/\\./g, '').startsWith(sector))) return [];\n      const city = text(country === 'NO' ? r.forretningsadresse?.poststed : r.sidlo?.nazevObce, 120);\n      const website = country === 'NO' ? site(r.hjemmeside) : null;\n      const key = `${country}:${id}`;\n      return [{ key, legalName: name, country, city, registrationNumber: id, legalForm: form,\n        activityCodes: codes.slice(0, 10), activityClassification: country === 'NO' ? 'Source SN classification (version not asserted)' : 'Source CZ-NACE classification (version not asserted)',\n        website, potentialCooperation: sector === '46' ? 'wholesale_distribution_review' : 'manufacturing_review',\n        surplusEvidence: 'not_provided_by_registry', status: city ? 'unconfirmed' : 'review_required',\n        source: { system: country === 'NO' ? 'brreg-enhetsregisteret' : 'ares', recordId: id, name: sources[country].name,\n          url: country === 'NO' ? `${sources.NO.url}/${id}` : `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${id}` }, acquiredAt: now }];\n    });\n  };\n  if (action === 'seed') return { scout_key: KEY, revision: 0, state_json: JSON.stringify(empty()) };\n  if (action === 'jobs') {\n    clock();\n    if (arg.rows.length !== 1) fail('Expected exactly one pilot journal row; no writes performed.');\n    parse(arg.rows[0]);\n    const dayNumber = Math.floor(Date.parse(`${arg.day}T12:00:00Z`) / 86400000);\n    const order = dayNumber % 2 ? ['CZ', 'NO'] : ['NO', 'CZ'];\n    return { jobs: order.map((country, index) => ({ country, index, sector: sectors[(dayNumber + index) % sectors.length] })) };\n  }\n  if (action === 'reserve') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal row missing or duplicated.');\n    const state = parse(row), { country, sector } = arg.job;\n    if (!sources[country] || !sectors.includes(sector)) fail('Unknown source/sector.');\n    const skip = reason => ({ fetch: false, reason, country });\n    if (!arg.approvals || arg.approvals[country] !== true) return skip('Source terms/live access require operator approval.');\n    const src = state.sources[country] ?? {};\n    if (src.blocked || (src.nextAllowedAt ?? 0) > now || (src.inFlight?.until ?? 0) > now) return skip('Source blocked, cooling down or reserved.');\n    const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n    const dailySource = day.bySource[country] ?? { added: 0, requests: 0 };\n    if (day.added >= 50 || dailySource.added >= 25 || day.requests >= 8 || dailySource.requests >= 4 || Object.keys(state.companies).length >= 500) return skip('Pilot budget/full journal limit.');\n    const page = state.cursors[`${country}:${sector}`] ?? 0;\n    const requestId = `${arg.execution}:${arg.job.index}:${row.revision}`;\n    day.requests++; dailySource.requests++; day.bySource[country] = dailySource; state.days[arg.day] = day;\n    state.sources[country] = { ...src, inFlight: { requestId, until: now + 120000 }, nextAllowedAt: now + 2000 };\n    const params = `naeringskode=${sector}&organisasjonsform=AS,ASA&konkurs=false&underAvvikling=false&size=25&page=${page}&sort=organisasjonsnummer,asc`;\n    const query = { fetch: true, country, sector, page, requestId, reservationDay: arg.day,\n      method: country === 'NO' ? 'GET' : 'POST', url: country === 'NO' ? `${sources.NO.url}?${params}` : sources.CZ.url,\n      body: { czNace: [sector], pravniForma: ['112', '121'], start: page * 25, pocet: 25 } };\n    return { ...query, update: pack(row, state, requestId) };\n  }\n  if (action === 'won') {\n    const row = arg.rows[0], update = arg.update;\n    return arg.rows.length === 1 && row?.revision === update.revision && row?.state_json === update.state_json;\n  }\n  if (action === 'commit') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal missing/duplicated at commit.');\n    const state = parse(row), q = arg.query, src = state.sources[q.country];\n    if (src?.inFlight?.requestId !== q.requestId) fail('Reservation expired/replaced; response not committed.');\n    const status = Number(arg.response?.statusCode ?? 0);\n    let added = 0, outcome = 'deferred', candidates = [];\n    if (status === 200) {\n      try {\n        const body = typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body;\n        candidates = records(q.country, body, q.sector, arg.now);\n        outcome = 'ok';\n      } catch (error) { outcome = 'schema_error'; src.blocked = true; }\n    } else if (status && status !== 429 && status < 500) { outcome = `http_${status}`; src.blocked = true; }\n    if (outcome === 'ok') {\n      const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n      const dailySource = day.bySource[q.country] ?? { added: 0, requests: 0 };\n      for (const c of candidates) {\n        if (Object.hasOwn(state.companies, c.key)) continue;\n        if (day.added >= 50 || dailySource.added >= 25 || Object.keys(state.companies).length >= 500) break;\n        state.companies[c.key] = c;\n        day.added++; dailySource.added++; added++;\n      }\n      day.bySource[q.country] = dailySource; state.days[arg.day] = day;\n      // Re-fetch this page after a partial/budget-full commit, to avoid losing candidates.\n      const remaining = candidates.some(c => !Object.hasOwn(state.companies, c.key));\n      if (!remaining) {\n        const count = q.country === 'NO'\n          ? (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body)._embedded.enheter.length\n          : (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body).ekonomickeSubjekty.length;\n        state.cursors[`${q.country}:${q.sector}`] = count === 25 && q.page < 399 ? q.page + 1 : 0;\n      }\n      src.nextAllowedAt = now + 2000;\n    } else {\n      const headers = arg.response?.headers ?? {};\n      const raw = Object.entries(headers).find(([key]) => key.toLowerCase() === 'retry-after')?.[1];\n      const retry = typeof raw === 'string' && /^\\d+$/.test(raw) ? now + Number(raw) * 1000 : Date.parse(String(raw ?? ''));\n      if (typeof raw === 'string' && /^\\d+$/.test(raw) && (!Number.isSafeInteger(retry) || retry > 8640000000000000)) src.blocked = true;\n      src.nextAllowedAt = Math.max(now + 15 * 60000, Number.isFinite(retry) ? retry : 0);\n    }\n    delete src.inFlight;\n    state.events.push({ at: arg.now, country: q.country, sector: q.sector, page: q.page, status, outcome, added });\n    return { update: pack(row, state, `${q.requestId}:commit`), outcome, added };\n  }\n  if (action === 'summary') {\n    if (arg.rows.length !== 1) fail('Invalid summary journal.');\n    const state = parse(arg.rows[0]);\n    return { pilotOnly: true, ownerVaultIntegration: 'disabled', day: arg.day, totals: state.days[arg.day] ?? { added: 0, requests: 0 },\n      storedCompanies: Object.keys(state.companies).length, capacity: 500, sourceState: state.sources, recentEvents: state.events.slice(-10) };\n  }\n  fail('Unknown action.');\n})(\"won\", {rows:$input.all().map(x=>x.json),update:$('Draft reservation').item.json.query.update}) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "read-public-registry",
+      "name": "Read public registry",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        520
+      ],
+      "parameters": {
+        "method": "={{ $('Draft reservation').item.json.query.method }}",
+        "url": "={{ $('Draft reservation').item.json.query.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": "={{ $('Draft reservation').item.json.query.country === 'CZ' }}",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Draft reservation').item.json.query.body) }}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text",
+              "outputPropertyName": "body"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": false
+    },
+    {
+      "id": "keep-response-context",
+      "name": "Keep response context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        280,
+        520
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "context",
+              "name": "context",
+              "type": "object",
+              "value": "={{ {query:$('Draft reservation').item.json.query,response:$json} }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "read-before-commit",
+      "name": "Read before commit",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        520
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "shadowbridge_europe_scout_pilot_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "scout_key",
+              "condition": "eq",
+              "keyValue": "europe-scout-v1"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 2
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "draft-commit",
+      "name": "Draft commit",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        840,
+        520
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "result",
+              "name": "result",
+              "type": "object",
+              "value": "={{ (function scout(action, arg) {\n  const KEY = 'europe-scout-v1';\n  const sources = {\n    NO: { name: 'Brønnøysundregistrene / Enhetsregisteret', url: 'https://data.brreg.no/enhetsregisteret/api/enheter', forms: ['AS', 'ASA'] },\n    CZ: { name: 'ARES / Ministry of Finance Czech Republic', url: 'https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat', forms: ['112', '121'] },\n  };\n  const sectors = ['28', '25', '22', '10', '46'];\n  const empty = () => ({ version: 1, companies: {}, days: {}, sources: {}, cursors: {}, events: [], commit: 'initial' });\n  const fail = (message) => { throw new Error(`SCOUT: ${message}`); };\n  const parse = (row) => {\n    if (!row || row.scout_key !== KEY || !Number.isSafeInteger(row.revision) || row.revision < 0 || !Number.isSafeInteger(row.id)) fail('Missing/invalid journal row. Import exactly one seed row.');\n    if (typeof row.state_json !== 'string' || row.state_json.length > 1500000) fail('Invalid journal size.');\n    const s = JSON.parse(row.state_json);\n    const map = value => value !== null && typeof value === 'object' && !Array.isArray(value);\n    if (s?.version !== 1 || !map(s.companies) || !map(s.days) || !map(s.sources) || !map(s.cursors) || !Array.isArray(s.events)) fail('Invalid journal schema.');\n    if (Object.keys(s.companies).length > 500 || s.events.length > 100 || Object.keys(s.days).length > 32) fail('Journal bounds exceeded.');\n    return s;\n  };\n  const clock = () => {\n    const time = Date.parse(arg.now);\n    if (!Number.isFinite(time) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(arg.day)) fail('Invalid Oslo clock.');\n    return time;\n  };\n  const pack = (row, state, nonce) => {\n    state.commit = nonce;\n    const keys = Object.keys(state.days).sort();\n    for (const k of keys.slice(0, Math.max(0, keys.length - 32))) delete state.days[k];\n    state.events = state.events.slice(-100);\n    const state_json = JSON.stringify(state);\n    if (state_json.length > 1500000) fail('Journal full: manual review/export required.');\n    return { id: row.id, previous: row.revision, revision: row.revision + 1, state_json, nonce };\n  };\n  const text = (value, limit = 240) => typeof value === 'string' ? value.trim().slice(0, limit) : null;\n  const site = (value) => {\n    const v = text(value, 500);\n    // Preserve only source-provided explicit HTTP(S) URLs. Never follow them.\n    return v && /^https?:\\/\\/[^\\s/@]+(?:[/:?#][^\\s]*)?$/i.test(v) ? v : null;\n  };\n  const records = (country, body, sector, now) => {\n    const list = country === 'NO' ? body?._embedded?.enheter : body?.ekonomickeSubjekty;\n    if (!Array.isArray(list) || list.length > 25) fail('Unexpected source response schema/page size.');\n    return list.flatMap((r) => {\n      const id = String(country === 'NO' ? r.organisasjonsnummer ?? '' : r.ico ?? '');\n      const name = text(country === 'NO' ? r.navn : r.obchodniJmeno);\n      const form = String(country === 'NO' ? r.organisasjonsform?.kode ?? '' : r.pravniForma ?? '');\n      if (!new RegExp(country === 'NO' ? '^\\\\d{9}$' : '^\\\\d{8}$').test(id) || !name || !sources[country].forms.includes(form)) return [];\n      if (r.slettedato || r.datumZaniku || r.konkurs || r.underAvvikling) return [];\n      const codes = country === 'NO'\n        ? [r.naeringskode1, r.naeringskode2, r.naeringskode3].filter(x => typeof x?.kode === 'string').map(x => ({ code: x.kode, description: text(x.beskrivelse) }))\n        : (Array.isArray(r.czNace) ? r.czNace : []).filter(x => typeof x === 'string').map(x => ({ code: x, description: null }));\n      if (!codes.some(x => x.code.replace(/\\./g, '').startsWith(sector))) return [];\n      const city = text(country === 'NO' ? r.forretningsadresse?.poststed : r.sidlo?.nazevObce, 120);\n      const website = country === 'NO' ? site(r.hjemmeside) : null;\n      const key = `${country}:${id}`;\n      return [{ key, legalName: name, country, city, registrationNumber: id, legalForm: form,\n        activityCodes: codes.slice(0, 10), activityClassification: country === 'NO' ? 'Source SN classification (version not asserted)' : 'Source CZ-NACE classification (version not asserted)',\n        website, potentialCooperation: sector === '46' ? 'wholesale_distribution_review' : 'manufacturing_review',\n        surplusEvidence: 'not_provided_by_registry', status: city ? 'unconfirmed' : 'review_required',\n        source: { system: country === 'NO' ? 'brreg-enhetsregisteret' : 'ares', recordId: id, name: sources[country].name,\n          url: country === 'NO' ? `${sources.NO.url}/${id}` : `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${id}` }, acquiredAt: now }];\n    });\n  };\n  if (action === 'seed') return { scout_key: KEY, revision: 0, state_json: JSON.stringify(empty()) };\n  if (action === 'jobs') {\n    clock();\n    if (arg.rows.length !== 1) fail('Expected exactly one pilot journal row; no writes performed.');\n    parse(arg.rows[0]);\n    const dayNumber = Math.floor(Date.parse(`${arg.day}T12:00:00Z`) / 86400000);\n    const order = dayNumber % 2 ? ['CZ', 'NO'] : ['NO', 'CZ'];\n    return { jobs: order.map((country, index) => ({ country, index, sector: sectors[(dayNumber + index) % sectors.length] })) };\n  }\n  if (action === 'reserve') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal row missing or duplicated.');\n    const state = parse(row), { country, sector } = arg.job;\n    if (!sources[country] || !sectors.includes(sector)) fail('Unknown source/sector.');\n    const skip = reason => ({ fetch: false, reason, country });\n    if (!arg.approvals || arg.approvals[country] !== true) return skip('Source terms/live access require operator approval.');\n    const src = state.sources[country] ?? {};\n    if (src.blocked || (src.nextAllowedAt ?? 0) > now || (src.inFlight?.until ?? 0) > now) return skip('Source blocked, cooling down or reserved.');\n    const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n    const dailySource = day.bySource[country] ?? { added: 0, requests: 0 };\n    if (day.added >= 50 || dailySource.added >= 25 || day.requests >= 8 || dailySource.requests >= 4 || Object.keys(state.companies).length >= 500) return skip('Pilot budget/full journal limit.');\n    const page = state.cursors[`${country}:${sector}`] ?? 0;\n    const requestId = `${arg.execution}:${arg.job.index}:${row.revision}`;\n    day.requests++; dailySource.requests++; day.bySource[country] = dailySource; state.days[arg.day] = day;\n    state.sources[country] = { ...src, inFlight: { requestId, until: now + 120000 }, nextAllowedAt: now + 2000 };\n    const params = `naeringskode=${sector}&organisasjonsform=AS,ASA&konkurs=false&underAvvikling=false&size=25&page=${page}&sort=organisasjonsnummer,asc`;\n    const query = { fetch: true, country, sector, page, requestId, reservationDay: arg.day,\n      method: country === 'NO' ? 'GET' : 'POST', url: country === 'NO' ? `${sources.NO.url}?${params}` : sources.CZ.url,\n      body: { czNace: [sector], pravniForma: ['112', '121'], start: page * 25, pocet: 25 } };\n    return { ...query, update: pack(row, state, requestId) };\n  }\n  if (action === 'won') {\n    const row = arg.rows[0], update = arg.update;\n    return arg.rows.length === 1 && row?.revision === update.revision && row?.state_json === update.state_json;\n  }\n  if (action === 'commit') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal missing/duplicated at commit.');\n    const state = parse(row), q = arg.query, src = state.sources[q.country];\n    if (src?.inFlight?.requestId !== q.requestId) fail('Reservation expired/replaced; response not committed.');\n    const status = Number(arg.response?.statusCode ?? 0);\n    let added = 0, outcome = 'deferred', candidates = [];\n    if (status === 200) {\n      try {\n        const body = typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body;\n        candidates = records(q.country, body, q.sector, arg.now);\n        outcome = 'ok';\n      } catch (error) { outcome = 'schema_error'; src.blocked = true; }\n    } else if (status && status !== 429 && status < 500) { outcome = `http_${status}`; src.blocked = true; }\n    if (outcome === 'ok') {\n      const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n      const dailySource = day.bySource[q.country] ?? { added: 0, requests: 0 };\n      for (const c of candidates) {\n        if (Object.hasOwn(state.companies, c.key)) continue;\n        if (day.added >= 50 || dailySource.added >= 25 || Object.keys(state.companies).length >= 500) break;\n        state.companies[c.key] = c;\n        day.added++; dailySource.added++; added++;\n      }\n      day.bySource[q.country] = dailySource; state.days[arg.day] = day;\n      // Re-fetch this page after a partial/budget-full commit, to avoid losing candidates.\n      const remaining = candidates.some(c => !Object.hasOwn(state.companies, c.key));\n      if (!remaining) {\n        const count = q.country === 'NO'\n          ? (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body)._embedded.enheter.length\n          : (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body).ekonomickeSubjekty.length;\n        state.cursors[`${q.country}:${q.sector}`] = count === 25 && q.page < 399 ? q.page + 1 : 0;\n      }\n      src.nextAllowedAt = now + 2000;\n    } else {\n      const headers = arg.response?.headers ?? {};\n      const raw = Object.entries(headers).find(([key]) => key.toLowerCase() === 'retry-after')?.[1];\n      const retry = typeof raw === 'string' && /^\\d+$/.test(raw) ? now + Number(raw) * 1000 : Date.parse(String(raw ?? ''));\n      if (typeof raw === 'string' && /^\\d+$/.test(raw) && (!Number.isSafeInteger(retry) || retry > 8640000000000000)) src.blocked = true;\n      src.nextAllowedAt = Math.max(now + 15 * 60000, Number.isFinite(retry) ? retry : 0);\n    }\n    delete src.inFlight;\n    state.events.push({ at: arg.now, country: q.country, sector: q.sector, page: q.page, status, outcome, added });\n    return { update: pack(row, state, `${q.requestId}:commit`), outcome, added };\n  }\n  if (action === 'summary') {\n    if (arg.rows.length !== 1) fail('Invalid summary journal.');\n    const state = parse(arg.rows[0]);\n    return { pilotOnly: true, ownerVaultIntegration: 'disabled', day: arg.day, totals: state.days[arg.day] ?? { added: 0, requests: 0 },\n      storedCompanies: Object.keys(state.companies).length, capacity: 500, sourceState: state.sources, recentEvents: state.events.slice(-10) };\n  }\n  fail('Unknown action.');\n})(\"commit\", {rows:$input.all().map(x=>x.json),query:$('Keep response context').item.json.context.query,response:$('Keep response context').item.json.context.response,now:$now.toISO(),day:$now.setZone(\"Europe/Oslo\").toISODate()}) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "commit-atomically",
+      "name": "Commit atomically",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        520
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "shadowbridge_europe_scout_pilot_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "scout_key",
+              "condition": "eq",
+              "keyValue": "europe-scout-v1"
+            },
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.result.update.id }}"
+            },
+            {
+              "keyName": "revision",
+              "condition": "eq",
+              "keyValue": "={{ $json.result.update.previous }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "revision": "={{ $json.result.update.revision }}",
+            "state_json": "={{ $json.result.update.state_json }}"
+          },
+          "schema": [
+            {
+              "id": "revision",
+              "displayName": "revision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "state_json",
+              "displayName": "state_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "commit-won",
+      "name": "Commit won",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1400,
+        520
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check",
+              "leftValue": "={{ (function scout(action, arg) {\n  const KEY = 'europe-scout-v1';\n  const sources = {\n    NO: { name: 'Brønnøysundregistrene / Enhetsregisteret', url: 'https://data.brreg.no/enhetsregisteret/api/enheter', forms: ['AS', 'ASA'] },\n    CZ: { name: 'ARES / Ministry of Finance Czech Republic', url: 'https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat', forms: ['112', '121'] },\n  };\n  const sectors = ['28', '25', '22', '10', '46'];\n  const empty = () => ({ version: 1, companies: {}, days: {}, sources: {}, cursors: {}, events: [], commit: 'initial' });\n  const fail = (message) => { throw new Error(`SCOUT: ${message}`); };\n  const parse = (row) => {\n    if (!row || row.scout_key !== KEY || !Number.isSafeInteger(row.revision) || row.revision < 0 || !Number.isSafeInteger(row.id)) fail('Missing/invalid journal row. Import exactly one seed row.');\n    if (typeof row.state_json !== 'string' || row.state_json.length > 1500000) fail('Invalid journal size.');\n    const s = JSON.parse(row.state_json);\n    const map = value => value !== null && typeof value === 'object' && !Array.isArray(value);\n    if (s?.version !== 1 || !map(s.companies) || !map(s.days) || !map(s.sources) || !map(s.cursors) || !Array.isArray(s.events)) fail('Invalid journal schema.');\n    if (Object.keys(s.companies).length > 500 || s.events.length > 100 || Object.keys(s.days).length > 32) fail('Journal bounds exceeded.');\n    return s;\n  };\n  const clock = () => {\n    const time = Date.parse(arg.now);\n    if (!Number.isFinite(time) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(arg.day)) fail('Invalid Oslo clock.');\n    return time;\n  };\n  const pack = (row, state, nonce) => {\n    state.commit = nonce;\n    const keys = Object.keys(state.days).sort();\n    for (const k of keys.slice(0, Math.max(0, keys.length - 32))) delete state.days[k];\n    state.events = state.events.slice(-100);\n    const state_json = JSON.stringify(state);\n    if (state_json.length > 1500000) fail('Journal full: manual review/export required.');\n    return { id: row.id, previous: row.revision, revision: row.revision + 1, state_json, nonce };\n  };\n  const text = (value, limit = 240) => typeof value === 'string' ? value.trim().slice(0, limit) : null;\n  const site = (value) => {\n    const v = text(value, 500);\n    // Preserve only source-provided explicit HTTP(S) URLs. Never follow them.\n    return v && /^https?:\\/\\/[^\\s/@]+(?:[/:?#][^\\s]*)?$/i.test(v) ? v : null;\n  };\n  const records = (country, body, sector, now) => {\n    const list = country === 'NO' ? body?._embedded?.enheter : body?.ekonomickeSubjekty;\n    if (!Array.isArray(list) || list.length > 25) fail('Unexpected source response schema/page size.');\n    return list.flatMap((r) => {\n      const id = String(country === 'NO' ? r.organisasjonsnummer ?? '' : r.ico ?? '');\n      const name = text(country === 'NO' ? r.navn : r.obchodniJmeno);\n      const form = String(country === 'NO' ? r.organisasjonsform?.kode ?? '' : r.pravniForma ?? '');\n      if (!new RegExp(country === 'NO' ? '^\\\\d{9}$' : '^\\\\d{8}$').test(id) || !name || !sources[country].forms.includes(form)) return [];\n      if (r.slettedato || r.datumZaniku || r.konkurs || r.underAvvikling) return [];\n      const codes = country === 'NO'\n        ? [r.naeringskode1, r.naeringskode2, r.naeringskode3].filter(x => typeof x?.kode === 'string').map(x => ({ code: x.kode, description: text(x.beskrivelse) }))\n        : (Array.isArray(r.czNace) ? r.czNace : []).filter(x => typeof x === 'string').map(x => ({ code: x, description: null }));\n      if (!codes.some(x => x.code.replace(/\\./g, '').startsWith(sector))) return [];\n      const city = text(country === 'NO' ? r.forretningsadresse?.poststed : r.sidlo?.nazevObce, 120);\n      const website = country === 'NO' ? site(r.hjemmeside) : null;\n      const key = `${country}:${id}`;\n      return [{ key, legalName: name, country, city, registrationNumber: id, legalForm: form,\n        activityCodes: codes.slice(0, 10), activityClassification: country === 'NO' ? 'Source SN classification (version not asserted)' : 'Source CZ-NACE classification (version not asserted)',\n        website, potentialCooperation: sector === '46' ? 'wholesale_distribution_review' : 'manufacturing_review',\n        surplusEvidence: 'not_provided_by_registry', status: city ? 'unconfirmed' : 'review_required',\n        source: { system: country === 'NO' ? 'brreg-enhetsregisteret' : 'ares', recordId: id, name: sources[country].name,\n          url: country === 'NO' ? `${sources.NO.url}/${id}` : `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${id}` }, acquiredAt: now }];\n    });\n  };\n  if (action === 'seed') return { scout_key: KEY, revision: 0, state_json: JSON.stringify(empty()) };\n  if (action === 'jobs') {\n    clock();\n    if (arg.rows.length !== 1) fail('Expected exactly one pilot journal row; no writes performed.');\n    parse(arg.rows[0]);\n    const dayNumber = Math.floor(Date.parse(`${arg.day}T12:00:00Z`) / 86400000);\n    const order = dayNumber % 2 ? ['CZ', 'NO'] : ['NO', 'CZ'];\n    return { jobs: order.map((country, index) => ({ country, index, sector: sectors[(dayNumber + index) % sectors.length] })) };\n  }\n  if (action === 'reserve') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal row missing or duplicated.');\n    const state = parse(row), { country, sector } = arg.job;\n    if (!sources[country] || !sectors.includes(sector)) fail('Unknown source/sector.');\n    const skip = reason => ({ fetch: false, reason, country });\n    if (!arg.approvals || arg.approvals[country] !== true) return skip('Source terms/live access require operator approval.');\n    const src = state.sources[country] ?? {};\n    if (src.blocked || (src.nextAllowedAt ?? 0) > now || (src.inFlight?.until ?? 0) > now) return skip('Source blocked, cooling down or reserved.');\n    const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n    const dailySource = day.bySource[country] ?? { added: 0, requests: 0 };\n    if (day.added >= 50 || dailySource.added >= 25 || day.requests >= 8 || dailySource.requests >= 4 || Object.keys(state.companies).length >= 500) return skip('Pilot budget/full journal limit.');\n    const page = state.cursors[`${country}:${sector}`] ?? 0;\n    const requestId = `${arg.execution}:${arg.job.index}:${row.revision}`;\n    day.requests++; dailySource.requests++; day.bySource[country] = dailySource; state.days[arg.day] = day;\n    state.sources[country] = { ...src, inFlight: { requestId, until: now + 120000 }, nextAllowedAt: now + 2000 };\n    const params = `naeringskode=${sector}&organisasjonsform=AS,ASA&konkurs=false&underAvvikling=false&size=25&page=${page}&sort=organisasjonsnummer,asc`;\n    const query = { fetch: true, country, sector, page, requestId, reservationDay: arg.day,\n      method: country === 'NO' ? 'GET' : 'POST', url: country === 'NO' ? `${sources.NO.url}?${params}` : sources.CZ.url,\n      body: { czNace: [sector], pravniForma: ['112', '121'], start: page * 25, pocet: 25 } };\n    return { ...query, update: pack(row, state, requestId) };\n  }\n  if (action === 'won') {\n    const row = arg.rows[0], update = arg.update;\n    return arg.rows.length === 1 && row?.revision === update.revision && row?.state_json === update.state_json;\n  }\n  if (action === 'commit') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal missing/duplicated at commit.');\n    const state = parse(row), q = arg.query, src = state.sources[q.country];\n    if (src?.inFlight?.requestId !== q.requestId) fail('Reservation expired/replaced; response not committed.');\n    const status = Number(arg.response?.statusCode ?? 0);\n    let added = 0, outcome = 'deferred', candidates = [];\n    if (status === 200) {\n      try {\n        const body = typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body;\n        candidates = records(q.country, body, q.sector, arg.now);\n        outcome = 'ok';\n      } catch (error) { outcome = 'schema_error'; src.blocked = true; }\n    } else if (status && status !== 429 && status < 500) { outcome = `http_${status}`; src.blocked = true; }\n    if (outcome === 'ok') {\n      const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n      const dailySource = day.bySource[q.country] ?? { added: 0, requests: 0 };\n      for (const c of candidates) {\n        if (Object.hasOwn(state.companies, c.key)) continue;\n        if (day.added >= 50 || dailySource.added >= 25 || Object.keys(state.companies).length >= 500) break;\n        state.companies[c.key] = c;\n        day.added++; dailySource.added++; added++;\n      }\n      day.bySource[q.country] = dailySource; state.days[arg.day] = day;\n      // Re-fetch this page after a partial/budget-full commit, to avoid losing candidates.\n      const remaining = candidates.some(c => !Object.hasOwn(state.companies, c.key));\n      if (!remaining) {\n        const count = q.country === 'NO'\n          ? (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body)._embedded.enheter.length\n          : (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body).ekonomickeSubjekty.length;\n        state.cursors[`${q.country}:${q.sector}`] = count === 25 && q.page < 399 ? q.page + 1 : 0;\n      }\n      src.nextAllowedAt = now + 2000;\n    } else {\n      const headers = arg.response?.headers ?? {};\n      const raw = Object.entries(headers).find(([key]) => key.toLowerCase() === 'retry-after')?.[1];\n      const retry = typeof raw === 'string' && /^\\d+$/.test(raw) ? now + Number(raw) * 1000 : Date.parse(String(raw ?? ''));\n      if (typeof raw === 'string' && /^\\d+$/.test(raw) && (!Number.isSafeInteger(retry) || retry > 8640000000000000)) src.blocked = true;\n      src.nextAllowedAt = Math.max(now + 15 * 60000, Number.isFinite(retry) ? retry : 0);\n    }\n    delete src.inFlight;\n    state.events.push({ at: arg.now, country: q.country, sector: q.sector, page: q.page, status, outcome, added });\n    return { update: pack(row, state, `${q.requestId}:commit`), outcome, added };\n  }\n  if (action === 'summary') {\n    if (arg.rows.length !== 1) fail('Invalid summary journal.');\n    const state = parse(arg.rows[0]);\n    return { pilotOnly: true, ownerVaultIntegration: 'disabled', day: arg.day, totals: state.days[arg.day] ?? { added: 0, requests: 0 },\n      storedCompanies: Object.keys(state.companies).length, capacity: 500, sourceState: state.sources, recentEvents: state.events.slice(-10) };\n  }\n  fail('Unknown action.');\n})(\"won\", {rows:$input.all().map(x=>x.json),update:$('Draft commit').item.json.result.update}) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "conflict-stop-safely",
+      "name": "Conflict stop safely",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        0,
+        780
+      ],
+      "parameters": {
+        "errorMessage": "Concurrent journal change: response not committed. No cursor advanced by this worker; retry at next schedule. Inspect pilot journal."
+      }
+    },
+    {
+      "id": "gentle-spacing",
+      "name": "Gentle spacing",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        280,
+        780
+      ],
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "webhookId": "europe-scout-spacing"
+    },
+    {
+      "id": "read-final-journal",
+      "name": "Read final journal",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        780
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "shadowbridge_europe_scout_pilot_v1"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "scout_key",
+              "condition": "eq",
+              "keyValue": "europe-scout-v1"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 2
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "pilot-summary",
+      "name": "Pilot summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        840,
+        780
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "summary",
+              "name": "summary",
+              "type": "object",
+              "value": "={{ (function scout(action, arg) {\n  const KEY = 'europe-scout-v1';\n  const sources = {\n    NO: { name: 'Brønnøysundregistrene / Enhetsregisteret', url: 'https://data.brreg.no/enhetsregisteret/api/enheter', forms: ['AS', 'ASA'] },\n    CZ: { name: 'ARES / Ministry of Finance Czech Republic', url: 'https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat', forms: ['112', '121'] },\n  };\n  const sectors = ['28', '25', '22', '10', '46'];\n  const empty = () => ({ version: 1, companies: {}, days: {}, sources: {}, cursors: {}, events: [], commit: 'initial' });\n  const fail = (message) => { throw new Error(`SCOUT: ${message}`); };\n  const parse = (row) => {\n    if (!row || row.scout_key !== KEY || !Number.isSafeInteger(row.revision) || row.revision < 0 || !Number.isSafeInteger(row.id)) fail('Missing/invalid journal row. Import exactly one seed row.');\n    if (typeof row.state_json !== 'string' || row.state_json.length > 1500000) fail('Invalid journal size.');\n    const s = JSON.parse(row.state_json);\n    const map = value => value !== null && typeof value === 'object' && !Array.isArray(value);\n    if (s?.version !== 1 || !map(s.companies) || !map(s.days) || !map(s.sources) || !map(s.cursors) || !Array.isArray(s.events)) fail('Invalid journal schema.');\n    if (Object.keys(s.companies).length > 500 || s.events.length > 100 || Object.keys(s.days).length > 32) fail('Journal bounds exceeded.');\n    return s;\n  };\n  const clock = () => {\n    const time = Date.parse(arg.now);\n    if (!Number.isFinite(time) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(arg.day)) fail('Invalid Oslo clock.');\n    return time;\n  };\n  const pack = (row, state, nonce) => {\n    state.commit = nonce;\n    const keys = Object.keys(state.days).sort();\n    for (const k of keys.slice(0, Math.max(0, keys.length - 32))) delete state.days[k];\n    state.events = state.events.slice(-100);\n    const state_json = JSON.stringify(state);\n    if (state_json.length > 1500000) fail('Journal full: manual review/export required.');\n    return { id: row.id, previous: row.revision, revision: row.revision + 1, state_json, nonce };\n  };\n  const text = (value, limit = 240) => typeof value === 'string' ? value.trim().slice(0, limit) : null;\n  const site = (value) => {\n    const v = text(value, 500);\n    // Preserve only source-provided explicit HTTP(S) URLs. Never follow them.\n    return v && /^https?:\\/\\/[^\\s/@]+(?:[/:?#][^\\s]*)?$/i.test(v) ? v : null;\n  };\n  const records = (country, body, sector, now) => {\n    const list = country === 'NO' ? body?._embedded?.enheter : body?.ekonomickeSubjekty;\n    if (!Array.isArray(list) || list.length > 25) fail('Unexpected source response schema/page size.');\n    return list.flatMap((r) => {\n      const id = String(country === 'NO' ? r.organisasjonsnummer ?? '' : r.ico ?? '');\n      const name = text(country === 'NO' ? r.navn : r.obchodniJmeno);\n      const form = String(country === 'NO' ? r.organisasjonsform?.kode ?? '' : r.pravniForma ?? '');\n      if (!new RegExp(country === 'NO' ? '^\\\\d{9}$' : '^\\\\d{8}$').test(id) || !name || !sources[country].forms.includes(form)) return [];\n      if (r.slettedato || r.datumZaniku || r.konkurs || r.underAvvikling) return [];\n      const codes = country === 'NO'\n        ? [r.naeringskode1, r.naeringskode2, r.naeringskode3].filter(x => typeof x?.kode === 'string').map(x => ({ code: x.kode, description: text(x.beskrivelse) }))\n        : (Array.isArray(r.czNace) ? r.czNace : []).filter(x => typeof x === 'string').map(x => ({ code: x, description: null }));\n      if (!codes.some(x => x.code.replace(/\\./g, '').startsWith(sector))) return [];\n      const city = text(country === 'NO' ? r.forretningsadresse?.poststed : r.sidlo?.nazevObce, 120);\n      const website = country === 'NO' ? site(r.hjemmeside) : null;\n      const key = `${country}:${id}`;\n      return [{ key, legalName: name, country, city, registrationNumber: id, legalForm: form,\n        activityCodes: codes.slice(0, 10), activityClassification: country === 'NO' ? 'Source SN classification (version not asserted)' : 'Source CZ-NACE classification (version not asserted)',\n        website, potentialCooperation: sector === '46' ? 'wholesale_distribution_review' : 'manufacturing_review',\n        surplusEvidence: 'not_provided_by_registry', status: city ? 'unconfirmed' : 'review_required',\n        source: { system: country === 'NO' ? 'brreg-enhetsregisteret' : 'ares', recordId: id, name: sources[country].name,\n          url: country === 'NO' ? `${sources.NO.url}/${id}` : `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${id}` }, acquiredAt: now }];\n    });\n  };\n  if (action === 'seed') return { scout_key: KEY, revision: 0, state_json: JSON.stringify(empty()) };\n  if (action === 'jobs') {\n    clock();\n    if (arg.rows.length !== 1) fail('Expected exactly one pilot journal row; no writes performed.');\n    parse(arg.rows[0]);\n    const dayNumber = Math.floor(Date.parse(`${arg.day}T12:00:00Z`) / 86400000);\n    const order = dayNumber % 2 ? ['CZ', 'NO'] : ['NO', 'CZ'];\n    return { jobs: order.map((country, index) => ({ country, index, sector: sectors[(dayNumber + index) % sectors.length] })) };\n  }\n  if (action === 'reserve') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal row missing or duplicated.');\n    const state = parse(row), { country, sector } = arg.job;\n    if (!sources[country] || !sectors.includes(sector)) fail('Unknown source/sector.');\n    const skip = reason => ({ fetch: false, reason, country });\n    if (!arg.approvals || arg.approvals[country] !== true) return skip('Source terms/live access require operator approval.');\n    const src = state.sources[country] ?? {};\n    if (src.blocked || (src.nextAllowedAt ?? 0) > now || (src.inFlight?.until ?? 0) > now) return skip('Source blocked, cooling down or reserved.');\n    const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n    const dailySource = day.bySource[country] ?? { added: 0, requests: 0 };\n    if (day.added >= 50 || dailySource.added >= 25 || day.requests >= 8 || dailySource.requests >= 4 || Object.keys(state.companies).length >= 500) return skip('Pilot budget/full journal limit.');\n    const page = state.cursors[`${country}:${sector}`] ?? 0;\n    const requestId = `${arg.execution}:${arg.job.index}:${row.revision}`;\n    day.requests++; dailySource.requests++; day.bySource[country] = dailySource; state.days[arg.day] = day;\n    state.sources[country] = { ...src, inFlight: { requestId, until: now + 120000 }, nextAllowedAt: now + 2000 };\n    const params = `naeringskode=${sector}&organisasjonsform=AS,ASA&konkurs=false&underAvvikling=false&size=25&page=${page}&sort=organisasjonsnummer,asc`;\n    const query = { fetch: true, country, sector, page, requestId, reservationDay: arg.day,\n      method: country === 'NO' ? 'GET' : 'POST', url: country === 'NO' ? `${sources.NO.url}?${params}` : sources.CZ.url,\n      body: { czNace: [sector], pravniForma: ['112', '121'], start: page * 25, pocet: 25 } };\n    return { ...query, update: pack(row, state, requestId) };\n  }\n  if (action === 'won') {\n    const row = arg.rows[0], update = arg.update;\n    return arg.rows.length === 1 && row?.revision === update.revision && row?.state_json === update.state_json;\n  }\n  if (action === 'commit') {\n    const now = clock(), row = arg.rows[0];\n    if (arg.rows.length !== 1) fail('Journal missing/duplicated at commit.');\n    const state = parse(row), q = arg.query, src = state.sources[q.country];\n    if (src?.inFlight?.requestId !== q.requestId) fail('Reservation expired/replaced; response not committed.');\n    const status = Number(arg.response?.statusCode ?? 0);\n    let added = 0, outcome = 'deferred', candidates = [];\n    if (status === 200) {\n      try {\n        const body = typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body;\n        candidates = records(q.country, body, q.sector, arg.now);\n        outcome = 'ok';\n      } catch (error) { outcome = 'schema_error'; src.blocked = true; }\n    } else if (status && status !== 429 && status < 500) { outcome = `http_${status}`; src.blocked = true; }\n    if (outcome === 'ok') {\n      const day = state.days[arg.day] ?? { added: 0, requests: 0, bySource: {} };\n      const dailySource = day.bySource[q.country] ?? { added: 0, requests: 0 };\n      for (const c of candidates) {\n        if (Object.hasOwn(state.companies, c.key)) continue;\n        if (day.added >= 50 || dailySource.added >= 25 || Object.keys(state.companies).length >= 500) break;\n        state.companies[c.key] = c;\n        day.added++; dailySource.added++; added++;\n      }\n      day.bySource[q.country] = dailySource; state.days[arg.day] = day;\n      // Re-fetch this page after a partial/budget-full commit, to avoid losing candidates.\n      const remaining = candidates.some(c => !Object.hasOwn(state.companies, c.key));\n      if (!remaining) {\n        const count = q.country === 'NO'\n          ? (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body)._embedded.enheter.length\n          : (typeof arg.response.body === 'string' ? JSON.parse(arg.response.body) : arg.response.body).ekonomickeSubjekty.length;\n        state.cursors[`${q.country}:${q.sector}`] = count === 25 && q.page < 399 ? q.page + 1 : 0;\n      }\n      src.nextAllowedAt = now + 2000;\n    } else {\n      const headers = arg.response?.headers ?? {};\n      const raw = Object.entries(headers).find(([key]) => key.toLowerCase() === 'retry-after')?.[1];\n      const retry = typeof raw === 'string' && /^\\d+$/.test(raw) ? now + Number(raw) * 1000 : Date.parse(String(raw ?? ''));\n      if (typeof raw === 'string' && /^\\d+$/.test(raw) && (!Number.isSafeInteger(retry) || retry > 8640000000000000)) src.blocked = true;\n      src.nextAllowedAt = Math.max(now + 15 * 60000, Number.isFinite(retry) ? retry : 0);\n    }\n    delete src.inFlight;\n    state.events.push({ at: arg.now, country: q.country, sector: q.sector, page: q.page, status, outcome, added });\n    return { update: pack(row, state, `${q.requestId}:commit`), outcome, added };\n  }\n  if (action === 'summary') {\n    if (arg.rows.length !== 1) fail('Invalid summary journal.');\n    const state = parse(arg.rows[0]);\n    return { pilotOnly: true, ownerVaultIntegration: 'disabled', day: arg.day, totals: state.days[arg.day] ?? { added: 0, requests: 0 },\n      storedCompanies: Object.keys(state.companies).length, capacity: 500, sourceState: state.sources, recentEvents: state.events.slice(-10) };\n  }\n  fail('Unknown action.');\n})(\"summary\", {rows:$input.all().map(x=>x.json),now:$now.toISO(),day:$now.setZone(\"Europe/Oslo\").toISODate()}) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Manual pilot": {
+      "main": [
+        [
+          {
+            "node": "Source approvals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Oslo night 0315": {
+      "main": [
+        [
+          {
+            "node": "Source approvals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Source approvals": {
+      "main": [
+        [
+          {
+            "node": "Read initial journal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read initial journal": {
+      "main": [
+        [
+          {
+            "node": "Rotate sources and sectors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rotate sources and sectors": {
+      "main": [
+        [
+          {
+            "node": "Split jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split jobs": {
+      "main": [
+        [
+          {
+            "node": "Each source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Each source": {
+      "main": [
+        [
+          {
+            "node": "Read final journal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read reservation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read final journal": {
+      "main": [
+        [
+          {
+            "node": "Pilot summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read reservation": {
+      "main": [
+        [
+          {
+            "node": "Draft reservation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft reservation": {
+      "main": [
+        [
+          {
+            "node": "Source eligible",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Source eligible": {
+      "main": [
+        [
+          {
+            "node": "Reserve atomically",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gentle spacing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserve atomically": {
+      "main": [
+        [
+          {
+            "node": "Reservation won",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservation won": {
+      "main": [
+        [
+          {
+            "node": "Read public registry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gentle spacing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read public registry": {
+      "main": [
+        [
+          {
+            "node": "Keep response context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep response context": {
+      "main": [
+        [
+          {
+            "node": "Read before commit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read before commit": {
+      "main": [
+        [
+          {
+            "node": "Draft commit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft commit": {
+      "main": [
+        [
+          {
+            "node": "Commit atomically",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit atomically": {
+      "main": [
+        [
+          {
+            "node": "Commit won",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit won": {
+      "main": [
+        [
+          {
+            "node": "Gentle spacing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Conflict stop safely",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gentle spacing": {
+      "main": [
+        [
+          {
+            "node": "Each source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Oslo",
+    "executionTimeout": 600,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "pinData": {},
+  "tags": []
+}
