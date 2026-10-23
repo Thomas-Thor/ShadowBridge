@@ -1,0 +1,256 @@
+{
+  "sourceMigration": "supabase/migrations/202610190008_taxonomy.sql",
+  "categories": [
+    {
+      "id": "10000000-0000-4000-8000-000000000001",
+      "key": "food-agriculture",
+      "label": "Food & agriculture",
+      "parentId": null,
+      "position": 10
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000101",
+      "key": "fresh-produce",
+      "label": "Fresh produce",
+      "parentId": "10000000-0000-4000-8000-000000000001",
+      "position": 10
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000102",
+      "key": "grains-ingredients",
+      "label": "Grains & ingredients",
+      "parentId": "10000000-0000-4000-8000-000000000001",
+      "position": 20
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000103",
+      "key": "processed-food",
+      "label": "Processed food",
+      "parentId": "10000000-0000-4000-8000-000000000001",
+      "position": 30
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000002",
+      "key": "water-beverages",
+      "label": "Water & beverages",
+      "parentId": null,
+      "position": 20
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000201",
+      "key": "drinking-water",
+      "label": "Drinking water",
+      "parentId": "10000000-0000-4000-8000-000000000002",
+      "position": 10
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000202",
+      "key": "non-alcoholic-beverages",
+      "label": "Non-alcoholic beverages",
+      "parentId": "10000000-0000-4000-8000-000000000002",
+      "position": 20
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000203",
+      "key": "water-treatment",
+      "label": "Water treatment",
+      "parentId": "10000000-0000-4000-8000-000000000002",
+      "position": 30
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000003",
+      "key": "machinery-equipment",
+      "label": "Machinery & equipment",
+      "parentId": null,
+      "position": 30
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000301",
+      "key": "industrial-machinery",
+      "label": "Industrial machinery",
+      "parentId": "10000000-0000-4000-8000-000000000003",
+      "position": 10
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000302",
+      "key": "agricultural-equipment",
+      "label": "Agricultural equipment",
+      "parentId": "10000000-0000-4000-8000-000000000003",
+      "position": 20
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000303",
+      "key": "spare-parts",
+      "label": "Spare parts",
+      "parentId": "10000000-0000-4000-8000-000000000003",
+      "position": 30
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000004",
+      "key": "industrial-supplies",
+      "label": "Industrial supplies",
+      "parentId": null,
+      "position": 40
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000401",
+      "key": "raw-materials",
+      "label": "Raw materials",
+      "parentId": "10000000-0000-4000-8000-000000000004",
+      "position": 10
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000402",
+      "key": "industrial-consumables",
+      "label": "Industrial consumables",
+      "parentId": "10000000-0000-4000-8000-000000000004",
+      "position": 20
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000403",
+      "key": "safety-equipment",
+      "label": "Safety equipment",
+      "parentId": "10000000-0000-4000-8000-000000000004",
+      "position": 30
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000005",
+      "key": "hotel-hospitality",
+      "label": "Hotel & hospitality",
+      "parentId": null,
+      "position": 50
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000501",
+      "key": "hotel-equipment",
+      "label": "Hotel equipment",
+      "parentId": "10000000-0000-4000-8000-000000000005",
+      "position": 10
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000502",
+      "key": "furniture-fittings",
+      "label": "Furniture & fittings",
+      "parentId": "10000000-0000-4000-8000-000000000005",
+      "position": 20
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000503",
+      "key": "hospitality-consumables",
+      "label": "Hospitality consumables",
+      "parentId": "10000000-0000-4000-8000-000000000005",
+      "position": 30
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000006",
+      "key": "energy-infrastructure",
+      "label": "Energy & infrastructure",
+      "parentId": null,
+      "position": 60
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000601",
+      "key": "energy-equipment",
+      "label": "Energy equipment",
+      "parentId": "10000000-0000-4000-8000-000000000006",
+      "position": 10
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000602",
+      "key": "renewables",
+      "label": "Renewable energy",
+      "parentId": "10000000-0000-4000-8000-000000000006",
+      "position": 20
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000603",
+      "key": "construction-infrastructure",
+      "label": "Construction & infrastructure",
+      "parentId": "10000000-0000-4000-8000-000000000006",
+      "position": 30
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000007",
+      "key": "emergency-humanitarian",
+      "label": "Emergency & humanitarian supplies",
+      "parentId": null,
+      "position": 70
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000701",
+      "key": "emergency-food-water",
+      "label": "Emergency food & water",
+      "parentId": "10000000-0000-4000-8000-000000000007",
+      "position": 10
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000702",
+      "key": "humanitarian-equipment",
+      "label": "Humanitarian equipment",
+      "parentId": "10000000-0000-4000-8000-000000000007",
+      "position": 20
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000703",
+      "key": "shelter-relief",
+      "label": "Shelter & relief supplies",
+      "parentId": "10000000-0000-4000-8000-000000000007",
+      "position": 30
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000008",
+      "key": "other-opportunities",
+      "label": "Other opportunities",
+      "parentId": null,
+      "position": 80
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000801",
+      "key": "surplus-stock",
+      "label": "Surplus stock",
+      "parentId": "10000000-0000-4000-8000-000000000008",
+      "position": 10
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000802",
+      "key": "special-projects",
+      "label": "Special projects",
+      "parentId": "10000000-0000-4000-8000-000000000008",
+      "position": 20
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000803",
+      "key": "other-goods-services",
+      "label": "Other goods & services",
+      "parentId": "10000000-0000-4000-8000-000000000008",
+      "position": 30
+    }
+  ],
+  "currencies": [
+    {
+      "code": "EUR",
+      "label": "EUR — Euro",
+      "position": 10
+    },
+    {
+      "code": "USD",
+      "label": "USD — US dollar",
+      "position": 20
+    },
+    {
+      "code": "GBP",
+      "label": "GBP — Pound sterling",
+      "position": 30
+    },
+    {
+      "code": "NOK",
+      "label": "NOK — Norwegian krone",
+      "position": 40
+    },
+    {
+      "code": "PLN",
+      "label": "PLN — Polish złoty",
+      "position": 50
+    }
+  ]
+}
