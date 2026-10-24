@@ -1,5 +1,9 @@
 # Wydanie OWNER Command Book: jedna ścieżka aktualizacji
 
+**Aktualizacja:** Book został już połączony z gałęzią R1. Aktualny przebieg to
+[jeden installer operatora](PRODUCTION-R1-OWNER-RUN.md). Poniższy zapis jest
+historycznym przygotowaniem z poprzedniego checkpointu, nie dodatkową procedurą.
+
 **READY FOR PREFLIGHT, nie zgoda na wdrożenie.** Brak SSH do Contabo. Odczyty publicznych `/health` i `/api/config` zostały zablokowane przez proxy CONNECT 403, również po ponowieniu poza sandboxem; to nie jest dowód awarii strony. Nie znamy faktycznych kontenerów, wersji i stanu OWNER na serwerze. Nie zmieniono Contabo, DNS, kont ani produkcyjnych danych.
 
 ## Teraz: tylko odczytowy raport

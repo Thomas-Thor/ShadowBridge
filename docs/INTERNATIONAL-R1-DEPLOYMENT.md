@@ -1,5 +1,9 @@
 # International R1 — procedura operatora do zatwierdzenia
 
+**Aktualna procedura R1 + Book:** [jedno uruchomienie z Pop!_OS](PRODUCTION-R1-OWNER-RUN.md).
+Integracja jest ukończona. Poniższe kroki ręczne i wyniki opisują wcześniejszy etap;
+nie wykonywać ich równolegle z nowym koordynatorem aktualizacji.
+
 **Rozszerzenie OWNER Command Book / migracja 018:** przed użyciem tego historycznego
 przebiegu przeczytać [jedyną ścieżkę aktualizacji Book](OWNER-COMMAND-BOOK-RELEASE.md).
 Poniższe wyniki 001–017 opisują bazę R1, nie dowodzą wdrożenia nowego modułu.

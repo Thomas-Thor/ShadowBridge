@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-24",
+  "status": "READY FOR OWNER ACTION",
+  "deployedByCodex": false,
+  "branch": "release/shadowbridge-international-r1",
+  "integration": "fast-forward of reviewed OWNER Book 46414fb, then targeted host-tool fixes; no conflicts or main changes",
+  "requiredAncestorsVerified": [
+    "7f794a298713d820af033ba2174cd60bfaa81e4b",
+    "6d200ee084872b6c3123346e2f77c61010c94049",
+    "9a64cc0a0e4831e786e19bc1101a4126d66756ff",
+    "188cdafd8a91f215fd2c10aa4f893f482cb54564",
+    "46414fb7c02939ead7622f9a3bb0a5ed9bc16ef2"
+  ],
+  "productionEvidence": {
+    "source": "OWNER-provided real Contabo checks, not independent SSH inspection",
+    "reportedRelease": "7f794a298713d820af033ba2174cd60bfaa81e4b",
+    "mainHealthHttp": 200,
+    "mainTlsVerifiedByOperator": true,
+    "automationHealthHttp": 200,
+    "automationTlsVerifiedByOperator": true,
+    "signinHtmlHttp": 200,
+    "signinJsonHttp": 404,
+    "dnsConfirmedByOperator": true,
+    "onlyReportedBlocker": "DOMAIN_TLS_RELEASE_OR_N8N_NOT_PROVEN",
+    "sshCredentialsOrAgentAvailableToCodex": false,
+    "serverContainersProfilesOwnerAndLedgerIndependentlyRechecked": false
+  },
+  "fix": {
+    "diagnose": "JSON health versus HTML sign-in; pinned endpoint, independent TLS/HTTP/endpoint evidence",
+    "r1Verifier": "explicit Accept and sign-in content-type check",
+    "gatewayVerifier": "explicit Accept; existing TLS and HTML checks retained",
+    "productionFingerprintsRegenerated": false,
+    "tlsBypass": false
+  },
+  "latestTests": {
+    "targetedUnitFileAndTlsCasesPassed": 24,
+    "groups": [
+      {
+        "command": "node --test tests/r1-n8n-negotiation.test.mjs tests/international-r1.test.mjs tests/n8n-gateway.test.mjs",
+        "passed": 14,
+        "note": "initial 3 negotiation cases, 4 R1 and 7 gateway cases"
+      },
+      {
+        "command": "node --test --test-name-pattern='migration/source|HTTP evidence' tests/international-r1-audit.test.mjs",
+        "passed": 2
+      },
+      {
+        "command": "node --test tests/r1-n8n-negotiation.test.mjs tests/r1-production-release.test.mjs",
+        "passed": 11,
+        "distinctAdditionalCases": 8,
+        "note": "3 repeated negotiation cases counted once; includes actual local HTTPS with trusted/untrusted CA and real GCM archive checks"
+      }
+    ],
+    "actualPostgreSqlChecks": [
+      {
+        "kind": "real-pg-expiry-and-merged-ledger",
+        "productionChanges": false,
+        "realAccounts": false,
+        "interactiveGoTrueLoginTested": false,
+        "databaseRetained": "r1_expiry_31c91b6f",
+        "result": "PASS",
+        "appliedMigrationChecksumsMatchMergedRelease": 18,
+        "validBeforeExpiry": true,
+        "deniedAfterExpiry": true,
+        "denialAudited": true,
+        "accountAndMfaUnchanged": true
+      },
+      {
+        "kind": "actual-7f794a2-runtime-on-018",
+        "productionChanges": false,
+        "interactiveGoTrueLoginTested": false,
+        "result": "PASS",
+        "baselineImage": "sha256:8eb2a2f10f17fdf843887e2f9bc4d53a474738fbddb82a021d7019e111e74497",
+        "baselineSha": "7f794a298713d820af033ba2174cd60bfaa81e4b",
+        "baselineRuntimeFilesMatched": 61,
+        "existingRowsUnchanged": true,
+        "bookRecordsRetained": true,
+        "databaseRetained": "r1_old_app_018_b295bd43"
+      }
+    ],
+    "operatorCoordinatorOnActualContabo": "NOT EXECUTED",
+    "ownerInteractiveLoginOnContaboByCodex": "NOT EXECUTED",
+    "runtimeAndSqlUnchangedFromBuiltAndTestedBookSource": "df8023cf659557883274274db648c11290d073d3",
+    "historicalBookEvidence": "OWNER-COMMAND-BOOK-RESULTS.json; 23 integration/UI/restore/native groups and 37 distinct unit cases; not rerun without source changes"
+  },
+  "operatorProcedure": "PRODUCTION-R1-OWNER-RUN.md",
+  "operatorInstallerSha256": "a8d8baadb32266cf2ca60c46c53fd5362a9ad9a52dafa6e49e82582606343f31",
+  "controls": [
+    "exact clean R1 SHA and required ancestry",
+    "standalone live inventory before checkout",
+    "existing active OWNER + recent audited MFA before preparation and after acceptance",
+    "no migration until authenticated DB/config/cert backup verification and a matching offsite receipt",
+    "preserve existing image and fingerprinted gateway",
+    "remote Book API forced false",
+    "application-only rollback; no source database restore or volume deletion",
+    "no paid calls, SMTP activation, n8n workflow import or Apollo/Clay activation"
+  ],
+  "limits": [
+    "No Contabo SSH execution by Codex; final deployment/acceptance remain operator action",
+    "New coordinator tested through failure-injection ordering, archive crypto and shell checks; not represented as an end-to-end VPS execution",
+    "Live backup check authenticates archives and catalog; full restore test remains earlier isolated evidence",
+    "Actual production UI and current OWNER identity require interactive acceptance; no role inferred from a name",
+    "Machine API stays disabled, so production scope requests cannot be exercised until separately approved activation",
+    "SSH failure can require operator review of the retained checkpoint; no destructive automatic retries"
+  ],
+  "sourceSha256": {
+    "scripts/international-r1-diagnose.mjs": "97931c030206fe87afff9c19afbf37b78b9a44c3ecc05b6251dbfaa82c0236f6",
+    "scripts/international-r1.mjs": "123b93d2a7ddce5c200f5163631610a206f152ed3dcb6087c429a188ce89df9a",
+    "scripts/n8n-gateway.mjs": "dcd619aec1fdd23650c0599e430b9273dedb2778f0998b7cd9cb5e5b22729fcf",
+    "scripts/r1-production-release.mjs": "1dbeb1ebaeed47430950fbb4977f37071cf9ece647f58911ae7a0aab8b92729a",
+    "scripts/r1-owner-deploy.mjs": "a8d8baadb32266cf2ca60c46c53fd5362a9ad9a52dafa6e49e82582606343f31",
+    "supabase/migrations/202610240018_owner_command_book.sql": "300d772a3ad4893175fc1bc503d0edd5aca80c80d0d48fde3794c59b3caf9a34"
+  }
+}

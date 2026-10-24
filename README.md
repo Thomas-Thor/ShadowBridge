@@ -1,5 +1,8 @@
 # ShadowBridge — secure private B2B MVP
 
+**Wydanie produkcyjne R1 + OWNER Book:** [jedyna aktualna procedura operatora](docs/PRODUCTION-R1-OWNER-RUN.md).
+Integracja jest na gałęzi `release/shadowbridge-international-r1`; brak wdrożenia z sesji Codexa.
+
 OWNER Command Book V1: [widoki i granice integracji](docs/OWNER-COMMAND-BOOK.md),
 [rzeczywiste wyniki testów](docs/OWNER-COMMAND-BOOK-RESULTS.json),
 [przygotowanie aktualizacji Contabo](docs/OWNER-COMMAND-BOOK-RELEASE.md).
