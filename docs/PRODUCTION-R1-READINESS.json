@@ -30,10 +30,11 @@
     "r1Verifier": "explicit Accept and sign-in content-type check",
     "gatewayVerifier": "explicit Accept; existing TLS and HTML checks retained",
     "productionFingerprintsRegenerated": false,
-    "tlsBypass": false
+    "tlsBypass": false,
+    "operatorBuildLog": "Handle null stdout from execFileSync when build output uses private file descriptors; real child-process regression passed"
   },
   "latestTests": {
-    "targetedUnitFileAndTlsCasesPassed": 24,
+    "targetedUnitFileAndTlsCasesPassed": 25,
     "groups": [
       {
         "command": "node --test tests/r1-n8n-negotiation.test.mjs tests/international-r1.test.mjs tests/n8n-gateway.test.mjs",
@@ -49,6 +50,12 @@
         "passed": 11,
         "distinctAdditionalCases": 8,
         "note": "3 repeated negotiation cases counted once; includes actual local HTTPS with trusted/untrusted CA and real GCM archive checks"
+      },
+      {
+        "command": "node --test tests/r1-production-release.test.mjs",
+        "passed": 8,
+        "distinctAdditionalCases": 1,
+        "note": "Final fix: successful build redirected to a private file is not treated as a failure; seven unchanged coordinator cases also pass."
       }
     ],
     "actualPostgreSqlChecks": [
@@ -107,7 +114,7 @@
     "scripts/international-r1-diagnose.mjs": "97931c030206fe87afff9c19afbf37b78b9a44c3ecc05b6251dbfaa82c0236f6",
     "scripts/international-r1.mjs": "123b93d2a7ddce5c200f5163631610a206f152ed3dcb6087c429a188ce89df9a",
     "scripts/n8n-gateway.mjs": "dcd619aec1fdd23650c0599e430b9273dedb2778f0998b7cd9cb5e5b22729fcf",
-    "scripts/r1-production-release.mjs": "1dbeb1ebaeed47430950fbb4977f37071cf9ece647f58911ae7a0aab8b92729a",
+    "scripts/r1-production-release.mjs": "8c06af5f6f9613f94cd3b6ca494e1fa237b68003ac75f82f930cd9858acd7aa4",
     "scripts/r1-owner-deploy.mjs": "a8d8baadb32266cf2ca60c46c53fd5362a9ad9a52dafa6e49e82582606343f31",
     "supabase/migrations/202610240018_owner_command_book.sql": "300d772a3ad4893175fc1bc503d0edd5aca80c80d0d48fde3794c59b3caf9a34"
   }

@@ -1,14 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes,createHash} from 'node:crypto';
-import {mkdir,writeFile,readFile,rm} from 'node:fs/promises';
+import {mkdir,writeFile,readFile,rm,open} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
-import {validateReceipt,controlledApply,runRelease,verifiedTar,releaseAncestors} from '../scripts/r1-production-release.mjs';
+import {validateReceipt,controlledApply,runRelease,verifiedTar,releaseAncestors,runOperatorCommand} from '../scripts/r1-production-release.mjs';
 import {bootstrap,digestFile} from '../scripts/r1-owner-deploy.mjs';
 import {encryptArchive} from '../scripts/staging-backup.mjs';
 const release='a'.repeat(40),names=['database','configuration','certificates'].flatMap(n=>[n+'.sbb',n+'.key']);
 const manifest=()=>({kind:'shadowbridge-r1-offsite-bundle-v1',release,nonce:'fictional-one-release',files:names.map(name=>({name,bytes:100,sha256:'b'.repeat(64)}))});
 const receipt=m=>({...m,kind:'shadowbridge-r1-offsite-receipt-v1',verifiedOnDifferentHost:true});
+test('a successful build with output redirected to a private log does not become a false failure',async()=>{
+ const dir=new URL('../.local/r1-build-log-'+randomBytes(5).toString('hex')+'/',import.meta.url);await mkdir(dir,{recursive:true,mode:0o700});const file=new URL('build.log',dir),fd=await open(file,'wx',0o600);
+ try{assert.equal(runOperatorCommand(process.execPath,['-e',"process.stdout.write('FICTIONAL build completed')"],{stdio:['ignore',fd.fd,fd.fd]}),'');await fd.close();assert.equal(await readFile(file,'utf8'),'FICTIONAL build completed');}
+ finally{await fd.close().catch(()=>{});await rm(dir,{recursive:true,force:true});}
+});
 test('all six offsite artifacts must match this exact release and backup generation',()=>{
  const m=manifest();assert.doesNotThrow(()=>validateReceipt(m,receipt(m)));
  for(const mutate of [r=>r.release='c'.repeat(40),r=>r.nonce='old-backup',r=>r.verifiedOnDifferentHost=false,r=>r.files.pop(),r=>r.files[0].sha256='d'.repeat(64),r=>r.files[1].bytes=1]){const r=receipt(structuredClone(m));mutate(r);assert.throws(()=>validateReceipt(m,r));}

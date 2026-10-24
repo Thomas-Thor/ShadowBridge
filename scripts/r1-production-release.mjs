@@ -18,7 +18,8 @@ import {migrationSources,validateApplied} from './staging-migrate.mjs';
 import {prepareApplicationPlan,checkApplicationPlan,checkMergedApplication,preflightExistingR1,backupApplicationConfiguration,backupGatewayVolumes,verifyR1Http} from './international-r1.mjs';
 
 const must=(v,m)=>{if(!v)throw Error(m);},hash=b=>createHash('sha256').update(b).digest('hex');
-const exec=(bin,args,options={})=>{try{return execFileSync(bin,args,{cwd:repositoryRoot,encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:32*1024**2,...options}).trim();}catch{throw Error('Operacja nie powiodła się; prywatne dane wyjściowe nie zostały opublikowane.');}};
+export const runOperatorCommand=(bin,args,options={})=>{try{const output=execFileSync(bin,args,{cwd:repositoryRoot,encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:32*1024**2,...options});return typeof output==='string'?output.trim():'';}catch{throw Error('Operacja nie powiodła się; prywatne dane wyjściowe nie zostały opublikowane.');}};
+const exec=runOperatorCommand;
 const docker=args=>exec('docker',['--context','default',...args]);
 const git=args=>exec('git',['-c','safe.directory='+repositoryRoot,...args]);
 async function hashFile(file){const h=createHash('sha256');for await(const c of createReadStream(file))h.update(c);return h.digest('hex');}
