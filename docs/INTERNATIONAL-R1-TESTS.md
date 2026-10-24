@@ -1,5 +1,21 @@
 # R1 — rzeczywiste wyniki i granice
 
+## Końcowy audyt przed Contabo — 24.10.2026
+
+**29 różnych celowanych przypadków PASS**: 13 nowych inventory/budget oraz
+3 R1, 9 production-ops i 4 password-recovery. Powtarzane podzbiory nie zwiększają
+liczby. Testy katalogu porównały wszystkie 61 plików bazowej wersji z Git 7f794a2,
+17 migracji i rzeczywiste pliki zachowanych fikcyjnych profili. Testy HTTP są
+syntetyczne; potwierdziły brak jakiegokolwiek POST w preflight. Odczytano również
+rzeczywiste mounts/statfs/inody Codexa i sprawdzono odmowę ciężkich testów
+z /workspace/default Docker. Nie wykonywano nowej pełnej integracji, budowy,
+resetu hasła, migracji lub testów na Contabo.
+
+Zachowane poniżej dowody backendu/runtime pozostają historyczne. Zmiany dotyczą
+wyłącznie hostowych narzędzi, guardu testów i dokumentacji. Ostateczna gotowość:
+**READY FOR PREFLIGHT**, zgodnie z [końcowym audytem](INTERNATIONAL-R1-FINAL-AUDIT.md).
+
+
 ## Domknięcie 24.10.2026
 
 - **4/4 build PASS**: oficjalny Dockerfile, Node 24 Alpine, runtime i migrator
@@ -153,7 +169,10 @@ w tym samym katalogu testowym. W minimalnym rootfs daemona potrzebne są działa
 iptables/ip6tables (w tym symlinki /etc/alternatives); inaczej nie działa DNS.
 Przed testem buduje się po dwa obrazy z oficjalnego Dockerfile: tagi
 shadowbridge-r1-full:{baseline,candidate} i shadowbridge-r1-migrate:{baseline,candidate},
-z odpowiednim SHADOWBRIDGE_RELEASE_SHA. Repo zachowuje własne test dependencies.
+z odpowiednim SHADOWBRIDGE_RELEASE_SHA. Repo zachowuje własne test dependencies. **Od końcowego audytu ciężki suite wymaga
+całego checkoutu i jego .local na tej samej puli /tmp co Docker. Nie uruchamiać
+go ponownie z /workspace. Zachowane wcześniejsze fixture/wyniki nie są przenoszone
+ani resetowane dla ominięcia tego guardu.**
 
 Uruchomienie dla dewelopera po przygotowaniu takiego izolowanego daemona/obrazów:
 

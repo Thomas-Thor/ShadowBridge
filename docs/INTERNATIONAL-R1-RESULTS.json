@@ -1,5 +1,5 @@
 {
-  "status": "LOCAL_RELEASE_VALIDATION_PASS_SERVER_PREFLIGHT_REQUIRED",
+  "status": "READY FOR PREFLIGHT",
   "date": "2026-10-24",
   "branch": "release/shadowbridge-international-r1",
   "productionBase": "7f794a298713d820af033ba2174cd60bfaa81e4b",
@@ -195,8 +195,8 @@
     "paidServicesCreated": false
   },
   "sourceHashes": {
-    "scripts/international-r1.mjs": "aa72e8cb9af10abea60eaf35e80611d25e54690448aa772a505d50e312914d82",
-    "scripts/production-ops.mjs": "410fa4e5a24b61ebdd542230c251089569ec4d24ef4ac5b0a63006db173cbe97",
+    "scripts/international-r1.mjs": "242dcfc47db4ce18c45ce0fc1d4531c597c3f3f20c0f6b1f40a1323ee23e1e92",
+    "scripts/production-ops.mjs": "5514421ad7f6a9e53f9bc61599f3a1ee00081751b0c888e384489d689cc5a438",
     "scripts/production-config.mjs": "aac21a7863459ab8b11daeb4bfd56307ad904169d47e3f1de321504b95d52122",
     "scripts/n8n-gateway-profile.mjs": "8e7ec3e81e72b96e0b992dd7f8a10a999409860662714adb201b31aaaff5d873",
     "scripts/n8n-gateway.mjs": "660e6f52e6c0ce268455366adba3fbb7e08b666855f77e4023ef6aad22873e5d",
@@ -212,9 +212,12 @@
     "tests/international-r1.cases.mjs": "a1ff98e5d12575d1401e7051c711b5e4aa5c361d01e75c60c766df4099b1633a",
     "tests/international-r1.integration.mjs": "049241f754fbc0b2214f5a6d84a8f378eee44abe419185d35987808fd89dbe3d",
     "tests/international-r1-gateway.integration.mjs": "30e6ea477fea0073295a226d295e61eca45994851ffd3d2ef1c498a2829b8ad4",
-    "tests/international-r1.test.mjs": "4673b16115058a99465354383e1d313cd2900de56e379cc6072f0a19c1bbb9e0",
-    "tests/international-r1-stack.integration.mjs": "3c73dbec2f7348fe00b9bb055b0c94e03b4b66534d39094c1e89dd4b0d2a7c66",
-    "tests/fixtures/international-r1-docker.py": "aad83ab02ee689a5df22e278a0a4814128b9a7283c15ac3133b4017f7d61fac2"
+    "tests/international-r1.test.mjs": "08d42152b4ba70eea86a4346f5d3968552799f65fedfa9cac00ef478130dd586",
+    "tests/international-r1-stack.integration.mjs": "8511037768f2e4d0bcee63e4e15192c68c1477b79dedc649f596ab52cf372968",
+    "tests/fixtures/international-r1-docker.py": "aad83ab02ee689a5df22e278a0a4814128b9a7283c15ac3133b4017f7d61fac2",
+    "scripts/international-r1-diagnose.mjs": "0d43a95e72f6e71927a7a9c12af66d1a0768190a07e026fa88ef9e724d13aa28",
+    "scripts/workspace-space.mjs": "7302ee2a27c91c0e3c18f45f5e46222104fb3808f6bfa6f0cdbd5ff0b5e27d6c",
+    "tests/international-r1-audit.test.mjs": "bc3585a4fd264a1785da3e6551696966a92bd8bda83e9abf4c38b47ae31b4c62"
   },
   "realProductionStack": {
     "kind": "real-international-r1-production-images",
@@ -274,5 +277,7 @@
     "filesCompared": 64,
     "runtimeMatchesCurrentTree": true,
     "imageRevision": "faed3e46aaaaf8c164d93f2eed7896e834dbe53b"
-  }
+  },
+  "finalAudit": "INTERNATIONAL-R1-FINAL-AUDIT.json",
+  "currentEvidenceNote": "Real build/stack results retained from 24.10; new read-only inventory/resource tooling tested separately. No Contabo verification."
 }

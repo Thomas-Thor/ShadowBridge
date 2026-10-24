@@ -1,5 +1,11 @@
 # ShadowBridge — przejście z prywatnej instalacji na główną domenę
 
+> **Dla International R1: dokument historyczny, nie bieżąca instrukcja.**
+> Jedyną procedurą jest [INTERNATIONAL-R1-DEPLOYMENT](INTERNATIONAL-R1-DEPLOYMENT.md),
+> zaczynająca się od odczytu Contabo bez zmiany checkoutu. Nie wykonywać poniższych
+> starych poleceń deploy/gateway jako sposobu aktualizacji R1.
+
+
 **Aktualizacja 22.10.2026:** obowiązuje teraz
 [procedura bez poczty](CONTABO-NO-MAIL.md). Poniższy opis Gmaila i tworzenia
 oddzielnego projektu odzyskiwania jest historyczny; nie jest bieżącą procedurą.

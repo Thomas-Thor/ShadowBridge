@@ -1,0 +1,148 @@
+{
+  "status": "READY FOR PREFLIGHT",
+  "date": "2026-10-24",
+  "startingCommit": "9a34bab9a12238ae935e70eaf961f75a8a2ae338",
+  "branch": "release/shadowbridge-international-r1",
+  "contaboRead": false,
+  "productionChanged": false,
+  "sshAvailable": false,
+  "knownHistory": {
+    "privateStagingAndSeparatePublicCaddy": "documented",
+    "production7f794a2": "owner-stated-not-SSH-attested",
+    "fingerprintedGateway9a64cc0": "prepared-and-locally-tested-not-confirmed-applied",
+    "manualEdgeAttachment": "owner-stated"
+  },
+  "directUpgradeApproved": false,
+  "requiredNextStep": "standalone read-only Contabo inventory before any checkout change; stop if legacy/manual/unknown",
+  "currentTargetedTests": {
+    "newAuditAndBudgetCases": 13,
+    "existingTargetedCases": 16,
+    "distinctPassed": 29,
+    "overlappingSubsetRerunsNotAdded": true,
+    "kind": "unit, read-only file fingerprints and filesystem checks; HTTP synthetic"
+  },
+  "retainedTests": {
+    "officialBuilds": 4,
+    "realFullStackGroups": 6,
+    "restoredSqlTablesIncludingLedger": 71,
+    "persistentCaddyFiles": 13,
+    "runtimeFilesCompared": 64,
+    "notRepeated": true
+  },
+  "ownerPasswordRecovery": {
+    "sourceIdenticalTo7f794a2": true,
+    "realTestDate": "2026-10-22",
+    "retestedOrExecutedNow": false,
+    "mfaResetPermitted": false,
+    "requiresSeparateApproval": true
+  },
+  "resourceProtection": {
+    "cleanup": {
+      "removedOwnObsoleteImageCaches": [
+        {
+          "cache": "vfs",
+          "bytes": 12601589760
+        },
+        {
+          "cache": "image",
+          "bytes": 11038720
+        },
+        {
+          "cache": "buildkit",
+          "bytes": 102400
+        },
+        {
+          "cache": "containerd",
+          "bytes": 86016
+        }
+      ],
+      "containersDeleted": false,
+      "volumesDeleted": false,
+      "backupsDeleted": false,
+      "removedOwnNpmCacheBytes": 62390272
+    },
+    "measurements": {
+      "retainedPool": {
+        "result": "PASS",
+        "reasons": [],
+        "requiredMiB": 8192,
+        "reserveMiB": 2048,
+        "maxUsedMiB": 12288,
+        "rootMetadataReserveMiB": 128,
+        "root": {
+          "device": 27,
+          "freeBytes": 143077376,
+          "usedBytes": 31892353024,
+          "freeInodes": 518428
+        },
+        "pool": {
+          "device": 34,
+          "freeBytes": 15622742016,
+          "usedBytes": 2249138176,
+          "freeInodes": 4186040
+        },
+        "directory": "/tmp/shadowbridge-r1-isolated",
+        "dockerInPool": true,
+        "workspaceInPool": true,
+        "readOnly": true
+      },
+      "activeCheckout": {
+        "result": "BLOCKED",
+        "reasons": [
+          "Fixture checkout and backups are outside the temporary pool"
+        ],
+        "requiredMiB": 8192,
+        "reserveMiB": 2048,
+        "maxUsedMiB": 12288,
+        "rootMetadataReserveMiB": 128,
+        "root": {
+          "device": 27,
+          "freeBytes": 143077376,
+          "usedBytes": 31892353024,
+          "freeInodes": 518428
+        },
+        "pool": {
+          "device": 34,
+          "freeBytes": 15622742016,
+          "usedBytes": 2249138176,
+          "freeInodes": 4186040
+        },
+        "directory": "/tmp/shadowbridge-r1-isolated",
+        "dockerInPool": true,
+        "workspaceInPool": false,
+        "readOnly": true
+      }
+    },
+    "heavyTestsRunNow": false,
+    "heavyTestsInWorkspaceBlocked": true,
+    "futureFixtureCheckoutAndDockerMustBeInTmp": true
+  },
+  "operatorProcedure": "docs/INTERNATIONAL-R1-DEPLOYMENT.md#0-zastana-instalacja--jedyny-krok-do-wykonania-teraz",
+  "diagnosticSha256": "0d43a95e72f6e71927a7a9c12af66d1a0768190a07e026fa88ef9e724d13aa28",
+  "unverifiedOnContabo": [
+    "actual running images and source revision",
+    "private/public/legacy gateway selection and active fingerprints",
+    "Docker network bindings and volume names",
+    "migration ledger and database preservation",
+    "public DNS/TLS and n8n runtime",
+    "existing actual OWNER email/role/TOTP and interactive sign-in",
+    "fresh encrypted backups, offline copies and previous immutable app image",
+    "active runtime configuration values match the preserved profile; private Auth TLS"
+  ],
+  "goLiveSeparate": [
+    "SMTP and email verification/recovery",
+    "new-user onboarding and review operations",
+    "offsite recovery and privacy/retention",
+    "secure private offer attachments",
+    "public Market is outside R1"
+  ],
+  "sourceHashes": {
+    "scripts/international-r1-diagnose.mjs": "0d43a95e72f6e71927a7a9c12af66d1a0768190a07e026fa88ef9e724d13aa28",
+    "scripts/workspace-space.mjs": "7302ee2a27c91c0e3c18f45f5e46222104fb3808f6bfa6f0cdbd5ff0b5e27d6c",
+    "scripts/international-r1.mjs": "242dcfc47db4ce18c45ce0fc1d4531c597c3f3f20c0f6b1f40a1323ee23e1e92",
+    "scripts/production-ops.mjs": "5514421ad7f6a9e53f9bc61599f3a1ee00081751b0c888e384489d689cc5a438",
+    "tests/international-r1-audit.test.mjs": "bc3585a4fd264a1785da3e6551696966a92bd8bda83e9abf4c38b47ae31b4c62",
+    "tests/international-r1.test.mjs": "08d42152b4ba70eea86a4346f5d3968552799f65fedfa9cac00ef478130dd586",
+    "tests/international-r1-stack.integration.mjs": "8511037768f2e4d0bcee63e4e15192c68c1477b79dedc649f596ab52cf372968"
+  }
+}

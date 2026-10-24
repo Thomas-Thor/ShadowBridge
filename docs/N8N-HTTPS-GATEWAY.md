@@ -1,5 +1,11 @@
 # n8n — osobna poprawka HTTPS Gateway
 
+> **Dla International R1: dokument historyczny, nie bieżąca instrukcja.**
+> Jedyną procedurą jest [INTERNATIONAL-R1-DEPLOYMENT](INTERNATIONAL-R1-DEPLOYMENT.md),
+> zaczynająca się od odczytu Contabo bez zmiany checkoutu. Nie wykonywać poniższych
+> starych poleceń deploy/gateway jako sposobu aktualizacji R1.
+
+
 Stan 22.10.2026: przygotowana i przetestowana lokalnie, **bez wdrożenia Contabo**.
 Gałąź `fix/n8n-https-gateway` powstała bezpośrednio z produkcyjnego
 `7f794a298713d820af033ba2174cd60bfaa81e4b`. Nie zawiera migracji OWNER VAULT 016,

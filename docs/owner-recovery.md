@@ -1,5 +1,12 @@
 # Odzyskanie dostępu OWNER
 
+**R1: odzyskiwanie nie jest częścią preflight ani zwykłej aktualizacji.**
+Publiczne ścieżki pocztowe są obecnie wyłączone. Poniższy mechanizm odzyskania
+samego hasła z zachowaniem istniejącego TOTP wymaga odrębnej zgody i incydentu.
+Ogólne punkty o utracie roli lub authenticatora opisują osobny plan awaryjny;
+nie są poleceniem bootstrapu lub resetu konta przy wdrażaniu R1.
+
+
 Ta procedura jest przeznaczona dla właściciela i wyznaczonego operatora infrastruktury. Nie jest publicznym mechanizmem odzyskiwania uprawnień. Director, Manager, Staff i członek C.A.R.T.E.L. nie mogą jej uruchomić przez API.
 
 1. **Utrata hasła OWNER:** sam link e-mail nie wystarcza do zmiany metody uwierzytelniania najwyższego konta. Samodzielny reset hasła OWNER jest w MVP zablokowany po stronie serwera (`owner_recovery_controlled`). Właściciel z działającym authenticatorem kontaktuje się z wyznaczonym operatorem infrastruktury; operator potwierdza tożsamość poza aplikacją oraz aktualny drugi składnik, rejestruje incydent i korzysta wyłącznie ze sprawdzonego administracyjnego mechanizmu dostawcy Auth. Nie ma formularza przyjmującego identyfikator innego użytkownika ani publicznego obejścia. Zwykłe konta Buyer/Supplier/Partner zachowują reset po potwierdzeniu e-maila.

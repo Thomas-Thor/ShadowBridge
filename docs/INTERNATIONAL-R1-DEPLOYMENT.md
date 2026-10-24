@@ -12,7 +12,47 @@ zakupu usług, uruchamiania demo lub tworzenia kont. Nie używać pełnego
 `production:deploy`, prywatnego `staging:ops update` ani `n8n-gateway apply` z R1.
 Ich wcześniejsze ograniczenia pozostają celowo aktywne.
 
-## 0. Zanim rozpocznie się okno
+## 0. Zastana instalacja — jedyny krok do wykonania teraz
+
+**Status wydania: READY FOR PREFLIGHT. Nie READY FOR DEPLOYMENT APPROVAL.**
+Nie potwierdzono przez SSH, że historyczny prywatny staging i oddzielny publiczny
+Caddy zostały zastąpione profilowaną produkcją. 7f794a2 to wersja aplikacji podana
+przez OWNER; 9a64cc0 to wersja narzędzi gatewaya. Żaden z tych numerów ani sam
+checkout Git nie potwierdza działających kontenerów. Aktywny gateway sprawdza się
+po fingerprintach, zamontowanym Caddyfile, stanie `active` i sieci, nie po samym SHA.
+
+**Nie przełączać checkoutu przed poniższym odczytem.** Skrypt jest samodzielny,
+bez npm/dependencies. Pobiera się go do nowego katalogu /tmp; repo, profile,
+kontenery, DNS i konta pozostają nietknięte. Wymagane już istniejące Node >=22,
+Docker, curl i sha256sum. Wszystkie polecenia w jednym bloku: Contabo, shadowadmin.
+
+```sh
+(
+  set -eu
+  R1_DIAG_DIR="$(mktemp -d /tmp/shadowbridge-r1-preflight.XXXXXX)"
+  curl --fail --silent --show-error --location 'https://raw.githubusercontent.com/Thomas-Thor/ShadowBridge/release/shadowbridge-international-r1/scripts/international-r1-diagnose.mjs' --output "$R1_DIAG_DIR/check.mjs"
+  printf '%s  %s\n' '0d43a95e72f6e71927a7a9c12af66d1a0768190a07e026fa88ef9e724d13aa28' "$R1_DIAG_DIR/check.mjs" | sha256sum --check -
+  sudo node "$R1_DIAG_DIR/check.mjs" --repo=/opt/shadowbridge
+)
+```
+
+Oczekiwany raport JSON nie zawiera haseł, sekretów, e-maili OWNER ani rekordów CRM.
+**Przekazać ten raport do przeglądu i zatrzymać się.** Ctrl+C bezpiecznie przerywa
+odczyt. Przy błędzie pobrania lub sumy kontrolnej skrypt nie zostanie wykonany.
+Nie kasować zastanych plików ani nie instalować brakujących usług w ramach audytu.
+
+- `BLOCKED`: osobny publiczny Caddy, prywatny/nieznany runtime, ręczny gateway,
+  brak/inna historia migracji lub inna przeszkoda. Wymagany **wcześniejszy etap
+  zgodności**, zaprojektowany z tego raportu i osobno zatwierdzony. Nie uruchamiać
+  starego production:deploy, nie tworzyć fikcyjnych manifestów, nie obchodzić guardów.
+- `READY FOR PREFLIGHT`: rozpoznano zgodną bazę aktualizacji. Nadal potrzebne są
+  osobista próba OWNER+TOTP, sprawdzenie kopii i osobne zatwierdzenie okna. Wynik
+  nie dowodzi działania konta konkretnej osoby ani istnienia kopii poza VPS.
+
+Poniższe kroki 1–6 są **jedynym dalszym przebiegiem**, wyłącznie dla zgodnej,
+zatwierdzonej instalacji. Nie są teraz poleceniem wykonania wdrożenia.
+
+### Warunek dalszego ciągu
 
 Operator potwierdza rzeczywisty projekt, katalog `.local`, historię migracji,
 niezmieniony aktywny profil gatewaya i wolumeny. OWNER sam sprawdza istniejące
@@ -51,7 +91,7 @@ nie jest poleceniem jego utworzenia. Jeśli jest inny, zmienić tę jedną zmien
 Przerwanie: Ctrl+C; uruchomione usługi nie zmieniły się. Powrót checkoutu do
 poprzedniego SHA nie jest sam w sobie rollbackiem obrazu aplikacji.
 
-### Odczytowa bramka przed budową i oknem
+### Odczytowa bramka zgodnej instalacji przed budową i oknem
 
 ```sh
 sudo node scripts/international-r1.mjs preflight --dir="$SB_SOURCE"
@@ -61,7 +101,8 @@ df -h / /var/lib/docker
 Oczekiwane: `PASS`, `readOnly:true`, `deployed:false`. Preflight niczego nie
 aktualizuje, nie uruchamia migracji i nie zmienia kont. Sprawdza profile i sieć,
 prywatne porty, istniejące OWNER+potwierdzony e-mail+MFA, ledger i oba HTTPS.
-Nie zastępuje osobistej próby logowania OWNER. Błąd/inna baza niż 7f794a2: STOP,
+Nie zastępuje osobistej próby logowania OWNER. W trybie preflight nie wykonuje
+POST, wysyłki poczty ani testu resetu; odczytuje wyłącznie GET i SELECT. Błąd/inna baza niż 7f794a2: STOP,
 zachować wynik bez sekretów; nie naprawiać manifestów ani kont na ślepo.
 Przed buildem wymagane wolne miejsce na nowe obrazy i wszystkie kopie bez
 usuwania poprzednich obrazów. Oryginalny profil pozostaje kotwicą 7f794a2.
@@ -190,6 +231,26 @@ z aktualnym drzewem. Dalszy commit zmienia tylko hostowe narzędzia/testy/raport
 nie runtime. Obraz instalowany na Contabo trzeba zbudować z pełnym zatwierdzonym
 SHA i odpowiadającą mu etykietą OCI, czego pilnuje `prepare`.
 
-Nie uruchomiono tej procedury na Contabo. Odczytowy preflight oraz osobista
+Nie uruchomiono tej procedury na Contabo. Gdy etap 0 wykaże starszy układ,
+ta ścieżka wymiany samej aplikacji nie przejmuje jego portów, tunelu ani osobnego Caddy. Odczytowy preflight oraz osobista
 próba OWNER są wymagane na rzeczywistej instalacji. Rejestracja/reset przez
 pocztę pozostają wyłączone; nie jest to pełny go-live dla nowych użytkowników.
+
+## Odzyskanie samego hasła OWNER — poza aktualizacją
+
+Istniejące narzędzie `scripts/owner-password-recovery.mjs` jest niezmienione
+wobec 7f794a2. Rzeczywistą próbę na fikcyjnym GoTrue wykonano 22.10; nie powtarzano
+jej teraz. Po niezależnym potwierdzeniu tożsamości, numerze incydentu, backupie
+oraz osobnej zgodzie operator zmienia wyłącznie hasło przez prywatny Auth,
+unieważnia sesje tego OWNER i zachowuje role oraz dotychczasowy TOTP.
+Nie tworzy OWNER, nie potwierdza automatycznie e-maila i nie resetuje MFA.
+[Procedura awaryjna](owner-recovery.md). Brak authenticatora to inny, jeszcze
+nieprzećwiczony scenariusz; sama zmiana hasła go nie rozwiązuje.
+
+## Późniejszy publiczny go-live
+
+SMTP, rejestracja/resend/reset zwykłych kont, realne dostarczanie wiadomości,
+obsługa aplikacji/kolejki, polityki prywatności i retencji, offsite recovery oraz
+prywatne materiały ofert wymagają osobnych kontroli. Rejestracja/reset e-mail
+pozostają wyłączone w tym wydaniu. Publiczna giełda/Market nie jest częścią R1;
+International pozostaje platformą pośrednictwa z poufnymi kontrahentami.

@@ -1,5 +1,12 @@
 # International R1 — checkpoint i bramka wydania
 
+**Końcowy audyt: READY FOR PREFLIGHT.** Brak odczytu Contabo uniemożliwia
+zatwierdzenie bezpośredniego deployu. Znany historyczny staging/oddzielny Caddy
+może wymagać wcześniejszego etapu zgodności. Nie uznawać wymaganych profili za
+istniejące na podstawie samych lokalnych testów. Obowiązuje etap 0
+[jedynej procedury operatora](INTERNATIONAL-R1-DEPLOYMENT.md).
+
+
 **24.10.2026. Pakiet techniczny: przetestowany lokalnie. Wdrożenie: niewykonane.**
 
 Zamknięto blokady lokalnych obrazów, rollbacku i pełnego odtworzenia stosu.

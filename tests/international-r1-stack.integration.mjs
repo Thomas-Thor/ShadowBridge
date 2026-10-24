@@ -14,6 +14,7 @@ import {prepareApplicationPlan,checkMergedApplication,backupApplicationConfigura
 import {backupStaging,decryptBackup,restoreConfiguration,decryptArchive} from '../scripts/staging-backup.mjs';
 import {restoredVaultRolesSql} from '../scripts/vault-recovery-roles.mjs';
 import {restoredSentinelRoleSql} from '../scripts/staging-ops.mjs';
+import {inspectSpace} from '../scripts/workspace-space.mjs';
 
 const privateRoot='/tmp/shadowbridge-r1-isolated';
 assert.equal(process.env.SHADOWBRIDGE_R1_ISOLATED_TEST,'1','Explicit isolated fixture opt-in is required');
@@ -21,6 +22,7 @@ assert.ok(process.env.PATH.startsWith(privateRoot+'/bin:'),'Use the reviewed iso
 const docker=(args,input)=>execFileSync('docker',args,{cwd:root,encoding:'utf8',input,stdio:['pipe','pipe','pipe'],maxBuffer:32*1024**2}).trim();
 assert.equal(JSON.parse(docker(['info','--format','{{json .}}'])).DockerRootDir,privateRoot+'/overlay-data');
 assert.equal(docker(['info','--format','{{.Driver}}']),'overlay2');
+assert.equal((await inspectSpace({directory:privateRoot})).result,'PASS','Disk/inode/Docker isolation budget must pass before starting a fixture');
 const arg=process.argv.find(v=>v.startsWith('--dir='))?.slice(6);
 const id=arg?path.basename(arg).replace('r1-stack-',''):randomBytes(5).toString('hex');assert.match(id,/^[a-f0-9]{10}$/);
 const directory=path.join(root,'.local','r1-stack-'+id),stateFile=path.join(directory,'state.json');
@@ -56,7 +58,7 @@ async function transport(input,options={}){
 async function ready(){
  for(let i=0;i<120;i++){try{if((await transport('https://shadow-bridge.eu/health')).status===200)return;}catch{}await new Promise(r=>setTimeout(r,500));}throw new Error('Real app TLS readiness failed');
 }
-async function phase(name,fn){current=name;if(state.cases.some(c=>c.name===name&&c.result==='PASS')){console.log('RETAINED PASS: '+name);return;}await fn();state.cases.push({name,result:'PASS'});await save();console.log('PASS: '+name);}
+async function phase(name,fn){current=name;if(state.cases.some(c=>c.name===name&&c.result==='PASS')){console.log('RETAINED PASS: '+name);return;}assert.equal((await inspectSpace({directory:privateRoot})).result,'PASS','Resource reserve exceeded; preserve checkpoint and stop');await fn();state.cases.push({name,result:'PASS'});await save();console.log('PASS: '+name);}
 async function testOverlay(p,published){
  const gateway=path.join(p.sourceDirectory,'test-only.Caddyfile');
  let caddy=await readFile(path.join(p.sourceDirectory,'automation-gateway','Caddyfile'),'utf8');

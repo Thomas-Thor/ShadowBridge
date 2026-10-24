@@ -131,8 +131,8 @@ export async function backupGatewayVolumes({profile,directory}){
  // backup and recovery key are never removed or changed.
  return {...backup,encrypted:true,sourceVolumesUnchanged:true};
 }
-export async function verifyR1Http(releaseSha,{request=fetch}={}){
- const application=await verifyPublic(releaseSha,{request,mailDisabled:true});
+export async function verifyR1Http(releaseSha,{request=fetch,readOnly=false}={}){
+ const application=await verifyPublic(releaseSha,{request,mailDisabled:true,readOnly});
  for(const pathname of ['/healthz','/signin']){
   const response=await request('https://automation.shadow-bridge.eu'+pathname,{redirect:'manual',signal:AbortSignal.timeout(15000)});
   must(response.status===200&&!response.headers.has('www-authenticate'),'Automation HTTPS health/sign-in failed.');
@@ -157,9 +157,10 @@ export async function preflightExistingR1(profile,{request=fetch}={}){
  const query=text=>docker(publicComposeArguments(profile,['exec','-T','postgres','psql','-XqAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','shadowbridge','-c',text]),profile.composeEnvironment);
  const ledger=JSON.parse(query('SELECT json_agg(t ORDER BY name) FROM shadowbridge_migrations.applied t'));
  validateApplied(await migrationSources(),ledger);must(ledger.length>=15,'The existing schema must include the reviewed MVP/Sentinel foundation.');
- const owners=Number(query("SELECT count(*) FROM sb.staff_role_assignments r JOIN sb.staff_grants g USING(user_id) JOIN sb.accounts a USING(user_id) JOIN auth.users u ON u.id=r.user_id WHERE r.role_key='owner' AND r.active AND (r.expires_at IS NULL OR r.expires_at>now()) AND g.active AND a.status='active' AND u.email_confirmed_at IS NOT NULL AND EXISTS(SELECT 1 FROM auth.mfa_factors f WHERE f.user_id=u.id AND f.status='verified')"));
+ const owners=Number(query("SELECT count(*) FROM sb.staff_role_assignments r JOIN sb.staff_grants g USING(user_id) JOIN sb.accounts a USING(user_id) JOIN auth.users u ON u.id=r.user_id WHERE r.role_key='owner' AND r.active AND (r.expires_at IS NULL OR r.expires_at>now()) AND g.active AND a.status='active' AND lower(a.email)=lower(u.email) AND a.email_verified_at IS NOT NULL AND u.email_confirmed_at IS NOT NULL AND EXISTS(SELECT 1 FROM auth.mfa_factors f WHERE f.user_id=u.id AND f.factor_type='totp' AND f.status='verified')"));
  must(owners>0,'No existing active OWNER with verified email and enrolled MFA was found. Stop and review access; no account was changed.');
- await verifyR1Http(productionBase,{request});
+ docker(publicComposeArguments(profile,['exec','-T','app','node','-e',"fetch('https://auth-proxy:8444/auth/v1/health',{signal:AbortSignal.timeout(5000)}).then(async r=>{await r.arrayBuffer();if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]),profile.composeEnvironment);
+ await verifyR1Http(productionBase,{request,readOnly:true});
  return {result:'PASS',readOnly:true,configurationAnchor:productionBase,appliedMigrations:ledger.length,ownerWithVerifiedEmailAndMfaConfigured:true,ownerInteractiveLoginStillRequired:true,automationHttpVerified:true,secretsPrinted:false,deployed:false};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){

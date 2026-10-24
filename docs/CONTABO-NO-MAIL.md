@@ -1,5 +1,11 @@
 # Contabo — aktualizacja bez poczty
 
+> **Dla International R1: dokument historyczny, nie bieżąca instrukcja.**
+> Jedyną procedurą jest [INTERNATIONAL-R1-DEPLOYMENT](INTERNATIONAL-R1-DEPLOYMENT.md),
+> zaczynająca się od odczytu Contabo bez zmiany checkoutu. Nie wykonywać poniższych
+> starych poleceń deploy/gateway jako sposobu aktualizacji R1.
+
+
 Stan 22.10.2026: poprawka istniejącego instalatora, bazująca na `06a8b47`.
 Nie ma dostępu SSH do `169.58.232.69`; publikacja na serwerze nie została wykonana.
 

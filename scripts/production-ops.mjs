@@ -184,13 +184,13 @@ export async function recoverPublicConfiguration({directory,checkpoint}={}) {
   return {directory:target};
 }
 
-export async function verifyPublic(releaseSha, { request = globalThis.fetch, mailDisabled=false } = {}) {
+export async function verifyPublic(releaseSha, { request = globalThis.fetch, mailDisabled=false, readOnly=false } = {}) {
   const read=async pathname=>{const result=await request(productionOrigin+pathname,{redirect:'manual',signal:AbortSignal.timeout(15000)});guard(result.headers.get('x-shadowbridge-release')===releaseSha,`Domena nie obsługuje oczekiwanego wydania: ${pathname}`);return result;};
   const health=await read('/health');guard(health.status===200 && (await health.json()).ok===true,'Backend domeny nie przeszedł kontroli zdrowia.');
   const config=await read('/api/config');const data=await config.json();guard(config.status===200 && data.backendEnabled===true && data.releaseSha===releaseSha,'Domena nadal wskazuje starą stronę lub niewłaściwy backend.');
   if(mailDisabled){
     guard(data.capabilities?.registration===false && data.capabilities?.passwordRecovery===false && data.capabilities?.emailVerification===false,'Ścieżki e-mail nie są wyłączone.');
-    for(const route of ['/api/auth/register','/api/auth/recover','/api/auth/resend-verification']){
+    for(const route of readOnly?[]:['/api/auth/register','/api/auth/recover','/api/auth/resend-verification']){
       const response=await request(productionOrigin+route,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}',redirect:'manual',signal:AbortSignal.timeout(15000)});
       guard(response.status===503 && (await response.json()).code==='MAIL_NOT_ENABLED','Ścieżka e-mail nadal przyjmuje żądania: '+route);
     }
@@ -198,7 +198,7 @@ export async function verifyPublic(releaseSha, { request = globalThis.fetch, mai
   for(const page of ['/','/member-sign-in/','/apply/buyer/','/apply/supplier/','/apply/partner/','/legal/','/cartel/'])guard((await read(page)).status===200,`Nie działa podstrona ${page}`);
   for(const page of ['/portal/admin/','/portal/buyer/','/portal/supplier/','/portal/partner/','/portal/offers/']){const r=await read(page);guard(r.status===303 && r.headers.get('location')==='/member-sign-in/',`Niepoprawna ochrona panelu ${page}`);}
   for(const page of ['/.env','/.git/config','/server/app.mjs','/auth/v1/settings','/prototypes/'])guard((await read(page)).status===404,`Niepożądany publiczny zasób ${page}`);
-  return {origin:productionOrigin,releaseSha,publicSmokeVerified:true,credentialsTested:false};
+  return {origin:productionOrigin,releaseSha,publicSmokeVerified:true,credentialsTested:false,readOnly,mailWriteProbesExecuted:mailDisabled&&!readOnly};
 }
 
 async function autoDirectory() {

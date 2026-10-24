@@ -31,6 +31,8 @@ test('R1 HTTP verifier checks the new app SHA and automation independently; synt
  };
  assert.equal((await verifyR1Http(releaseSha,{request:probe()})).automationHttpVerified,true);
  for(const spec of [{oldApp:true},{basic:true},{unhealthy:true}])await assert.rejects(verifyR1Http(releaseSha,{request:probe(spec)}));
+ const methods=[],request=async(u,o={})=>{methods.push(o.method||'GET');return probe()(u,o);};
+ const read=await verifyR1Http(releaseSha,{request,readOnly:true});assert.equal(read.readOnly,true);assert.equal(read.mailWriteProbesExecuted,false);assert.ok(methods.length>10&&methods.every(m=>m==='GET'));
 });
 test('R1 planning preserves all profile/gateway bytes, fails closed on drift, and validates both actual Compose overlays',async()=>{
  const id=randomBytes(5).toString('hex'),directory=path.join(repositoryRoot,'.local','r1-plan-test-'+id);
