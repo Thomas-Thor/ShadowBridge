@@ -11,11 +11,11 @@ function connection() {
   return new URL(`postgres://postgres:${randomBytes(32).toString('hex')}@postgres:5432/shadowbridge?sslmode=verify-full&sslrootcert=/run/secrets/internal-ca.crt`);
 }
 
-test('actual 001–017 source history is ordered, transactional and hashed', async () => {
+test('actual 001–018 source history is ordered, transactional and hashed', async () => {
   const sources = await migrationSources();
-  assert.equal(sources.length, 17);
+  assert.equal(sources.length, 18);
   assert.equal(sources[0].name, '202610180001_private_b2b.sql');
-  assert.equal(sources.at(-1).name, '202610230017_owner_vault_workspace.sql');
+  assert.equal(sources.at(-1).name, '202610240018_owner_command_book.sql');
   for (const source of sources) assert.equal(source.sha256, createHash('sha256').update(source.sql).digest('hex'));
 });
 

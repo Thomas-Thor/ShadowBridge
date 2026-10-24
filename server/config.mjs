@@ -66,6 +66,7 @@ export function loadConfig(env = process.env) {
     passwordRecoveryEnabled: mailDeliveryMode !== 'disabled',
     emailVerificationEnabled: mailDeliveryMode !== 'disabled',
     proxyAuthToken, releaseSha: releaseSha?.toLowerCase() || null,
+    ownerBookApiEnabled: env.OWNER_BOOK_API_ENABLED === 'true',
     sessionLifetimeSeconds: 60 * 60 * 24 * 7,
   });
 }

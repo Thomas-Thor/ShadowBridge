@@ -15,6 +15,7 @@ import { routeTaxonomy, categoryId } from './taxonomy.mjs';
 import { currencyCodes } from '../assets/business-config.js';
 import { routeOffersWorkspace } from './offers-workspace.mjs';
 import { routeOwnerVault } from './owner-vault.mjs';
+import { routeOwnerBook,routeBookToken } from './owner-book.mjs';
 import { ApiError, object, text, oneOf, number, list, identifier, profile, businessData, assertNonIdentifyingText } from './validation.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -197,6 +198,12 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
       return json(res,201,{applicationStatus:'pending',approvalRequired:true});
     }
     if (ctx.account.status !== 'active') throw new ApiError(403,'ACCOUNT_SUSPENDED','This account is suspended. Contact ShadowBridge.');
+    if(route.startsWith('/api/owner/book')) {
+      limit(req,method==='GET'?'owner-book-read':'owner-book-write',ctx.identity.id,method==='GET'?240:60);
+      return txFor(ctx,async tx=>{const routed=await routeOwnerBook({req,url,tx,body,config});return json(res,routed.status,routed.data);}).catch(async error=>{
+        await txFor(ctx,tx=>tx.query('SELECT owner_book.record_failure(false,$1::uuid)',[randomUUID()])).catch(()=>{});throw error;
+      });
+    }
     if(route.startsWith('/api/owner/vault')) {
       // Verified identity only: ordinary paginated reads cannot exhaust the
       // write budget or block another account behind the same address.
@@ -414,6 +421,11 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
     headers(res,config);const requestId=randomUUID();res.setHeader('X-Request-ID',requestId);
     try {
       const url=new URL(req.url,config.appUrl);
+      if(url.pathname.startsWith('/api/integrations/owner-book/v1/')){
+        if(!config.ownerBookApiEnabled)throw new ApiError(503,'BOOK_API_DISABLED','Remote Command Book access has not been activated.');
+        const clientHash=createHmac('sha256',config.sessionEncryptionKey).update('owner-book:'+clientAddress(req,config)).digest('hex');
+        const result=await routeBookToken({req,url,sessionPool:db.sessionPool,body,clientHash});return json(res,result.status,result.data);
+      }
       if(url.pathname==='/health'){await db.pool.query('SELECT 1');return json(res,200,{ok:true,environment:config.appEnv});}
       if(req.method==='GET'&&['/auth/confirm','/auth/recover'].includes(url.pathname)){
         if(config.mailDeliveryMode==='disabled')throw new ApiError(503,'MAIL_NOT_ENABLED','Email verification and email-based account recovery are temporarily unavailable. Existing members can sign in.');
