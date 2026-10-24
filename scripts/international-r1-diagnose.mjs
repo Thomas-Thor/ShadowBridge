@@ -214,17 +214,26 @@ export async function profileEvidence(repo,pg,gateway){
  const mounted=gateway?.Mounts?.find(v=>v.Destination==='/etc/caddy/Caddyfile')?.Source===path.join(edge,'Caddyfile');
  return {valid:true,sourceDirectory:source,project,gatewayState:state.phase,gatewayMounted:mounted,configurationOnlyNotDeploymentProof:true};
 }
-export function safeHttpEvidence({status,headers={},body={},certificate,authorized},kind){
- const release=headers['x-shadowbridge-release'];
- const ok=status===200&&authorized===true&&!headers['www-authenticate']&&(kind==='main'?release===baseline&&body.ok===true:kind==='automation'?body.status==='ok':true);
- return {ok,status,tlsVerified:authorized===true,basicAuth:!!headers['www-authenticate'],release:/^[a-f0-9]{40}$/.test(release||'')?release:null,...(certificate?{certificate:{sha256:certificate.fingerprint256,validTo:certificate.valid_to}}:{})};
+export function probeSpecification(host,route,kind){
+ const specs={main:['shadow-bridge.eu','/health','application/json'],automation:['automation.shadow-bridge.eu','/healthz','application/json'],signin:['automation.shadow-bridge.eu','/signin','text/html']};
+ const spec=specs[kind];must(spec&&spec[0]===host&&spec[1]===route,'UNEXPECTED_HEALTH_ENDPOINT');
+ return {hostname:host,port:443,path:route,servername:host,headers:{Accept:spec[2]},rejectUnauthorized:true,signal:AbortSignal.timeout(10000)};
 }
-async function probe(host,route,kind){
+export function safeHttpEvidence({status,headers={},body={},certificate,authorized},kind){
+ const release=headers['x-shadowbridge-release'],httpOk=status===200,tlsVerified=authorized===true;
+ const endpointOk=kind==='main'?release===baseline&&body.ok===true:kind==='automation'?body.status==='ok':kind==='signin'?/^text\/html(?:;|$)/i.test(headers['content-type']||''):false;
+ const ok=httpOk&&tlsVerified&&!headers['www-authenticate']&&endpointOk;
+ return {ok,status,httpOk,endpointOk,tlsVerified,basicAuth:!!headers['www-authenticate'],release:/^[a-f0-9]{40}$/.test(release||'')?release:null,...(certificate?{certificate:{sha256:certificate.fingerprint256,validTo:certificate.valid_to}}:{})};
+}
+export async function probe(host,route,kind,{get=https.get}={}){
+ const options=probeSpecification(host,route,kind);
  return new Promise(resolve=>{
-  const req=https.get({hostname:host,port:443,path:route,headers:{Accept:'application/json'},rejectUnauthorized:true,signal:AbortSignal.timeout(10000)},res=>{
-   const cert=res.socket.getPeerCertificate(),authorized=res.socket.authorized;let body='',bytes=0;
-   res.on('data',b=>{bytes+=b.length;if(bytes<=8192)body+=b;});res.on('end',()=>{let value={};try{value=JSON.parse(body);}catch{}resolve(safeHttpEvidence({status:res.statusCode,headers:res.headers,body:value,certificate:cert,authorized},kind));});
-  });req.setTimeout(8000,()=>req.destroy());req.on('error',()=>resolve({ok:false,error:'HTTPS_UNVERIFIED'}));
+  const req=get(options,res=>{
+   const cert=res.socket.getPeerCertificate(),authorized=res.socket.authorized;let body='',bytes=0,oversized=false;
+   res.on('data',b=>{bytes+=b.length;if(bytes<=8192)body+=b;else oversized=true;});
+   res.on('end',()=>{let value={};try{value=JSON.parse(body);}catch{}resolve({...safeHttpEvidence({status:res.statusCode,headers:res.headers,body:value,certificate:cert,authorized},kind),...(oversized&&kind!=='signin'?{ok:false,error:'HEALTH_BODY_TOO_LARGE'}:{}),endpoint:route,accept:options.headers.Accept});});
+   res.on('error',()=>resolve({ok:false,error:'HTTPS_RESPONSE_INCOMPLETE',endpoint:route}));
+  });req.setTimeout(8000,()=>req.destroy());req.on('error',()=>resolve({ok:false,tlsVerified:false,error:'HTTPS_UNVERIFIED',endpoint:route}));
  });
 }
 async function databaseEvidence(pg){

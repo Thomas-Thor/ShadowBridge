@@ -87,7 +87,7 @@ function validateCaddy(gateway,caddy){
  docker(['exec','-i',gateway.Id,'/bin/sh','-c','SB_PROXY_TOKEN="$(cat /run/secrets/proxy-token)"; export SB_PROXY_TOKEN; exec caddy validate --config - --adapter caddyfile'],{input:caddy});
 }
 export async function requestPublic(hostname,pathname){return new Promise((resolve,reject)=>{
- const req=https.get({hostname,port:443,path:pathname,servername:hostname,rejectUnauthorized:true,timeout:10000,headers:{'User-Agent':'ShadowBridge-gateway-check'}},res=>{
+ const req=https.get({hostname,port:443,path:pathname,servername:hostname,rejectUnauthorized:true,timeout:10000,headers:{'User-Agent':'ShadowBridge-gateway-check',Accept:pathname==='/signin'?'text/html':'application/json'}},res=>{
   let size=0;const chunks=[];res.on('data',c=>{size+=c.length;if(size>1024*1024)req.destroy(new Error('Zbyt duża odpowiedź kontroli bramy.'));else chunks.push(c);});
   res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body:Buffer.concat(chunks).toString()}));res.on('error',reject);
  });req.once('error',()=>reject(new Error('Nie potwierdzono HTTPS dla '+hostname+'; nie pomijaj sprawdzania certyfikatu.')));req.once('timeout',()=>req.destroy());

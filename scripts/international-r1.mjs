@@ -138,9 +138,9 @@ export async function backupGatewayVolumes({profile,directory}){
 export async function verifyR1Http(releaseSha,{request=fetch,readOnly=false}={}){
  const application=await verifyPublic(releaseSha,{request,mailDisabled:true,readOnly});
  for(const pathname of ['/healthz','/signin']){
-  const response=await request('https://automation.shadow-bridge.eu'+pathname,{redirect:'manual',signal:AbortSignal.timeout(15000)});
+  const response=await request('https://automation.shadow-bridge.eu'+pathname,{redirect:'manual',headers:{Accept:pathname==='/signin'?'text/html':'application/json'},signal:AbortSignal.timeout(15000)});
   must(response.status===200&&!response.headers.has('www-authenticate'),'Automation HTTPS health/sign-in failed.');
-  if(pathname==='/healthz')must((await response.json()).status==='ok','n8n health is not OK.');else await response.arrayBuffer();
+  if(pathname==='/healthz')must((await response.json()).status==='ok','n8n health is not OK.');else {must(/^text\/html(?:;|$)/i.test(response.headers.get('content-type')||''),'n8n sign-in must be an HTML page.');await response.arrayBuffer();}
  }
  return {...application,automationHttpVerified:true,credentialsTested:false};
 }

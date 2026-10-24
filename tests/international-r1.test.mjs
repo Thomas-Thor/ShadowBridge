@@ -27,7 +27,7 @@ test('Command Book API flag is permitted only as an explicit reviewed boolean; n
 test('R1 HTTP verifier checks the new app SHA and automation independently; synthetic responses are not a deployment test',async()=>{
  const probe=({oldApp=false,basic=false,unhealthy=false}={})=>async(input,options={})=>{
   const url=new URL(input);
-  if(url.hostname==='automation.shadow-bridge.eu')return new Response(url.pathname==='/healthz'?JSON.stringify({status:unhealthy?'error':'ok'}):'<html>FICTIONAL sign in</html>',{status:basic?401:200,headers:basic?{'WWW-Authenticate':'Basic realm=fictional'}:{}});
+  if(url.hostname==='automation.shadow-bridge.eu'){assert.equal(options.headers?.Accept,url.pathname==='/signin'?'text/html':'application/json');return new Response(url.pathname==='/healthz'?JSON.stringify({status:unhealthy?'error':'ok'}):'<html>FICTIONAL sign in</html>',{status:basic?401:200,headers:basic?{'WWW-Authenticate':'Basic realm=fictional'}:{'Content-Type':url.pathname==='/signin'?'text/html':'application/json'}});}
   const headers={'X-ShadowBridge-Release':oldApp?productionBase:releaseSha,'Content-Type':'application/json'};
   if(url.pathname==='/health')return new Response(JSON.stringify({ok:true}),{headers});
   if(url.pathname==='/api/config')return new Response(JSON.stringify({backendEnabled:true,releaseSha,capabilities:{registration:false,passwordRecovery:false,emailVerification:false}}),{headers});

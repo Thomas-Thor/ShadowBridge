@@ -25,8 +25,8 @@ test('HTTP evidence rejects invalid TLS, Basic Auth and wrong SHA without exposi
 });
 test('standalone migration/source catalog matches the immutable R1 files',async()=>{
  const digest=b=>createHash('sha256').update(b).digest('hex');
- const names=(await readdir(new URL('../supabase/migrations/',import.meta.url))).filter(n=>n.endsWith('.sql')).sort();assert.equal(names.length,17);
- assert.deepEqual(catalog.migrations,await Promise.all(names.map(async name=>({name,sha256:digest(await readFile(new URL('../supabase/migrations/'+name,import.meta.url)))}))));
+ const names=(await readdir(new URL('../supabase/migrations/',import.meta.url))).filter(n=>n.endsWith('.sql')).sort();assert.equal(names.length,18);
+ assert.deepEqual(catalog.migrations,await Promise.all(names.slice(0,17).map(async name=>({name,sha256:digest(await readFile(new URL('../supabase/migrations/'+name,import.meta.url)))}))));
  for(const file of ['deploy/production/compose.yaml','deploy/production/caddy-entrypoint.sh','deploy/production/Caddyfile.in'])assert.equal(catalog[file],digest(await readFile(new URL('../'+file,import.meta.url))));
  assert.equal(catalog.gatewayCaddy,digest(Buffer.concat(await Promise.all(['deploy/production/Caddyfile.in','deploy/automation/Caddyfile.append'].map(f=>readFile(new URL('../'+f,import.meta.url)))))));
 });
