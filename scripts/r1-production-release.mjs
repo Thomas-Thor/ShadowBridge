@@ -8,14 +8,14 @@ import {hostname} from 'node:os';
 import {createReadStream} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {diagnose} from './international-r1-diagnose.mjs';
+import {diagnose,ownerBookR1} from './international-r1-diagnose.mjs';
 import {checkProduction} from './production-config.mjs';
 import {repositoryRoot} from './staging-prepare.mjs';
 import {publicCompose,databaseFingerprints,assertPreserved,verifyBackupArchive} from './production-ops.mjs';
 import {backupInstallation} from './staging-ops.mjs';
 import {decryptArchive} from './staging-backup.mjs';
 import {migrationSources,validateApplied} from './staging-migrate.mjs';
-import {prepareApplicationPlan,checkApplicationPlan,checkMergedApplication,preflightExistingR1,backupApplicationConfiguration,backupGatewayVolumes,verifyR1Http} from './international-r1.mjs';
+import {prepareApplicationPlan,checkApplicationPlan,checkMergedApplication,preflightExistingR1,backupApplicationConfiguration,backupGatewayVolumes,verifyR1Http,disabledApplicationArguments} from './international-r1.mjs';
 
 const must=(v,m)=>{if(!v)throw Error(m);},hash=b=>createHash('sha256').update(b).digest('hex');
 export const runOperatorCommand=(bin,args,options={})=>{try{const output=execFileSync(bin,args,{cwd:repositoryRoot,encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:32*1024**2,...options});return typeof output==='string'?output.trim():'';}catch{throw Error('Operacja nie powiodła się; prywatne dane wyjściowe nie zostały opublikowane.');}};
@@ -58,8 +58,9 @@ function protectedServices(inventory){
 function verifyProtected(state){
  for(const before of state.protected){const v=JSON.parse(docker(['inspect',before.name]))[0];must(v.State.Running&&v.Id===before.id&&v.Image===before.image&&hash(JSON.stringify(v.Config.Env))===before.environmentSha256&&JSON.stringify(Object.keys(v.NetworkSettings.Networks).sort())===JSON.stringify(before.networks)&&JSON.stringify(v.Mounts.filter(m=>m.Type==='volume').map(m=>({name:m.Name,target:m.Destination})))===JSON.stringify(before.volumes),'Zmieniono chronioną usługę; STOP bez resetów.');}
 }
-export async function runRelease({phase,release}){
- must(['prepare','apply','accept','rollback','cancel'].includes(phase)&&/^[a-f0-9]{40}$/.test(release||''),'Nieprawidłowy etap lub pełny SHA.');
+export async function runRelease({phase,release,bookApi=false}){
+ must(typeof bookApi==='boolean','Invalid release purpose.');
+ must(['prepare','apply','accept','rollback','cancel','off'].includes(phase)&&/^[a-f0-9]{40}$/.test(release||''),'Nieprawidłowy etap lub pełny SHA.');
  must(process.geteuid?.()===0&&hostname()==='vmi3682957'&&repositoryRoot==='/opt/shadowbridge'&&process.env.SUDO_USER==='shadowadmin','Uruchom wyłącznie przez sudo jako shadowadmin na vmi3682957.');
  must(process.env.NODE_TLS_REJECT_UNAUTHORIZED!=='0','Weryfikacja TLS nie może być wyłączona.');
  // Scope Git trust to this process and exact repo, never global git config.
@@ -83,7 +84,7 @@ export async function runRelease({phase,release}){
 
  const currentImage=()=>{const id=publicCompose(profile,['ps','-q','app']);must(/^[a-f0-9]{64}$/.test(id),'Brak jednego działającego app.');return JSON.parse(docker(['inspect',id]))[0];};
  const checkPaused=()=>{const r=publicCompose(profile,['ps','--services','--status','running']).split('\n');must(r.includes('postgres')&&!r.includes('app')&&!r.includes('auth'),'Aplikacja/Auth muszą pozostać wstrzymane do końca kopii/migracji.');};
- const checkPlan=async()=>{const p=await checkApplicationPlan({profile,directory:state.planDirectory});must(p.ownerBookApi===false,'Zdalne API Book musi pozostać wyłączone.');checkMergedApplication(profile,state.planDirectory,p);return p;};
+ const checkPlan=async()=>{const p=await checkApplicationPlan({profile,directory:state.planDirectory});must(p.ownerBookApi===bookApi,'Nieprawidłowy zatwierdzony stan API Book.');checkMergedApplication(profile,state.planDirectory,p);return p;};
  const verifyBackups=async()=>{
   await verifyBackupArchive({directory:profile.sourceDirectory,...state.backups.database});
   const plan=await checkPlan();
@@ -91,10 +92,10 @@ export async function runRelease({phase,release}){
   await verifiedTar(state.backups.configuration,{files,profile,plan});await verifiedTar(state.backups.certificates,{edge:true,profile,plan});
  };
  const verify=async()=>{
-  await checkPlan();const c=currentImage();must(c.Image===state.image&&c.Config.Env.includes('RELEASE_SHA='+release)&&c.Config.Env.includes('OWNER_BOOK_API_ENABLED=false'),'Nie uruchomiono dokładnego obrazu lub wyłączonego API.');
+  await checkPlan();const c=currentImage();must(c.Image===state.image&&c.Config.Env.includes('RELEASE_SHA='+release)&&c.Config.Env.includes('OWNER_BOOK_API_ENABLED='+String(bookApi)),'Nie uruchomiono dokładnego obrazu lub wyłączonego API.');
   validateApplied(sources,ledger());must(ledger().length===18,'Niekompletny ledger po migracji.');
   await verifyR1Http(release,{readOnly:true});verifyProtected(state);
-  const r=await fetch('https://shadow-bridge.eu/api/integrations/owner-book/v1/entries?kind=task',{headers:{Accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(10000)});must(r.status===503&&(await r.json()).code==='BOOK_API_DISABLED','API maszynowe nie jest wyłączone.');
+  const r=await fetch('https://shadow-bridge.eu/api/integrations/owner-book/v1/entries?kind=task',{headers:{Accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(10000)});must(bookApi?r.status===401&&(await r.json()).code==='BOOK_API_DENIED':r.status===503&&(await r.json()).code==='BOOK_API_DISABLED','Nieprawidłowa bramka API: dostęp bez klucza musi być odrzucony.');
  };
  const rollback=async()=>{
   // Never restart an old app while a migration container is still running.
@@ -107,15 +108,15 @@ export async function runRelease({phase,release}){
  try{
   try{state=JSON.parse(await readFile(stateFile,'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
   if(phase==='prepare'&&!state){
-   const inventory=await diagnose();must(inventory.status==='READY FOR PREFLIGHT','Preflight BLOCKED: '+inventory.blockers.join(', '));
-   profile=await checkProduction({directory:inventory.installation.sourceDirectory});await preflightExistingR1(profile);
+   const inventory=await diagnose({runtimeRelease:bookApi?ownerBookR1:undefined});must(inventory.status==='READY FOR PREFLIGHT','Preflight BLOCKED: '+inventory.blockers.join(', '));
+   profile=await checkProduction({directory:inventory.installation.sourceDirectory});await preflightExistingR1(profile,{runtimeRelease:bookApi?ownerBookR1:undefined});
    must(Math.min(inventory.disk.configurationFreeBytes,inventory.disk.dockerFreeBytes)>=Math.max(8*1024**3,8*inventory.database.databaseBytes+4*1024**3),'Za mało miejsca na pełne kopie, weryfikację i nowe obrazy.');
    must(recentOwnerCount()>0,'OWNER musi teraz zalogować się w przeglądarce i potwierdzić dotychczasowe TOTP.');
    const previous=currentImage(),buildLog=await open(path.join(folder,'build.log'),'wx',0o600);
    try{for(const target of ['runtime','migrator'])exec('docker',['--context','default','build','--target',target,'--build-arg','SHADOWBRIDGE_RELEASE_SHA='+release,'-t',target==='runtime'?'shadowbridge-r1:'+release:profile.project+'-migrator','-f','deploy/staging/Dockerfile','.'],{stdio:['ignore',buildLog.fd,buildLog.fd],timeout:1200000});}finally{await buildLog.close();}
    const image=JSON.parse(docker(['image','inspect','shadowbridge-r1:'+release]))[0],migrator=JSON.parse(docker(['image','inspect',profile.project+'-migrator']))[0];must([image,migrator].every(i=>i.Config.Labels['org.opencontainers.image.revision']===release),'Niezgodny obraz aplikacji/migratora.');
-   const {directory}=await prepareApplicationPlan({profile,image:image.Id,releaseSha:release,previousImage:previous.Image,previousReleaseSha:inventory.application.release,ownerBookApi:false,previousOwnerBookApi:previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_API_ENABLED='))?.split('=')[1]==='true'?true:undefined});
-   state={kind:'shadowbridge-r1-owner-release-v1',release,sourceDirectory:profile.sourceDirectory,planDirectory:directory,image:image.Id,migratorImage:migrator.Id,previousRelease:inventory.application.release,previousImage:previous.Image,previousMigrationCount:inventory.database.migrationCount,protected:protectedServices(inventory),phase:'PLANNED'};await save();await checkPlan();
+   const {directory}=await prepareApplicationPlan({profile,image:image.Id,releaseSha:release,previousImage:previous.Image,previousReleaseSha:inventory.application.release,ownerBookApi:bookApi,expectedPreviousReleaseSha:bookApi?ownerBookR1:undefined,previousOwnerBookApi:previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_API_ENABLED='))?.split('=')[1]==='true'?true:undefined});
+   state={kind:'shadowbridge-r1-owner-release-v1',purpose:bookApi?'book-api':'foundation',release,sourceDirectory:profile.sourceDirectory,planDirectory:directory,image:image.Id,migratorImage:migrator.Id,previousRelease:inventory.application.release,previousImage:previous.Image,previousMigrationCount:inventory.database.migrationCount,protected:protectedServices(inventory),phase:'PLANNED'};await save();await checkPlan();
    paused=true;publicCompose(profile,['stop','app','auth']);
    const configuration=await backupApplicationConfiguration({profile,directory}),database=await backupInstallation(profile.sourceDirectory);
    state.before=await databaseFingerprints(profile.sourceDirectory);command('snapshot');
@@ -130,8 +131,15 @@ export async function runRelease({phase,release}){
    state.bundle=bundle;state.bundleManifestSha=hash(JSON.stringify(manifest)+'\n');state.phase='BACKUPS_VERIFIED_WAITING_OFFSITE';await save();
    console.log(JSON.stringify({status:state.phase,release,publicApplicationPaused:true,backupAuthenticated:true,backupRestoredOnProduction:false}));return;
   }
-  must(state?.release===release,'Nie znaleziono przygotowanego wydania.');profile=await checkProduction({directory:state.sourceDirectory});await checkPlan();
+  must(state?.release===release&&(state.purpose??'foundation')===(bookApi?'book-api':'foundation'),'Nie znaleziono przygotowanego wydania o tym przeznaczeniu.');profile=await checkProduction({directory:state.sourceDirectory});await checkPlan();
   if(phase==='prepare'){must(state.phase==='BACKUPS_VERIFIED_WAITING_OFFSITE','Istniejący checkpoint wymaga kontroli operatora; nie powtórzono operacji.');checkPaused();console.log(JSON.stringify({status:state.phase,release,resumed:true}));return;}
+  if(phase==='off'){
+   must(bookApi&&['DEPLOYED_PENDING_OWNER_ACCEPTANCE','DEPLOYED_AND_VERIFIED','API_DISABLED'].includes(state.phase),'Nie ma aktywnej generacji API do wyłączenia.');
+   const c=currentImage();must(c.Image===state.image&&c.Config.Env.includes('RELEASE_SHA='+release),'Nie zmieniono nieznanej aplikacji.');verifyProtected(state);
+   docker(disabledApplicationArguments(profile,state.planDirectory));
+   const r=await fetch('https://shadow-bridge.eu/api/integrations/owner-book/v1/entries?kind=task',{redirect:'manual',signal:AbortSignal.timeout(10000)});must(r.status===503&&(await r.json()).code==='BOOK_API_DISABLED','Nie potwierdzono wyłączenia API.');
+   state.phase='API_DISABLED';await save();console.log(JSON.stringify({status:state.phase,release,accountsChanged:false}));return;
+  }
   if(phase==='cancel'){
    must(state.phase==='BACKUPS_VERIFIED_WAITING_OFFSITE'&&ledger().length===state.previousMigrationCount,'Nie wolno anulować etapu po migracji tą ścieżką.');
    const id=publicCompose(profile,['ps','--all','-q','app']),app=JSON.parse(docker(['inspect',id]))[0];must(app.Image===state.previousImage,'Nie przywrócono nieznanego kontenera.');
@@ -143,18 +151,19 @@ export async function runRelease({phase,release}){
     const manifestBytes=await readFile(path.join(state.bundle,'manifest.json'));must(hash(manifestBytes)===state.bundleManifestSha,'Zmieniono wykaz kopii.');const manifest=JSON.parse(manifestBytes);await privateRegular(path.join(state.bundle,'offsite-receipt.json'));const receipt=JSON.parse(await readFile(path.join(state.bundle,'offsite-receipt.json'),'utf8'));validateReceipt(manifest,receipt);
     for(const f of manifest.files)must(await hashFile(path.join(state.bundle,f.name))===f.sha256,'Zmieniono paczkę kopii.');
    },preservedBefore:async()=>assertPreserved(state.before,await databaseFingerprints(profile.sourceDirectory)),migrate:async()=>{
+    if(bookApi){state.phase='REPLACING_APP_NO_MIGRATIONS';state.schemaChanged=false;await save();return;}
     state.migratorName=profile.project+'-r1-'+release.slice(0,12);must(!docker(['ps','-aq','--filter','name=^/'+state.migratorName+'$']),'Zachowany kontener migratora wymaga przeglądu, bez ponawiania.');
     must(JSON.parse(docker(['image','inspect',profile.project+'-migrator']))[0].Id===state.migratorImage,'Niezgodny niezmienny obraz migratora.');state.phase='MIGRATING';await save();migrationAttempted=true;publicCompose(profile,['run','--name',state.migratorName,'--no-deps','--pull','never','migrator']);state.migrated=true;await save();
    },preservedAfter:async()=>{command('preserved');state.migrationPreserved=true;await save();},start:async()=>{publicCompose(profile,['start','auth']);exec('sh',[path.join(state.planDirectory,'apply-application.sh'),'--after-reviewed-backup-and-migrations']);},verify,rollback:async()=>{
     // Stop only the new app/Auth so protected-data comparison has a stable view.
     publicCompose(profile,['stop','app','auth']);await rollback();
    }});
-   state.phase='DEPLOYED_PENDING_OWNER_ACCEPTANCE';state.appliedAt=new Date().toISOString();await save();console.log(JSON.stringify({status:state.phase,release,remoteBookApiEnabled:false,accountsPreserved:true}));return;
+   state.phase='DEPLOYED_PENDING_OWNER_ACCEPTANCE';state.appliedAt=new Date().toISOString();await save();console.log(JSON.stringify({status:state.phase,release,remoteBookApiEnabled:bookApi,chatgptConnected:false,accountsPreserved:true}));return;
   }
   if(phase==='rollback'){must(['DEPLOYED_PENDING_OWNER_ACCEPTANCE','DEPLOYED_AND_VERIFIED'].includes(state.phase),'Nieprawidłowy etap rollbacku.');publicCompose(profile,['stop','app','auth']);await rollback();console.log(JSON.stringify({status:state.phase,release:state.previousRelease,databaseRestored:false}));return;}
   must(state.phase==='DEPLOYED_PENDING_OWNER_ACCEPTANCE','Odbiór nie jest dostępny dla tego checkpointu.');
   await verify();must(recentOwnerCount(state.appliedAt)>0,'Brak potwierdzenia istniejącego OWNER + MFA po aktualizacji.');
-  state.phase='DEPLOYED_AND_VERIFIED';state.ownerInteractiveAcceptance=true;await save();console.log(JSON.stringify({status:state.phase,release,ownerInteractiveAcceptance:true,remoteBookApiEnabled:false}));
+  state.phase='DEPLOYED_AND_VERIFIED';state.ownerInteractiveAcceptance=true;await save();console.log(JSON.stringify({status:bookApi?'API_ENABLED_CHATGPT_NOT_CONNECTED':state.phase,release,ownerInteractiveAcceptance:true,remoteBookApiEnabled:bookApi,chatgptConnected:false}));
  }catch(e){
   // A pre-migration preparation error must resume existing services. A recorded
   // successful backup intentionally holds them paused for offsite transfer.
@@ -163,6 +172,6 @@ export async function runRelease({phase,release}){
  }finally{await unlink(lock);}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const [phase,...args]=process.argv.slice(2);must(args.length===1&&args[0].startsWith('--release='),'Use prepare|apply|accept|rollback --release=FULL_SHA');
- runRelease({phase,release:args[0].slice(10)}).catch(e=>{console.error(JSON.stringify({status:'BLOCKED',reason:e.message,deploymentNotClaimed:true}));process.exitCode=1;});
+ const [phase,...args]=process.argv.slice(2);must(args.length>=1&&args.length<=2&&args[0].startsWith('--release=')&&(args.length===1||args[1]==='--book-api'),'Use prepare|apply|accept|rollback|off --release=FULL_SHA [--book-api]');
+ runRelease({phase,release:args[0].slice(10),bookApi:args.includes('--book-api')}).catch(e=>{console.error(JSON.stringify({status:'BLOCKED',reason:e.message,deploymentNotClaimed:true}));process.exitCode=1;});
 }

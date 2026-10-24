@@ -39,7 +39,7 @@ Docker, curl i sha256sum. Wszystkie polecenia w jednym bloku: Contabo, shadowadm
   set -eu
   R1_DIAG_DIR="$(mktemp -d /tmp/shadowbridge-r1-preflight.XXXXXX)"
   curl --fail --silent --show-error --location 'https://raw.githubusercontent.com/Thomas-Thor/ShadowBridge/release/shadowbridge-international-r1/scripts/international-r1-diagnose.mjs' --output "$R1_DIAG_DIR/check.mjs"
-  printf '%s  %s\n' '97931c030206fe87afff9c19afbf37b78b9a44c3ecc05b6251dbfaa82c0236f6' "$R1_DIAG_DIR/check.mjs" | sha256sum --check -
+  printf '%s  %s\n' 'dca1879138c3633048e35b214d4072d24041149962137d7fc100de67b0461b16' "$R1_DIAG_DIR/check.mjs" | sha256sum --check -
   sudo node "$R1_DIAG_DIR/check.mjs" --repo=/opt/shadowbridge
 )
 ```

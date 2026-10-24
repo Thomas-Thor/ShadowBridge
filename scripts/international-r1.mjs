@@ -12,6 +12,7 @@ import { productionBase, checkGatewayProfile, edgeNetwork, n8nContainer } from '
 import { repositoryRoot } from './staging-prepare.mjs';
 import { encryptArchive } from './staging-backup.mjs';
 import { migrationSources,validateApplied } from './staging-migrate.mjs';
+import {ownerBookR1} from './international-r1-diagnose.mjs';
 const must=(ok,message)=>{if(!ok)throw new Error(message);};
 const sha=value=>createHash('sha256').update(value).digest('hex');
 const releasePattern=/^[a-f0-9]{40}$/,imagePattern=/^sha256:[a-f0-9]{64}$/;
@@ -42,17 +43,18 @@ async function anchors(profile){
  for(const name of ['deploy/production/compose.yaml','deploy/production/caddy-entrypoint.sh','deploy/automation/Caddyfile.append'])result[path.join(repositoryRoot,name)]=sha(await readFile(path.join(repositoryRoot,name)));
  return result;
 }
-export async function prepareApplicationPlan({profile,image,releaseSha,previousImage,previousReleaseSha,ownerBookApi,previousOwnerBookApi}){
- must(imagePattern.test(image)&&imagePattern.test(previousImage)&&releasePattern.test(releaseSha)&&previousReleaseSha===productionBase,'Use actual immutable images and the existing production release.');
+export async function prepareApplicationPlan({profile,image,releaseSha,previousImage,previousReleaseSha,ownerBookApi,previousOwnerBookApi,expectedPreviousReleaseSha=productionBase}){
+ must(imagePattern.test(image)&&imagePattern.test(previousImage)&&releasePattern.test(releaseSha)&&[productionBase,ownerBookR1].includes(expectedPreviousReleaseSha)&&previousReleaseSha===expectedPreviousReleaseSha,'Use actual immutable images and an explicitly reviewed update base.');
  const fingerprints=await anchors(profile);
  must([ownerBookApi,previousOwnerBookApi].every(v=>v===undefined||typeof v==='boolean'),'Invalid Command Book API selection.');
  const parent=path.join(profile.sourceDirectory,'international-r1');await mkdir(parent,{mode:0o700}).catch(e=>{if(e.code!=='EEXIST')throw e;});await regular(parent,true);
  const directory=path.join(parent,releaseSha);await mkdir(directory,{mode:0o700});
  const app=override(image,releaseSha,ownerBookApi),rollback=override(previousImage,previousReleaseSha,previousOwnerBookApi);
+ if(ownerBookApi===true)await writeFile(path.join(directory,'disabled.json'),JSON.stringify(override(image,releaseSha,false),null,2)+'\n',{mode:0o600,flag:'wx'});
  await writeFile(path.join(directory,'application.json'),JSON.stringify(app,null,2)+'\n',{mode:0o600,flag:'wx'});
  await writeFile(path.join(directory,'rollback.json'),JSON.stringify(rollback,null,2)+'\n',{mode:0o600,flag:'wx'});
  for(const rollback of [false,true])await writeFile(path.join(directory,rollback?'rollback-application.sh':'apply-application.sh'),operatorScript(profile,directory,rollback),{mode:0o700,flag:'wx'});
- const plan={kind:'shadowbridge-international-r1-plan-v1',project:profile.project,sourceDirectory:profile.sourceDirectory,productionDirectory:profile.directory,releaseSha,previousReleaseSha,image,previousImage,ownerBookApi,previousOwnerBookApi,fingerprints,createdAt:new Date().toISOString(),deployed:false};
+ const plan={kind:'shadowbridge-international-r1-plan-v1',project:profile.project,sourceDirectory:profile.sourceDirectory,productionDirectory:profile.directory,releaseSha,previousReleaseSha,expectedPreviousReleaseSha,image,previousImage,ownerBookApi,previousOwnerBookApi,fingerprints,createdAt:new Date().toISOString(),deployed:false};
  await writeFile(path.join(directory,'plan.json'),JSON.stringify(plan,null,2)+'\n',{mode:0o600,flag:'wx'});
  return {directory,plan};
 }
@@ -60,12 +62,13 @@ export async function checkApplicationPlan({profile,directory}){
  must(path.dirname(directory)===path.join(profile.sourceDirectory,'international-r1')&&releasePattern.test(path.basename(directory)),'R1 plan must belong to this exact installation.');
  await regular(path.dirname(directory),true);await regular(directory,true);await regular(path.join(directory,'plan.json'));
  const plan=JSON.parse(await readFile(path.join(directory,'plan.json'),'utf8'));
- must(plan.kind==='shadowbridge-international-r1-plan-v1'&&plan.sourceDirectory===profile.sourceDirectory&&plan.productionDirectory===profile.directory&&plan.project===profile.project&&plan.releaseSha===path.basename(directory)&&plan.previousReleaseSha===productionBase&&imagePattern.test(plan.image)&&imagePattern.test(plan.previousImage),'Invalid R1 installation/rollback identity.');
+ must(plan.kind==='shadowbridge-international-r1-plan-v1'&&plan.sourceDirectory===profile.sourceDirectory&&plan.productionDirectory===profile.directory&&plan.project===profile.project&&plan.releaseSha===path.basename(directory)&&[productionBase,ownerBookR1].includes(plan.expectedPreviousReleaseSha??productionBase)&&plan.previousReleaseSha===(plan.expectedPreviousReleaseSha??productionBase)&&imagePattern.test(plan.image)&&imagePattern.test(plan.previousImage),'Invalid R1 installation/rollback identity.');
  must(isDeepStrictEqual(plan.fingerprints,await anchors(profile)),'Existing production or gateway configuration changed after planning. Stop; do not regenerate manifests.');
  must([plan.ownerBookApi,plan.previousOwnerBookApi].every(v=>v===undefined||typeof v==='boolean'),'Invalid Command Book API selection.');
  for(const [name,expected] of [['application.json',override(plan.image,plan.releaseSha,plan.ownerBookApi)],['rollback.json',override(plan.previousImage,plan.previousReleaseSha,plan.previousOwnerBookApi)]]){
   const file=path.join(directory,name);await regular(file);must(isDeepStrictEqual(JSON.parse(await readFile(file,'utf8')),expected),'R1 application override was modified.');
  }
+ if(plan.ownerBookApi===true){const file=path.join(directory,'disabled.json');await regular(file);must(isDeepStrictEqual(JSON.parse(await readFile(file,'utf8')),override(plan.image,plan.releaseSha,false)),'API disable override was modified.');}
  for(const rollback of [false,true]){
   const file=path.join(directory,rollback?'rollback-application.sh':'apply-application.sh');
   const s=await lstat(file);must(s.isFile()&&!s.isSymbolicLink()&&(s.mode&0o777)===0o700&&(await readFile(file,'utf8'))===operatorScript(profile,directory,rollback),'R1 operator script was modified.');
@@ -75,6 +78,10 @@ export async function checkApplicationPlan({profile,directory}){
 export function applicationArguments(profile,directory,rollback=false){
  must(path.dirname(directory)===path.join(profile.sourceDirectory,'international-r1')&&releasePattern.test(path.basename(directory)),'Invalid R1 plan location.');
  return publicComposeArguments(profile,['-f',path.join(directory,rollback?'rollback.json':'application.json'),'up','-d','--no-build','--no-deps','--wait','--wait-timeout','120','app']);
+}
+export function disabledApplicationArguments(profile,directory){
+ must(path.dirname(directory)===path.join(profile.sourceDirectory,'international-r1')&&releasePattern.test(path.basename(directory)),'Invalid R1 plan location.');
+ return publicComposeArguments(profile,['-f',path.join(directory,'disabled.json'),'up','-d','--no-build','--no-deps','--wait','--wait-timeout','120','app']);
 }
 const docker=(args,env={})=>{
  try{return execFileSync('docker',['--context','default',...args],{cwd:repositoryRoot,env:{...process.env,...env},encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:16*1024*1024}).trim();}
@@ -88,6 +95,7 @@ export function checkMergedApplication(profile,directory,plan){
   const merged=JSON.parse(docker([...args,'config','--format','json'],env));
   assertApplicationOnly(base,merged,{image:rollback?plan.previousImage:plan.image,releaseSha:rollback?plan.previousReleaseSha:plan.releaseSha,ownerBookApi:rollback?plan.previousOwnerBookApi:plan.ownerBookApi});
  }
+ if(plan.ownerBookApi===true){const args=disabledApplicationArguments(profile,directory).slice(0,-8),merged=JSON.parse(docker([...args,'config','--format','json'],env));assertApplicationOnly(base,merged,{image:plan.image,releaseSha:plan.releaseSha,ownerBookApi:false});}
 }
 export async function backupApplicationConfiguration({profile,directory}){
  const plan=await checkApplicationPlan({profile,directory});
@@ -144,7 +152,8 @@ export async function verifyR1Http(releaseSha,{request=fetch,readOnly=false}={})
  }
  return {...application,automationHttpVerified:true,credentialsTested:false};
 }
-export async function preflightExistingR1(profile,{request=fetch}={}){
+export async function preflightExistingR1(profile,{request=fetch,runtimeRelease=productionBase}={}){
+ must([productionBase,ownerBookR1].includes(runtimeRelease),'Unreviewed runtime base.');
  await anchors(profile);
  const inspect=id=>JSON.parse(docker(['inspect',id]))[0];
  const service=name=>{
@@ -153,18 +162,18 @@ export async function preflightExistingR1(profile,{request=fetch}={}){
   const c=inspect(id);must(c.State.Running&&c.Config.Labels?.['com.docker.compose.project']===profile.project,'Unexpected running installation.');return c;
  };
  const app=service('app'),gateway=service('gateway');
- must(app.Config.Env.includes('RELEASE_SHA='+productionBase),'Preflight requires the existing baseline release; never overwrite a newer installation.');
+ must(app.Config.Env.includes('RELEASE_SHA='+runtimeRelease),'Preflight requires the existing baseline release; never overwrite a newer installation.');
  for(const c of [app,service('auth'),service('postgres')])must(Object.values(c.HostConfig.PortBindings||{}).every(v=>!v?.length),'Application, Auth and database must not publish host ports.');
  const automation=inspect(n8nContainer),edge=JSON.parse(docker(['network','inspect',edgeNetwork]))[0];
  must(edge.Internal&&automation.State.Running&&gateway.NetworkSettings.Networks[edgeNetwork]?.NetworkID===edge.Id&&automation.NetworkSettings.Networks[edgeNetwork]?.NetworkID===edge.Id,'Existing Caddy/n8n internal network is not ready.');
  must(Object.values(automation.HostConfig.PortBindings||{}).flat().filter(Boolean).every(p=>['127.0.0.1','::1'].includes(p.HostIp)),'n8n must not publish public host ports.');
  const query=text=>docker(publicComposeArguments(profile,['exec','-T','postgres','psql','-XqAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','shadowbridge','-c',text]),profile.composeEnvironment);
  const ledger=JSON.parse(query('SELECT json_agg(t ORDER BY name) FROM shadowbridge_migrations.applied t'));
- validateApplied(await migrationSources(),ledger);must(ledger.length>=15,'The existing schema must include the reviewed MVP/Sentinel foundation.');
+ validateApplied(await migrationSources(),ledger);must(runtimeRelease!==ownerBookR1||ledger.length===18,'R1 requires all 18 migrations.');must(ledger.length>=15,'The existing schema must include the reviewed MVP/Sentinel foundation.');
  const owners=Number(query("SELECT count(*) FROM sb.staff_role_assignments r JOIN sb.staff_grants g USING(user_id) JOIN sb.accounts a USING(user_id) JOIN auth.users u ON u.id=r.user_id WHERE r.role_key='owner' AND r.active AND (r.expires_at IS NULL OR r.expires_at>now()) AND g.active AND a.status='active' AND lower(a.email)=lower(u.email) AND a.email_verified_at IS NOT NULL AND u.email_confirmed_at IS NOT NULL AND EXISTS(SELECT 1 FROM auth.mfa_factors f WHERE f.user_id=u.id AND f.factor_type='totp' AND f.status='verified')"));
  must(owners>0,'No existing active OWNER with verified email and enrolled MFA was found. Stop and review access; no account was changed.');
  docker(publicComposeArguments(profile,['exec','-T','app','node','-e',"fetch('https://auth-proxy:8444/auth/v1/health',{signal:AbortSignal.timeout(5000)}).then(async r=>{await r.arrayBuffer();if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]),profile.composeEnvironment);
- await verifyR1Http(productionBase,{request,readOnly:true});
+ await verifyR1Http(runtimeRelease,{request,readOnly:true});
  return {result:'PASS',readOnly:true,configurationAnchor:productionBase,appliedMigrations:ledger.length,ownerWithVerifiedEmailAndMfaConfigured:true,ownerInteractiveLoginStillRequired:true,automationHttpVerified:true,secretsPrinted:false,deployed:false};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
