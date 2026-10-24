@@ -205,7 +205,10 @@ export async function restoreConfiguration({restoredDirectory,directory,project,
     const origin=`https://localhost:${port}`;
     const compose=await readEnv(path.join(target,'compose.env')); Object.assign(compose,{STAGING_DIR:target,STAGING_PROJECT:project,STAGING_HTTPS_PORT:String(port)});
     await writeFile(path.join(target,'compose.env'),envText(compose));
-    const app=await readEnv(path.join(target,'app.env'));app.APP_URL=origin;await writeFile(path.join(target,'app.env'),envText(app));
+    const app=await readEnv(path.join(target,'app.env'));app.APP_URL=origin;
+    // A historical backup can predate a token revocation. Preserve its rows,
+    // but never re-enable delegated access automatically on a restored copy.
+    app.OWNER_BOOK_API_ENABLED='false';await writeFile(path.join(target,'app.env'),envText(app));
     const auth=await readEnv(path.join(target,'auth.env'));Object.assign(auth,{API_EXTERNAL_URL:origin,GOTRUE_SITE_URL:origin,GOTRUE_URI_ALLOW_LIST:`${origin}/auth/confirm,${origin}/auth/recover`});await writeFile(path.join(target,'auth.env'),envText(auth));
     Object.assign(manifest,{project,httpsPort:port,origin,restoredAt:new Date().toISOString()});
     for(const name of configFiles.filter(file=>file!=='manifest.json'))manifest.hashes[name]=hash(await readFile(path.join(target,name)));

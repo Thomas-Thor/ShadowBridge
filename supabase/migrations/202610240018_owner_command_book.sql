@@ -92,7 +92,7 @@ DECLARE k text;v text;BEGIN
  FOR k IN SELECT jsonb_object_keys(p) LOOP IF k NOT IN ('id','version','kind','title','body','priority','status','due_at','starts_at','ends_at','remind_at','archived','dependencies','source_ref') THEN RAISE EXCEPTION 'Unknown book field' USING ERRCODE='22023';END IF;END LOOP;
  IF coalesce(p->>'kind','') NOT IN ('task','note','idea','event','decision') OR coalesce(length(btrim(p->>'title')),0) NOT BETWEEN 1 AND 200 OR length(coalesce(p->>'body',''))>5000
   OR coalesce(p->>'priority','normal') NOT IN ('low','normal','high','critical') OR coalesce(p->>'status','open') NOT IN ('planned','open','in_progress','blocked','done','cancelled','recorded') OR length(coalesce(p->>'source_ref',''))>500 THEN RAISE EXCEPTION 'Invalid book values' USING ERRCODE='22023';END IF;
- IF (coalesce(p->>'body','')||' '||coalesce(p->>'title',''))~*'-----BEGIN [A-Z ]*PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{30,}' THEN RAISE EXCEPTION 'Use a separate password manager for secrets' USING ERRCODE='22023';END IF;
+ IF (coalesce(p->>'body','')||' '||coalesce(p->>'title','')||' '||coalesce(p->>'source_ref',''))~*'-----BEGIN [A-Z ]*PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{30,}|sbob_[A-Za-z0-9_-]{43}' THEN RAISE EXCEPTION 'Use a separate password manager for secrets' USING ERRCODE='22023';END IF;
  FOREACH k IN ARRAY ARRAY['due_at','starts_at','ends_at','remind_at'] LOOP
   v=p->>k;IF v IS NOT NULL AND v<>'' AND v !~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})$' THEN RAISE EXCEPTION 'Timestamp offset required' USING ERRCODE='22023';END IF;
  END LOOP;
@@ -138,14 +138,16 @@ DECLARE begin_at timestamptz;end_at timestamptz:=clock_timestamp();w text:=coale
  ), numbered AS(SELECT * FROM records ORDER BY at DESC,source_ref LIMIT 25 OFFSET (page_n-1)*25)
  SELECT coalesce((SELECT jsonb_agg(jsonb_build_object('at',at,'action',action,'source',source,'sourceRef',source_ref,'certainty','recorded') ORDER BY at DESC,source_ref) FROM numbered),'[]'),(SELECT count(*) FROM records) INTO items,total;
  RETURN jsonb_build_object('items',items,'total',total,'page',page_n,'limit',25,'window',jsonb_build_object('from',begin_at,'until',end_at,'timezone','Europe/Oslo','previousLoginFallback',fallback),
-  'counts',jsonb_build_object('crmContacts',(SELECT count(*) FROM owner_vault.contacts WHERE created_at>=begin_at AND created_at<end_at),'crmCompanies',(SELECT count(*) FROM owner_vault.companies WHERE created_at>=begin_at AND created_at<end_at),'bookChanges',(SELECT count(*) FROM owner_book.history WHERE owner_id=subject AND created_at>=begin_at AND created_at<end_at)),
+  'counts',jsonb_build_object('crmContacts',(SELECT count(*) FROM owner_vault.contacts WHERE created_at>=begin_at AND created_at<end_at),'crmCompanies',(SELECT count(*) FROM owner_vault.companies WHERE created_at>=begin_at AND created_at<end_at),'bookChanges',(SELECT count(*) FROM owner_book.history WHERE owner_id=subject AND created_at>=begin_at AND created_at<end_at),
+   'tasksMarkedDone',(SELECT count(*) FROM owner_book.history WHERE owner_id=subject AND kind='task' AND after_data->>'status'='done' AND before_data->>'status' IS DISTINCT FROM 'done' AND created_at>=begin_at AND created_at<end_at),
+   'plannedItems',(SELECT count(*) FROM owner_book.entries WHERE owner_id=subject AND status='planned' AND created_at>=begin_at AND created_at<end_at)),
   'automation',jsonb_build_object('status','not_connected','verifiedAgentRuns',NULL,'actualCredits',NULL,'actualMoneyCost',NULL),
   'coverage',jsonb_build_array('sb.audit_events','owner_vault.events','owner_book.history'),'warning','Recorded events are evidence of saved operations, not proof of commercial results. External agent runs, offers discovered outside the platform and billing are not connected.');
 END $$;
 CREATE FUNCTION owner_book.operate(subject uuid,action text,kind text,p jsonb,allowed text[],channel text) RETURNS jsonb LANGUAGE plpgsql SET search_path='' AS $$
 DECLARE e owner_book.entries;items jsonb;total bigint;page_n integer;query_text text;status_filter text;archive_filter text;rid uuid;k text;row jsonb;out jsonb:='[]';export_kinds text[];BEGIN
  IF action IN ('list','get','history','save') AND (kind IS NULL OR kind NOT IN ('task','note','idea','event','decision') OR NOT (kind||CASE WHEN action='save' THEN '.write' ELSE '.read' END)=ANY(allowed)) THEN RAISE EXCEPTION 'Resource scope required' USING ERRCODE='42501';END IF;
- IF action='save' THEN RETURN owner_book.save_entry(subject,p,channel);END IF;
+ IF action='save' THEN IF p->>'kind' IS DISTINCT FROM kind THEN RAISE EXCEPTION 'Resource scope mismatch' USING ERRCODE='42501';END IF;RETURN owner_book.save_entry(subject,p,channel);END IF;
  IF action='list' THEN
   page_n=coalesce((p->>'page')::integer,1);query_text=coalesce(p->>'q','');status_filter=coalesce(p->>'status','');archive_filter=coalesce(p->>'archived','false');
   IF page_n NOT BETWEEN 1 AND 10000 OR length(query_text)>100 OR archive_filter NOT IN ('false','true','all') OR status_filter NOT IN ('','planned','open','in_progress','blocked','done','cancelled','recorded') THEN RAISE EXCEPTION 'Invalid list filters' USING ERRCODE='22023';END IF;
@@ -164,7 +166,7 @@ DECLARE e owner_book.entries;items jsonb;total bigint;page_n integer;query_text 
  END IF;
  IF action='journal' THEN IF NOT 'journal.read'=ANY(allowed) THEN RAISE EXCEPTION 'Journal scope required' USING ERRCODE='42501';END IF;RETURN owner_book.journal(subject,p);END IF;
  IF action='import' THEN
-  IF NOT 'records.import'=ANY(allowed) OR jsonb_typeof(p->'items')<>'array' OR jsonb_array_length(p->'items') NOT BETWEEN 1 AND 25 THEN RAISE EXCEPTION 'Bounded authorized import required' USING ERRCODE='42501';END IF;
+  IF NOT 'records.import'=ANY(allowed) OR coalesce(jsonb_typeof(p->'items'),'')<>'array' OR jsonb_array_length(p->'items') NOT BETWEEN 1 AND 25 THEN RAISE EXCEPTION 'Bounded authorized import required' USING ERRCODE='42501';END IF;
   FOR row IN SELECT value FROM jsonb_array_elements(p->'items') LOOP
    IF NOT ((row->>'kind')||'.write')=ANY(allowed) THEN RAISE EXCEPTION 'Import resource scope required' USING ERRCODE='42501';END IF;
    IF row ? 'id' OR row ? 'version' THEN RAISE EXCEPTION 'Import cannot overwrite existing entries' USING ERRCODE='22023';END IF;

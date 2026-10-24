@@ -77,10 +77,10 @@ export async function checkGmail(password) {
 // Compare all application tables and security-critical GoTrue records without
 // printing records, hashes, passwords, tokens, MFA material or personal data.
 export async function databaseFingerprints(directory) {
-  const tables = JSON.parse(await psql(directory,"SELECT json_agg(schemaname||'.'||tablename ORDER BY schemaname,tablename) FROM pg_tables WHERE schemaname IN ('sb','owner_vault','portal','auth')"));
+  const tables = JSON.parse(await psql(directory,"SELECT json_agg(schemaname||'.'||tablename ORDER BY schemaname,tablename) FROM pg_tables WHERE schemaname IN ('sb','owner_vault','owner_book','portal','auth')"));
   const result={};
   for(const table of tables) {
-    guard(/^(?:sb|auth|owner_vault|portal)\.[a-z_]+$/.test(table),'Niepoprawna nazwa tabeli kopii.');
+    guard(/^(?:sb|auth|owner_vault|owner_book|portal)\.[a-z_]+$/.test(table),'Niepoprawna nazwa tabeli kopii.');
     result[table]=await psql(directory,`SELECT md5(coalesce(string_agg(value,',' ORDER BY value),'')) FROM (SELECT to_jsonb(t)::text AS value FROM ${table} t) rows`);
   }
   // An upgrade may ADD permission keys. Protect every existing key/flag while

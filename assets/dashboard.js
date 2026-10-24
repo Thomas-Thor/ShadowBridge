@@ -116,6 +116,7 @@
       text: label, 'aria-current': selected === key ? 'page' : null, 'data-command-module': key,
     }));
     if (access?.owner === true) navigation.append(create('a', { href: '/portal/admin/?module=vault', text: 'OWNER VAULT', 'aria-current': selected === 'vault' ? 'page' : null, 'data-command-module': 'vault' }));
+    if (access?.owner === true) navigation.append(create('a', { href: '/portal/admin/?module=book#owner-command-book', text: 'OWNER Command Book', 'aria-current': selected === 'book' ? 'page' : null, 'data-command-module': 'book' }));
     return navigation;
   }
   function mountShell({ navigation, role = 'home' } = {}) {

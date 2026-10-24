@@ -16,7 +16,7 @@ const must=(ok,message)=>{if(!ok)throw new Error(message);};
 const sha=value=>createHash('sha256').update(value).digest('hex');
 const releasePattern=/^[a-f0-9]{40}$/,imagePattern=/^sha256:[a-f0-9]{64}$/;
 async function regular(file,directory=false){const s=await lstat(file);must(!s.isSymbolicLink()&&(directory?s.isDirectory():s.isFile())&&(s.mode&0o777)===(directory?0o700:0o600),'R1 requires private regular files/directories, no symlinks.');}
-const override=(image,release)=>({services:{app:{image,environment:{RELEASE_SHA:release}}}});
+const override=(image,release,ownerBookApi)=>({services:{app:{image,environment:{RELEASE_SHA:release,...(ownerBookApi===undefined?{}:{OWNER_BOOK_API_ENABLED:String(ownerBookApi)})}}}});
 const quote=value=>"'"+String(value).replaceAll("'","'\\''")+"'";
 function operatorScript(profile,directory,rollback){
  const action=rollback?'--application-only-no-database-restore':'--after-reviewed-backup-and-migrations';
@@ -24,12 +24,14 @@ function operatorScript(profile,directory,rollback){
   'cd '+quote(repositoryRoot)+'\nnode '+quote(path.join(repositoryRoot,'scripts/international-r1.mjs'))+' check '+quote('--dir='+profile.sourceDirectory)+' '+quote('--plan='+directory)+'\n'+
   'exec '+['docker','--context','default',...applicationArguments(profile,directory,rollback)].map(quote).join(' ')+'\n';
 }
-export function assertApplicationOnly(base,merged,{image,releaseSha}){
+export function assertApplicationOnly(base,merged,{image,releaseSha,ownerBookApi}){
  must(imagePattern.test(image)&&releasePattern.test(releaseSha),'Invalid immutable application identity.');
  const expected=structuredClone(base);
  expected.services.app.image=image;
  expected.services.app.environment={...expected.services.app.environment,RELEASE_SHA:releaseSha};
- must(isDeepStrictEqual(expected,merged),'R1 may change only the application image and RELEASE_SHA; gateway, Auth, networks, volumes and other environment must remain identical.');
+ must(ownerBookApi===undefined||typeof ownerBookApi==='boolean','Explicit boolean Command Book API selection required.');
+ if(ownerBookApi!==undefined)expected.services.app.environment.OWNER_BOOK_API_ENABLED=String(ownerBookApi);
+ must(isDeepStrictEqual(expected,merged),'R1 may change only the application image, RELEASE_SHA and explicitly approved Command Book API flag; gateway, Auth, networks, volumes and other environment must remain identical.');
 }
 async function anchors(profile){
  must(profile.releaseSha===productionBase&&profile.mailMode==='disabled'&&profile.gatewayOverride,'R1 requires the verified no-mail 7f794a2 profile with active n8n gateway. No fallback to a base-only gateway.');
@@ -40,16 +42,17 @@ async function anchors(profile){
  for(const name of ['deploy/production/compose.yaml','deploy/production/caddy-entrypoint.sh','deploy/automation/Caddyfile.append'])result[path.join(repositoryRoot,name)]=sha(await readFile(path.join(repositoryRoot,name)));
  return result;
 }
-export async function prepareApplicationPlan({profile,image,releaseSha,previousImage,previousReleaseSha}){
+export async function prepareApplicationPlan({profile,image,releaseSha,previousImage,previousReleaseSha,ownerBookApi,previousOwnerBookApi}){
  must(imagePattern.test(image)&&imagePattern.test(previousImage)&&releasePattern.test(releaseSha)&&previousReleaseSha===productionBase,'Use actual immutable images and the existing production release.');
  const fingerprints=await anchors(profile);
+ must([ownerBookApi,previousOwnerBookApi].every(v=>v===undefined||typeof v==='boolean'),'Invalid Command Book API selection.');
  const parent=path.join(profile.sourceDirectory,'international-r1');await mkdir(parent,{mode:0o700}).catch(e=>{if(e.code!=='EEXIST')throw e;});await regular(parent,true);
  const directory=path.join(parent,releaseSha);await mkdir(directory,{mode:0o700});
- const app=override(image,releaseSha),rollback=override(previousImage,previousReleaseSha);
+ const app=override(image,releaseSha,ownerBookApi),rollback=override(previousImage,previousReleaseSha,previousOwnerBookApi);
  await writeFile(path.join(directory,'application.json'),JSON.stringify(app,null,2)+'\n',{mode:0o600,flag:'wx'});
  await writeFile(path.join(directory,'rollback.json'),JSON.stringify(rollback,null,2)+'\n',{mode:0o600,flag:'wx'});
  for(const rollback of [false,true])await writeFile(path.join(directory,rollback?'rollback-application.sh':'apply-application.sh'),operatorScript(profile,directory,rollback),{mode:0o700,flag:'wx'});
- const plan={kind:'shadowbridge-international-r1-plan-v1',project:profile.project,sourceDirectory:profile.sourceDirectory,productionDirectory:profile.directory,releaseSha,previousReleaseSha,image,previousImage,fingerprints,createdAt:new Date().toISOString(),deployed:false};
+ const plan={kind:'shadowbridge-international-r1-plan-v1',project:profile.project,sourceDirectory:profile.sourceDirectory,productionDirectory:profile.directory,releaseSha,previousReleaseSha,image,previousImage,ownerBookApi,previousOwnerBookApi,fingerprints,createdAt:new Date().toISOString(),deployed:false};
  await writeFile(path.join(directory,'plan.json'),JSON.stringify(plan,null,2)+'\n',{mode:0o600,flag:'wx'});
  return {directory,plan};
 }
@@ -59,7 +62,8 @@ export async function checkApplicationPlan({profile,directory}){
  const plan=JSON.parse(await readFile(path.join(directory,'plan.json'),'utf8'));
  must(plan.kind==='shadowbridge-international-r1-plan-v1'&&plan.sourceDirectory===profile.sourceDirectory&&plan.productionDirectory===profile.directory&&plan.project===profile.project&&plan.releaseSha===path.basename(directory)&&plan.previousReleaseSha===productionBase&&imagePattern.test(plan.image)&&imagePattern.test(plan.previousImage),'Invalid R1 installation/rollback identity.');
  must(isDeepStrictEqual(plan.fingerprints,await anchors(profile)),'Existing production or gateway configuration changed after planning. Stop; do not regenerate manifests.');
- for(const [name,expected] of [['application.json',override(plan.image,plan.releaseSha)],['rollback.json',override(plan.previousImage,plan.previousReleaseSha)]]){
+ must([plan.ownerBookApi,plan.previousOwnerBookApi].every(v=>v===undefined||typeof v==='boolean'),'Invalid Command Book API selection.');
+ for(const [name,expected] of [['application.json',override(plan.image,plan.releaseSha,plan.ownerBookApi)],['rollback.json',override(plan.previousImage,plan.previousReleaseSha,plan.previousOwnerBookApi)]]){
   const file=path.join(directory,name);await regular(file);must(isDeepStrictEqual(JSON.parse(await readFile(file,'utf8')),expected),'R1 application override was modified.');
  }
  for(const rollback of [false,true]){
@@ -82,7 +86,7 @@ export function checkMergedApplication(profile,directory,plan){
  for(const rollback of [false,true]){
   const args=applicationArguments(profile,directory,rollback).slice(0,-8); // replace the fixed up command by read-only config
   const merged=JSON.parse(docker([...args,'config','--format','json'],env));
-  assertApplicationOnly(base,merged,{image:rollback?plan.previousImage:plan.image,releaseSha:rollback?plan.previousReleaseSha:plan.releaseSha});
+  assertApplicationOnly(base,merged,{image:rollback?plan.previousImage:plan.image,releaseSha:rollback?plan.previousReleaseSha:plan.releaseSha,ownerBookApi:rollback?plan.previousOwnerBookApi:plan.ownerBookApi});
  }
 }
 export async function backupApplicationConfiguration({profile,directory}){
@@ -166,7 +170,8 @@ export async function preflightExistingR1(profile,{request=fetch}={}){
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  (async()=>{
   const [action,...args]=process.argv.slice(2),options={};
-  for(const arg of args){const m=/^--(dir|release|image|plan)=(.+)$/.exec(arg);must(m,'Use --dir=, --release=, --image= or --plan=.');options[m[1]]=m[2];}
+  for(const arg of args){const m=/^--(dir|release|image|plan|book-api)=(.+)$/.exec(arg);must(m,'Use --dir=, --release=, --image=, --plan= or prepare --book-api=enabled|disabled.');options[m[1]]=m[2];}
+  must(options['book-api']===undefined||action==='prepare'&&['enabled','disabled'].includes(options['book-api']),'Command Book API selection is explicit and allowed only while preparing a new plan.');
   const profile=await checkProduction({directory:options.dir});let directory,plan;
   if(action==='preflight'){console.log(JSON.stringify(await preflightExistingR1(profile)));return;}
   if(action==='prepare'){
@@ -179,7 +184,8 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
    const id=docker(publicComposeArguments(profile,['ps','-q','app']),profile.composeEnvironment);must(/^[a-f0-9]{64}$/.test(id),'One running app container is required.');
    const app=JSON.parse(docker(['inspect',id]))[0];must(app.State.Running,'Existing application is not running.');
    const previousReleaseSha=(app.Config.Env||[]).find(v=>v.startsWith('RELEASE_SHA='))?.slice(12);
-   ({directory,plan}=await prepareApplicationPlan({profile,image:options.image,releaseSha:options.release,previousImage:app.Image,previousReleaseSha}));
+   const previousFlag=(app.Config.Env||[]).find(v=>v.startsWith('OWNER_BOOK_API_ENABLED='))?.split('=')[1];
+   ({directory,plan}=await prepareApplicationPlan({profile,image:options.image,releaseSha:options.release,previousImage:app.Image,previousReleaseSha,ownerBookApi:options['book-api']===undefined?undefined:options['book-api']==='enabled',previousOwnerBookApi:previousFlag===undefined?undefined:previousFlag==='true'}));
   }else{must(['check','backup-config','backup-edge','verify','snapshot','preserved'].includes(action)&&options.plan,'Use prepare, check, backup-config, backup-edge, snapshot, preserved or verify. No automatic deployment command exists.');directory=path.resolve(repositoryRoot,options.plan);plan=await checkApplicationPlan({profile,directory});}
   checkMergedApplication(profile,directory,plan);
   if(action==='backup-config'){console.log(JSON.stringify({...(await backupApplicationConfiguration({profile,directory})),encrypted:true,sourceUnchanged:true}));return;}
@@ -203,6 +209,6 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
    docker(publicComposeArguments(profile,['exec','-T','app','node','-e',"fetch(process.env.SUPABASE_URL+'/auth/v1/health',{signal:AbortSignal.timeout(10000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]),profile.composeEnvironment);
    console.log(JSON.stringify({...(await verifyR1Http(plan.releaseSha)),release:plan.releaseSha}));return;
   }
-  console.log(JSON.stringify({result:'PASS',planDirectory:directory,project:profile.project,sourceDirectory:profile.sourceDirectory,productionDirectory:profile.directory,release:plan.releaseSha,configurationAnchor:profile.releaseSha,changes:'app image and RELEASE_SHA only',deployed:false}));
+  console.log(JSON.stringify({result:'PASS',planDirectory:directory,project:profile.project,sourceDirectory:profile.sourceDirectory,productionDirectory:profile.directory,release:plan.releaseSha,configurationAnchor:profile.releaseSha,changes:'app image, release marker and only an explicitly selected book API flag',ownerBookApi:plan.ownerBookApi??'preserved',deployed:false}));
  })().catch(error=>{console.error(error.message);process.exitCode=1;});
 }

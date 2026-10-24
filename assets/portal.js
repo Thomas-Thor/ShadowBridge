@@ -32,6 +32,7 @@
     pending.clear(); csrfToken = null; session = null;
     memberDashboard?.clear();
     window.ShadowOwnerVault?.clearPrivate();
+    window.ShadowOwnerBook?.clearPrivate();
     window.ShadowDashboard?.clearPrivate();
     root.replaceChildren(); nav.replaceChildren(); nav.hidden = true;
     document.querySelector('#portal-account')?.replaceChildren();
@@ -67,7 +68,7 @@
       if (closed || requestEpoch !== epoch) throw new Error(changedMessage);
       if (!response.ok) {
         if (response.status === 401 || result.code === 'session_changed' || result.code === 'csrf_failed') sessionChanged();
-        if (path.startsWith('/api/owner/vault') && response.status === 403 && result.code !== 'FRESH_MFA_REQUIRED') sessionChanged();
+        if ((path.startsWith('/api/owner/vault') || path.startsWith('/api/owner/book')) && response.status === 403 && result.code !== 'FRESH_MFA_REQUIRED') sessionChanged();
         throw new Error(closed ? changedMessage : result.error || 'The secure service could not complete this request.');
       }
       return result;
@@ -354,6 +355,7 @@
     const overview = await api('/api/staff/overview');
     if (closed) return;
     if (managementAccess.owner && window.ShadowOwnerVault) await window.ShadowOwnerVault.overview({ host: parent, api, access: managementAccess });
+    if (managementAccess.owner && window.ShadowOwnerBook) await window.ShadowOwnerBook.overview({ host: parent, api, access: managementAccess });
     if (closed) return;
     if (window.ShadowCommandDashboard) {
       const activity = section('Recent activity', 'Recent authorized actions recorded by the server.');
@@ -610,6 +612,10 @@
     const selected = new URLSearchParams(location.search).get('module') || 'overview';
     const moduleNav = window.ShadowDashboard.managementNavigation({ access: managementAccess, selected }); root.append(moduleNav);
     window.ShadowDashboard?.placeModules(moduleNav);
+    if (selected === 'book') {
+      if (!managementAccess.owner || !window.ShadowOwnerBook) { status('Module unavailable.', 'Command Book requires the active OWNER role and MFA.', true); return; }
+      window.ShadowOwnerBook.mount({ host: root, api, access: managementAccess, form, ownerReconfirmation }); return;
+    }
     if (selected === 'vault') {
       if (!managementAccess.owner || !window.ShadowOwnerVault) { status('Module unavailable.', 'OWNER VAULT requires the active OWNER role and MFA.', true); return; }
       window.ShadowOwnerVault.mount({ host: root, api, access: managementAccess, form, ownerReconfirmation }); return;
@@ -800,5 +806,5 @@
       if (session.staff && session.aal !== 'aal2') empty(overview, 'Open Command Center to set up or verify your management second factor.');
     }
   }
-  start().catch((error) => { if (!closed) { memberDashboard?.clear(); window.ShadowDashboard?.clearPrivate(); root.replaceChildren(); status('Private service unavailable.', `${error.message} No private workspace has been activated.`, true); } });
+  start().catch((error) => { if (!closed) { memberDashboard?.clear(); window.ShadowOwnerBook?.clearPrivate(); window.ShadowDashboard?.clearPrivate(); root.replaceChildren(); status('Private service unavailable.', `${error.message} No private workspace has been activated.`, true); } });
 })();

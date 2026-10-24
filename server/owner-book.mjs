@@ -9,7 +9,7 @@ function timestamp(v,name){if(v===undefined||v===null||v==='')return null;if(typ
 export function bookRecord(input,{update=false,id}={}){
  const p=object(input,['kind','title','body','priority','status','due_at','starts_at','ends_at','remind_at','archived','dependencies','source_ref','version'],['kind','title']);
  const kind=oneOf(p.kind,bookKinds,'resource kind'),title=text(p.title,'title',{min:1,max:200}),content=text(p.body??'','body',{max:5000});
- if(/-----BEGIN [A-Z ]*PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{30,}/i.test(title+' '+content))invalid('Use the separate password manager for access secrets.');
+ if(/-----BEGIN [A-Z ]*PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{30,}|sbob_[A-Za-z0-9_-]{43}/i.test(title+' '+content+' '+(p.source_ref??'')))invalid('Use the separate password manager for access secrets.');
  if(update&&(!Number.isSafeInteger(p.version)||p.version<1))invalid('Use the current entry version.');if(!update&&p.version!==undefined)invalid('An import/create cannot overwrite an existing version.');
  if(p.archived!==undefined&&typeof p.archived!=='boolean')invalid('Invalid archive flag.');
  const deps=p.dependencies??[];if(!Array.isArray(deps)||deps.length>20)invalid('Use at most 20 task dependencies.');
@@ -51,7 +51,7 @@ export function bookOperation(url,method,input={},prefix='/api/owner/book'){
  }
  if(method==='POST'&&route==='/keys'){
   object(input,['name','mode','scopes','expiresAt'],['name','mode','expiresAt']);const mode=oneOf(input.mode,['read_only','custom','book_admin'],'key mode');
-  const scopes=input.scopes??bookKinds.map(k=>k+'.read');if(!Array.isArray(scopes)||scopes.some(k=>!bookScopes.includes(k))||!scopes.length||mode==='read_only'&&scopes.some(k=>!k.endsWith('.read')))invalid('Use only the permitted Command Book scopes.');
+  let scopes=input.scopes??bookKinds.map(k=>k+'.read');if(!Array.isArray(scopes)||scopes.some(k=>!bookScopes.includes(k))||mode!=='book_admin'&&!scopes.length||mode==='read_only'&&scopes.some(k=>!k.endsWith('.read')))invalid('Use only the permitted Command Book scopes.');if(mode==='book_admin')scopes=[...bookScopes];
   return{action:'key_create',kind:null,p:{name:text(input.name,'key name',{min:2,max:80}),mode,scopes:[...new Set(scopes)],expiresAt:timestamp(input.expiresAt,'expiry')}};
  }
  const revoke=route.match(/^\/keys\/([a-f0-9-]+)\/revoke$/i);

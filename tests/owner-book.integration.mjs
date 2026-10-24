@@ -34,7 +34,8 @@ try{
  const pre=execFileSync('docker',[...D,'exec',pg,'pg_dump','-Fc','-U','postgres','-d',db],{maxBuffer:64*1024**2});await writeFile(new URL('before-018.dump',dir),pre,{mode:0o600});
  await phase('018 applies transactionally and preserves all pre-existing accounts, MFA, sessions, roles and CRM rows',async()=>{
   const source=await readFile(new URL('../supabase/migrations/202610240018_owner_command_book.sql',import.meta.url),'utf8');
-  raw(source.replaceAll('shadowbridge_book_executor',executor),db);assert.deepEqual(protectedPrint(db),before);
+  const tracked=source.replaceAll('shadowbridge_book_executor',executor).replace(/COMMIT\s*;\s*$/i,`INSERT INTO shadowbridge_migrations.applied(name,sha256) VALUES('202610240018_owner_command_book.sql',${literal(digest(source))});COMMIT;`);
+  raw(tracked,db);assert.deepEqual(protectedPrint(db),before);assert.equal(sql("SELECT sha256 FROM shadowbridge_migrations.applied WHERE name='202610240018_owner_command_book.sql'"),digest(source));
   assert.equal(sql("SELECT bool_and(relrowsecurity AND relforcerowsecurity) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='owner_book' AND c.relkind='r'"),'t');
  });
  await phase('OWNER requires verified MFA; every other real role and all raw table/CRM-secret reads are denied',async()=>{
@@ -82,6 +83,8 @@ try{
   assert.equal(token(custom.hash,'save','note',{...p,title:'changed'},{command,explicit:true}).status,409);
   assert.equal(token(admin.hash,'key_create',null,{}).status,403);assert.equal(token(admin.hash,'get','vault',{id:note.id}).status,403);
   assert.equal(token(custom.hash,'export',null,{kinds:['task']}).status,403);
+  const writer=createKey('FICTIONAL task writer','custom',['task.read','task.write']);assert.equal(writer.response.status,200);assert.equal(token(writer.hash,'save','task',{kind:'note',title:'cross-scope attempt'},{command:randomUUID(),explicit:true}).status,403);
+  assert.equal(token(admin.hash,'import',null,{}, {command:randomUUID(),explicit:true}).status,403);
  });
  await phase('two OWNERs are isolated; losing verified MFA immediately disables delegated keys; revocation leaves the account unchanged',async()=>{
   assert.equal(rpc(users.owner2,'get','note',{id:note.id}).status,404);assert.equal(rpc(users.owner2,'list','note').data.total,0);

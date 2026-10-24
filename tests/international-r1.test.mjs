@@ -17,6 +17,13 @@ test('R1 refuses any Compose change beyond the immutable application image and r
  for(const modify of [v=>v.services.gateway.networks.pop(),v=>v.services.auth.image='other',v=>v.services.postgres.ports=['5432:5432'],v=>v.services.app.environment.SESSION_ENCRYPTION_KEY='changed',v=>v.services.app.ports=['8088:8088']]){const value=structuredClone(merged);modify(value);assert.throws(()=>assertApplicationOnly(base,value,{image,releaseSha}));}
  assert.throws(()=>assertApplicationOnly(base,merged,{image:'app:latest',releaseSha}));
 });
+test('Command Book API flag is permitted only as an explicit reviewed boolean; no other runtime/security changes are allowed',()=>{
+ const base={services:{app:{image:'old',environment:{RELEASE_SHA:productionBase}},auth:{image:'auth'},gateway:{image:'caddy'},postgres:{image:'postgres'}},networks:{private:{internal:true}}};
+ const enabled=structuredClone(base);enabled.services.app.image=image;enabled.services.app.environment={RELEASE_SHA:releaseSha,OWNER_BOOK_API_ENABLED:'true'};
+ assert.throws(()=>assertApplicationOnly(base,enabled,{image,releaseSha}));assert.doesNotThrow(()=>assertApplicationOnly(base,enabled,{image,releaseSha,ownerBookApi:true}));
+ assert.throws(()=>assertApplicationOnly(base,enabled,{image,releaseSha,ownerBookApi:false}));
+ const unsafe=structuredClone(enabled);unsafe.services.postgres.ports=['5432:5432'];assert.throws(()=>assertApplicationOnly(base,unsafe,{image,releaseSha,ownerBookApi:true}));
+});
 test('R1 HTTP verifier checks the new app SHA and automation independently; synthetic responses are not a deployment test',async()=>{
  const probe=({oldApp=false,basic=false,unhealthy=false}={})=>async(input,options={})=>{
   const url=new URL(input);
@@ -44,6 +51,8 @@ test('R1 planning preserves all profile/gateway bytes, fails closed on drift, an
  const candidate=await prepareApplicationPlan({profile,image,releaseSha,previousImage,previousReleaseSha:productionBase});
  assert.equal((await checkApplicationPlan({profile,directory:candidate.directory})).releaseSha,releaseSha);
  checkMergedApplication(profile,candidate.directory,candidate.plan);
+ const bookCandidate=await prepareApplicationPlan({profile,image,releaseSha:'d'.repeat(40),previousImage,previousReleaseSha:productionBase,ownerBookApi:true,previousOwnerBookApi:false});
+ assert.equal((await checkApplicationPlan({profile,directory:bookCandidate.directory})).ownerBookApi,true);checkMergedApplication(profile,bookCandidate.directory,bookCandidate.plan);
  for(const file of ['apply-application.sh','rollback-application.sh'])assert.throws(()=>execFileSync(path.join(candidate.directory,file),[],{stdio:['ignore','pipe','pipe']}),error=>error.status===2,'Generated operator scripts require acknowledgement before any command');
  const args=applicationArguments(profile,candidate.directory);
  assert.ok(args.includes(gateway.override));assert.equal(args.at(-1),'app');assert.ok(args.includes('--no-deps'));assert.ok(args.includes('--no-build'));
