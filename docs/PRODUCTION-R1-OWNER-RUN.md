@@ -1,5 +1,8 @@
 # R1 + OWNER Command Book: jedna procedura operatora
 
+**Działające R1 `d5582ff` i aktywacja API:** użyć [nowej procedury Book API](OWNER-BOOK-CHATGPT-CONNECTION.md).
+Poniższy przebieg dotyczy wyłącznie wcześniejszej aktualizacji z 7f794a2.
+
 **READY FOR OWNER ACTION. Nie wykonano aktualizacji Contabo z sesji Codexa.**
 Zgłoszona przez operatora produkcja: `7f794a298713d820af033ba2174cd60bfaa81e4b`.
 Operator potwierdził HTTPS/HTTP 200 dla aplikacji, n8n `/healthz` i HTML `/signin`;

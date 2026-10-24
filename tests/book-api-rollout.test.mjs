@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import{readFile,readdir,writeFile}from'node:fs/promises';import{randomBytes,createHash}from'node:crypto';import{execFileSync}from'node:child_process';
 import{ownerBookR1,baseline,evaluateInventory,safeHttpEvidence,pinnedR1Runtime,catalog}from'../scripts/international-r1-diagnose.mjs';
-import{prepareApplicationPlan,checkApplicationPlan,checkMergedApplication,disabledApplicationArguments}from'../scripts/international-r1.mjs';
+import{prepareApplicationPlan,checkApplicationPlan,checkMergedApplication,disabledApplicationArguments,backupApplicationConfiguration}from'../scripts/international-r1.mjs';
+import{verifiedTar}from'../scripts/r1-production-release.mjs';import path from'node:path';
 import{checkProduction}from'../scripts/production-config.mjs';import{repositoryRoot}from'../scripts/staging-prepare.mjs';import{bootstrap}from'../scripts/r1-owner-deploy.mjs';import{ownerBookPluginContract}from'../scripts/owner-book-contract.mjs';
 const good=()=>({legacyPublicGateway:false,installation:{unique:true},repository:{trackedClean:true,untrackedCount:0},application:{release:ownerBookR1,sourceMatchesBaseline:true,internalAuthTlsVerified:true,ownerBookApiEnabled:false},profiles:{valid:true,gatewayMounted:true,gatewayState:'active',runtimeConfigurationMatchesProfile:true},network:{internal:true,gatewayConnected:true,n8nConnected:true,webhookUrlCorrect:true},privatePorts:true,database:{migrationPrefixValid:true,migrationCount:18,activeOwnersWithVerifiedTotp:1},domains:{main:{ok:true},automation:{ok:true},automationSignIn:{ok:true},dnsMatchesExpected:true},disk:{enoughForBuildAndBackup:true}});
 test('R1 preflight requires exact d558 runtime, all 18 migrations, prior disabled API and every original guard',()=>{
@@ -19,8 +20,11 @@ test('an explicit R1 update plan preserves fingerprints; independent API-off ove
  const dirs=(await readdir(repositoryRoot+'/.local')).filter(n=>/^r1-plan-test-/.test(n));assert.ok(dirs.length,'Run the existing R1 planning case first');const source=repositoryRoot+'/.local/'+dirs.at(-1),profile=await checkProduction({directory:source});
  const image='sha256:'+'c'.repeat(64),previousImage='sha256:'+'b'.repeat(64),sha=randomBytes(20).toString('hex');
  await assert.rejects(prepareApplicationPlan({profile,image,previousImage,releaseSha:sha,previousReleaseSha:ownerBookR1,ownerBookApi:true}));
+ try{await readFile(profile.sourceDirectory+'/international-r1/'+ownerBookR1+'/plan.json');}catch(e){if(e.code!=='ENOENT')throw e;await prepareApplicationPlan({profile,image:previousImage,previousImage:'sha256:'+'a'.repeat(64),releaseSha:ownerBookR1,previousReleaseSha:baseline,ownerBookApi:false});}
  const plan=await prepareApplicationPlan({profile,image,previousImage,releaseSha:sha,previousReleaseSha:ownerBookR1,expectedPreviousReleaseSha:ownerBookR1,ownerBookApi:true,previousOwnerBookApi:false});
+ assert.ok(Object.keys(plan.plan.fingerprints).some(f=>f.endsWith('/'+ownerBookR1+'/application.json')),'Current R1 override must be included in configuration backup');
  assert.equal((await checkApplicationPlan({profile,directory:plan.directory})).previousReleaseSha,ownerBookR1);checkMergedApplication(profile,plan.directory,plan.plan);
+ const backup=await backupApplicationConfiguration({profile,directory:plan.directory}),files=Object.fromEntries(Object.entries(plan.plan.fingerprints).filter(([f])=>f.startsWith(profile.sourceDirectory+path.sep)).map(([f,h])=>[path.relative(profile.sourceDirectory,f),h]));assert.equal((await verifiedTar(backup,{files})).authenticated,true);
  const args=disabledApplicationArguments(profile,plan.directory);assert.ok(args.includes('--no-deps'));assert.ok(args.includes('--no-build'));assert.equal(args.at(-1),'app');assert.ok(args.includes(profile.gatewayOverride));
  const file=plan.directory+'/disabled.json';await writeFile(file,JSON.stringify({services:{app:{image,environment:{RELEASE_SHA:sha,OWNER_BOOK_API_ENABLED:'false'}},auth:{image:'forbidden'}}}),{mode:0o600});await assert.rejects(checkApplicationPlan({profile,directory:plan.directory}));
 });

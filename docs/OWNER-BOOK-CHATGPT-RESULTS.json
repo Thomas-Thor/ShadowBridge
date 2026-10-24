@@ -1,0 +1,225 @@
+{
+  "date": "2026-10-24",
+  "status": "READY_IN_CODE_NOT_DEPLOYED_NOT_CONNECTED",
+  "baseRelease": "d5582ffd9f1e7f9a40a1a49f9e16a304eae64a4e",
+  "branch": "release/shadowbridge-international-r1",
+  "testedNativeRuntimeSha": "cd6a85637a4d8c9d2295017481b272b2730fa45d",
+  "newFunctionality": [
+    "1/3/7/30/60 day key periods; CUSTOM date/time bounded to unchanged 90-day DB policy",
+    "explicit one-day CUSTOM ChatGPT preset; masked one-time secret, COPY and cleanup",
+    "TXT download uses attached DOM link, 60-second Blob lifetime and error fallback; optional reference help",
+    "JSON assistant writes share existing scoped RPC and command UUID/version enforcement",
+    "delegated journal withholds private CRM/security IDs, actions and counts",
+    "known deployed R1 preflight, no-migration app-only API activation and immediate off override"
+  ],
+  "unitAndFileCases": {
+    "distinctPassed": 37,
+    "groups": [
+      {
+        "command": "node --test tests/owner-book-access-ui.test.mjs server/tests/owner-book-assistant.test.mjs server/tests/owner-book.test.mjs",
+        "passed": 16
+      },
+      {
+        "command": "node --test tests/r1-n8n-negotiation.test.mjs tests/international-r1.test.mjs tests/r1-production-release.test.mjs",
+        "passed": 16
+      },
+      {
+        "command": "node --test tests/book-api-rollout.test.mjs",
+        "passed": 5
+      }
+    ],
+    "note": "8 coordinator and 5 rollout cases repeated after final host-only changes, all pass; repeated cases counted once Active-R1 backup guard retested with unchanged R1 planning cases."
+  },
+  "chromiumActualUi": {
+    "kind": "chromium-and-postgresql-owner-book",
+    "auth": "fixture endpoints, not GoTrue",
+    "database": "owner_book_ui_1ac19adb",
+    "cases": [
+      {
+        "name": "desktop Command Center retains full navigation and shows real SQL-backed private KPIs",
+        "result": "PASS"
+      },
+      {
+        "name": "quick capture writes an idea to PostgreSQL and renders through the existing CSRF/session interface",
+        "result": "PASS"
+      },
+      {
+        "name": "calendar, notebook, decisions and sourced activity journal render without browser exceptions",
+        "result": "PASS"
+      },
+      {
+        "name": "reviewed import appends records and summary export contains the selected real book context, never keys",
+        "result": "PASS"
+      },
+      {
+        "name": "TXT is actually downloaded by Linux Chromium with exact fictional content; source references are optional and explained",
+        "result": "PASS"
+      },
+      {
+        "name": "key expiry choices and explicit ChatGPT CUSTOM preset render without admin scopes",
+        "result": "PASS"
+      },
+      {
+        "name": "key appears once, authenticates only a scoped API, and stops immediately after UI revocation",
+        "result": "PASS"
+      },
+      {
+        "name": "representative desktop and mobile views have no horizontal overflow; screenshots contain no secrets",
+        "result": "PASS"
+      },
+      {
+        "name": "session-change notification clears all private book DOM; a non-OWNER never requests book records",
+        "result": "PASS"
+      }
+    ],
+    "realProviderCalls": 0,
+    "productionChanges": false,
+    "result": "PASS",
+    "screenshots": [
+      "owner-book-desktop.png",
+      "owner-book-mobile.png"
+    ]
+  },
+  "nativeActualBackend": {
+    "kind": "native-owner-book-runtime",
+    "sourceSha": "cd6a85637a4d8c9d2295017481b272b2730fa45d",
+    "imageId": "sha256:4b89f5d9fe8292de286e1b39e1fdc7962e27c9993ae975ee41574336c29931c3",
+    "cases": [
+      {
+        "name": "built non-root runtime starts with real verify-full PostgreSQL and remote API remains disabled by default",
+        "result": "PASS"
+      },
+      {
+        "name": "enabled native API uses the restricted session pool and enforces read scopes and browser separation",
+        "result": "PASS"
+      },
+      {
+        "name": "CUSTOM assistant creates and edits an actual idea once, rejects changed replay, forbidden scopes and account access",
+        "result": "PASS"
+      },
+      {
+        "name": "native HTTP API rejects the same scoped key after its real expiry, and logs the denial",
+        "result": "PASS"
+      },
+      {
+        "name": "OWNER SQL revocation immediately blocks the previously valid native API key without changing account or MFA",
+        "result": "PASS"
+      }
+    ],
+    "productionChanges": false,
+    "interactiveGoTrueLoginTested": false,
+    "result": "PASS",
+    "databaseRetained": "owner_book_runtime_2b717ce4",
+    "testContainersStopped": true
+  },
+  "boundaries": {
+    "fictionalDataOnly": true,
+    "originalDatabaseReset": false,
+    "browserAuth": "explicit session fixtures, not GoTrue",
+    "nativeAuth": "keys issued with explicit fictional OWNER SQL/MFA claims; real Node restricted pg pools with verify-full",
+    "contaboSsh": false,
+    "productionVersion": "d558 according to OWNER; independently unverified",
+    "productionApiActivatedByCodex": false,
+    "chatgptReadOrWritePerformed": false,
+    "paidOperations": 0,
+    "singleUseImplemented": false,
+    "chromeBrandBinaryAvailable": false,
+    "firefoxBinaryAvailable": false,
+    "firefoxRuntimeTest": "NOT RUN; official download CONNECT 403, including outside-sandbox retry",
+    "chromiumTxtDownload": "PASS; actual file bytes compared with UI preview"
+  },
+  "platformResearch": {
+    "ownerReported": "Plus: Plugins / Plugin Creator available to install; no confirmed Developer Mode or private MCP; Actions not primary",
+    "pluginCreatorCallableInThisSession": false,
+    "cloudSkillCatalog": "only existing cloud onboarding setup; no Plugin Creator",
+    "openAiDocsProbes": [
+      {
+        "name": "production_health",
+        "url": "https://shadow-bridge.eu/health",
+        "exitCode": 56,
+        "http": "000",
+        "proxyConnectDenied": true
+      },
+      {
+        "name": "production_config",
+        "url": "https://shadow-bridge.eu/api/config",
+        "exitCode": 56,
+        "http": "000",
+        "proxyConnectDenied": true
+      },
+      {
+        "name": "n8n_health",
+        "url": "https://automation.shadow-bridge.eu/healthz",
+        "exitCode": 56,
+        "http": "000",
+        "proxyConnectDenied": true
+      },
+      {
+        "name": "openai_developer_mode",
+        "url": "https://platform.openai.com/docs/guides/developer-mode",
+        "exitCode": 56,
+        "http": "000",
+        "proxyConnectDenied": true
+      },
+      {
+        "name": "openai_chatgpt_apps",
+        "url": "https://help.openai.com/en/articles/11487775-connectors-in-chatgpt",
+        "exitCode": 56,
+        "http": "000",
+        "proxyConnectDenied": true
+      },
+      {
+        "name": "openai_gpt_actions",
+        "url": "https://platform.openai.com/docs/actions/introduction",
+        "exitCode": 56,
+        "http": "000",
+        "proxyConnectDenied": true
+      },
+      {
+        "name": "openai_mcp",
+        "url": "https://platform.openai.com/docs/mcp",
+        "exitCode": 56,
+        "http": "000",
+        "proxyConnectDenied": true
+      }
+    ],
+    "officialGithubApi": "Forbidden also outside sandbox",
+    "plusWriteSupport": "UNVERIFIED, not claimed unsupported",
+    "sitesMcpSupport": "UNVERIFIED",
+    "mcpAdapterImplemented": false,
+    "pluginCreatedOrImported": false,
+    "httpContract": "owner-book.plugin.openapi.json, prepared only; mandatory secret storage and write confirmation must be verified before granting write key"
+  },
+  "rollout": {
+    "installer": "scripts/r1-owner-deploy.mjs --release=APPROVED_FULL_SHA --book-api",
+    "installerSha256": "5246b80d4da349039a13df4bcbb2ba627b9f185051b1c75c1f78d17331038e1d",
+    "requiredCurrentRuntime": "d5582ffd9f1e7f9a40a1a49f9e16a304eae64a4e",
+    "expectedImageFiles": 67,
+    "requiredMigrations": 18,
+    "migrationFilesUnchanged": true,
+    "runMigrator": false,
+    "buildMigratorOnServer": false,
+    "backup": "existing AES-GCM DB/config/cert checks and verified offsite copy before update",
+    "changeAllowlist": "app image, release marker and explicit Book API flag",
+    "emergencyOff": "same installer --book-api --disable; no account/key/DB changes",
+    "privateProductionTest": "still requires real Plugin integration and one-day CUSTOM token supplied only in secret Authentication UI",
+    "activeR1ConfigurationBackup": "Previous R1 plan/image is verified; active app override and rollback scripts included in encrypted configuration backup"
+  },
+  "pending": [
+    "Install and expose Plugin Creator without a secret; verify publisher, Plus support, authentication and per-write approval",
+    "Actual Contabo preflight, controlled rollout and public API verification through operator SSH",
+    "Real ChatGPT note read, confirmed idea write, matching UI ID/content, audit and revoke/retry acceptance",
+    "Chrome and Firefox Linux TXT acceptance; Chromium already passed"
+  ],
+  "sourceSha256": {
+    "assets/owner-book.js": "837cbe21b7b096b3597e8ff9140472790d3d8a063e8b4e0bfe652321a4867600",
+    "assets/owner-book.css": "2a3342eb228a1cc63dcbccaf3c8804b927a4bc67307a7f6ceb13bf65c4484078",
+    "server/owner-book.mjs": "5e2a7b69cfe78d545de9818dcc458cdd73ec12c39220ed42cd654af76a8e47a8",
+    "scripts/international-r1-diagnose.mjs": "dca1879138c3633048e35b214d4072d24041149962137d7fc100de67b0461b16",
+    "scripts/international-r1.mjs": "2ed7b38aa9a98323a44348b26c0c38f196367aedf0349bcec145af19f7636a46",
+    "scripts/r1-production-release.mjs": "39a56e09475ecc81fa23fd99fcafc1079f453870400a59430176f81cfa55e54e",
+    "scripts/r1-owner-deploy.mjs": "5246b80d4da349039a13df4bcbb2ba627b9f185051b1c75c1f78d17331038e1d",
+    "docs/owner-book.plugin.openapi.json": "31f9cdc84df5d1240d78b4713125234abe4e1c0b5aaf5f41f49c122fc834e8f8"
+  },
+  "developmentBranch": "feature/owner-book-chatgpt-v1"
+}

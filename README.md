@@ -1,5 +1,8 @@
 # ShadowBridge — secure private B2B MVP
 
+OWNER Book API + ChatGPT: [aktualny stan, Plugins i kontrolowana aktualizacja R1](docs/OWNER-BOOK-CHATGPT-CONNECTION.md).
+Kod przygotowany lokalnie; połączenie z ChatGPT pozostaje niepotwierdzone.
+
 **Wydanie produkcyjne R1 + OWNER Book:** [jedyna aktualna procedura operatora](docs/PRODUCTION-R1-OWNER-RUN.md).
 Integracja jest na gałęzi `release/shadowbridge-international-r1`; brak wdrożenia z sesji Codexa.
 

@@ -43,9 +43,22 @@ async function anchors(profile){
  for(const name of ['deploy/production/compose.yaml','deploy/production/caddy-entrypoint.sh','deploy/automation/Caddyfile.append'])result[path.join(repositoryRoot,name)]=sha(await readFile(path.join(repositoryRoot,name)));
  return result;
 }
+async function updateAnchors(profile,previousRelease){
+ const result=await anchors(profile);
+ if(previousRelease===ownerBookR1){
+  const directory=path.join(profile.sourceDirectory,'international-r1',ownerBookR1);
+  // The active R1 override is part of the current production configuration,
+  // even though original 7f manifests deliberately remain unchanged.
+  await checkApplicationPlan({profile,directory});
+  for(const name of ['plan.json','application.json','rollback.json','apply-application.sh','rollback-application.sh']){const file=path.join(directory,name),s=await lstat(file);must(s.isFile()&&!s.isSymbolicLink()&&(s.mode&0o777)===(name.endsWith('.sh')?0o700:0o600),'Unsafe previous R1 configuration file.');result[file]=sha(await readFile(file));}
+ }
+ return result;
+}
 export async function prepareApplicationPlan({profile,image,releaseSha,previousImage,previousReleaseSha,ownerBookApi,previousOwnerBookApi,expectedPreviousReleaseSha=productionBase}){
  must(imagePattern.test(image)&&imagePattern.test(previousImage)&&releasePattern.test(releaseSha)&&[productionBase,ownerBookR1].includes(expectedPreviousReleaseSha)&&previousReleaseSha===expectedPreviousReleaseSha,'Use actual immutable images and an explicitly reviewed update base.');
- const fingerprints=await anchors(profile);
+ must(releaseSha!==previousReleaseSha,'Update and previous release must be distinct.');
+ const fingerprints=await updateAnchors(profile,expectedPreviousReleaseSha);
+ if(expectedPreviousReleaseSha===ownerBookR1){const old=await checkApplicationPlan({profile,directory:path.join(profile.sourceDirectory,'international-r1',ownerBookR1)});must(old.image===previousImage&&old.ownerBookApi===false,'The active R1 image/flag differs from its verified plan.');}
  must([ownerBookApi,previousOwnerBookApi].every(v=>v===undefined||typeof v==='boolean'),'Invalid Command Book API selection.');
  const parent=path.join(profile.sourceDirectory,'international-r1');await mkdir(parent,{mode:0o700}).catch(e=>{if(e.code!=='EEXIST')throw e;});await regular(parent,true);
  const directory=path.join(parent,releaseSha);await mkdir(directory,{mode:0o700});
@@ -62,8 +75,9 @@ export async function checkApplicationPlan({profile,directory}){
  must(path.dirname(directory)===path.join(profile.sourceDirectory,'international-r1')&&releasePattern.test(path.basename(directory)),'R1 plan must belong to this exact installation.');
  await regular(path.dirname(directory),true);await regular(directory,true);await regular(path.join(directory,'plan.json'));
  const plan=JSON.parse(await readFile(path.join(directory,'plan.json'),'utf8'));
+ must(plan.previousReleaseSha!==plan.releaseSha,'A rollback plan cannot reference its own release.');
  must(plan.kind==='shadowbridge-international-r1-plan-v1'&&plan.sourceDirectory===profile.sourceDirectory&&plan.productionDirectory===profile.directory&&plan.project===profile.project&&plan.releaseSha===path.basename(directory)&&[productionBase,ownerBookR1].includes(plan.expectedPreviousReleaseSha??productionBase)&&plan.previousReleaseSha===(plan.expectedPreviousReleaseSha??productionBase)&&imagePattern.test(plan.image)&&imagePattern.test(plan.previousImage),'Invalid R1 installation/rollback identity.');
- must(isDeepStrictEqual(plan.fingerprints,await anchors(profile)),'Existing production or gateway configuration changed after planning. Stop; do not regenerate manifests.');
+ must(isDeepStrictEqual(plan.fingerprints,await updateAnchors(profile,plan.expectedPreviousReleaseSha??productionBase)),'Existing production or gateway configuration changed after planning. Stop; do not regenerate manifests.');
  must([plan.ownerBookApi,plan.previousOwnerBookApi].every(v=>v===undefined||typeof v==='boolean'),'Invalid Command Book API selection.');
  for(const [name,expected] of [['application.json',override(plan.image,plan.releaseSha,plan.ownerBookApi)],['rollback.json',override(plan.previousImage,plan.previousReleaseSha,plan.previousOwnerBookApi)]]){
   const file=path.join(directory,name);await regular(file);must(isDeepStrictEqual(JSON.parse(await readFile(file,'utf8')),expected),'R1 application override was modified.');

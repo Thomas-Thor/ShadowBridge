@@ -1,5 +1,18 @@
 # OWNER Book API + ChatGPT: checkpoint roboczy
 
+**Aktualny checkpoint:** implementacja lokalna zakończona, 37 różnych testów
+Node/VM/plików/TLS, 9 grup Chromium + PostgreSQL i 5 grup natywnego obrazu + TLS
+PostgreSQL PASS. Szczegóły: [wyniki](OWNER-BOOK-CHATGPT-RESULTS.json),
+[Plugins i procedura R1](OWNER-BOOK-CHATGPT-CONNECTION.md). Zmiany w SQL 001–018:
+brak. Nowy rollout nie uruchamia migratora. Zewnętrzny dziennik nie zwraca
+identyfikatorów, działań ani liczników prywatnego CRM/security.
+
+Contabo, aktywacja API i odczyt/zapis ChatGPT pozostają niewykonane przez Codexa.
+Plugin Creator nadal nie jest dostępny tej sesji. Nie potwierdzono funkcji
+Plugins/Sites/MCP w Plus; nie wybrano GPT Actions jako głównego rozwiązania.
+Firefox/branded Chrome nie były uruchomione; realny TXT sprawdzono w Chromium.
+Poniżej zachowany opis wcześniejszego checkpointu implementacji.
+
 Baza: R1 `d5582ffd9f1e7f9a40a1a49f9e16a304eae64a4e`; rozwój na
 `feature/owner-book-chatgpt-v1`. OWNER zgłasza działającą produkcję R1.
 
