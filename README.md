@@ -1,5 +1,10 @@
 # ShadowBridge — secure private B2B MVP
 
+OWNER Command Book V1: [widoki i granice integracji](docs/OWNER-COMMAND-BOOK.md),
+[rzeczywiste wyniki testów](docs/OWNER-COMMAND-BOOK-RESULTS.json),
+[przygotowanie aktualizacji Contabo](docs/OWNER-COMMAND-BOOK-RELEASE.md).
+Kod na `feature/owner-command-book-v1`; **nie wdrożono go na Contabo**.
+
 **Lokalny MVP, publikacja wstrzymana.** Start `npm run demo`, ponowny start i
 aktualizację instalacji z `a4582db` sprawdzono 20.10.2026 na izolowanym stosie,
 z zachowaniem kont, haseł, MFA, ustawień, danych i aktywnych sesji. Aktualne wyniki

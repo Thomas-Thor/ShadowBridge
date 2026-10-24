@@ -1,5 +1,9 @@
 # International R1 — procedura operatora do zatwierdzenia
 
+**Rozszerzenie OWNER Command Book / migracja 018:** przed użyciem tego historycznego
+przebiegu przeczytać [jedyną ścieżkę aktualizacji Book](OWNER-COMMAND-BOOK-RELEASE.md).
+Poniższe wyniki 001–017 opisują bazę R1, nie dowodzą wdrożenia nowego modułu.
+
 **Pakiet lokalnie przetestowany 24.10.2026; nie wdrożono go na Contabo.**
 Procedura aktualizacji wymaga zatwierdzonego okna. Można wcześniej wykonać
 wyłącznie odczytowy preflight. W izolacji sprawdzono pełne obrazy, produkcyjny

@@ -1,0 +1,233 @@
+{
+  "date": "2026-10-24",
+  "scope": "OWNER Command Book V1 + Secure Access",
+  "status": "READY FOR PREFLIGHT",
+  "deployed": false,
+  "branch": "feature/owner-command-book-v1",
+  "baseReleaseSha": "cf5ae88ade914bad96718e3d3a353270e0cc89b3",
+  "testedRuntimeAndMigrationSourceSha": "df8023cf659557883274274db648c11290d073d3",
+  "testGroups": [
+    {
+      "name": "PostgreSQL/RLS",
+      "result": "PASS",
+      "passedGroups": 10,
+      "cases": [
+        {
+          "name": "018 applies transactionally and preserves all pre-existing accounts, MFA, sessions, roles and CRM rows",
+          "result": "PASS"
+        },
+        {
+          "name": "OWNER requires verified MFA; every other real role and all raw table/CRM-secret reads are denied",
+          "result": "PASS"
+        },
+        {
+          "name": "tasks, dependency cycles, blocked completion, optimistic edits, archive, search and immutable history work",
+          "result": "PASS"
+        },
+        {
+          "name": "calendar, in-app reminders, decisions, ideas and browser command replay persist without duplicates",
+          "result": "PASS"
+        },
+        {
+          "name": "fresh MFA issues named expiring scoped keys; key lists and exports contain no key or digest",
+          "result": "PASS"
+        },
+        {
+          "name": "capability scopes, explicit commands and idempotency are enforced in PostgreSQL, without impersonating OWNER",
+          "result": "PASS"
+        },
+        {
+          "name": "two OWNERs are isolated; losing verified MFA immediately disables delegated keys; revocation leaves the account unchanged",
+          "result": "PASS"
+        },
+        {
+          "name": "import is additive and atomic; journal cites real sources and never invents runs or costs",
+          "result": "PASS"
+        },
+        {
+          "name": "database rate limits and every failed/successful operation are audited without secrets",
+          "result": "PASS"
+        },
+        {
+          "name": "authenticated encrypted full backup restores all tables to a separate database without changing the source",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "Chromium desktop/mobile + SQL-backed handlers",
+      "result": "PASS",
+      "passedGroups": 7,
+      "cases": [
+        {
+          "name": "desktop Command Center retains full navigation and shows real SQL-backed private KPIs",
+          "result": "PASS"
+        },
+        {
+          "name": "quick capture writes an idea to PostgreSQL and renders through the existing CSRF/session interface",
+          "result": "PASS"
+        },
+        {
+          "name": "calendar, notebook, decisions and sourced activity journal render without browser exceptions",
+          "result": "PASS"
+        },
+        {
+          "name": "reviewed import appends records and summary export contains the selected real book context, never keys",
+          "result": "PASS"
+        },
+        {
+          "name": "key appears once, authenticates only a scoped API, and stops immediately after UI revocation",
+          "result": "PASS"
+        },
+        {
+          "name": "representative desktop and mobile views have no horizontal overflow; screenshots contain no secrets",
+          "result": "PASS"
+        },
+        {
+          "name": "session-change notification clears all private book DOM; a non-OWNER never requests book records",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "Fresh PostgreSQL encrypted restore + previous runtime rollback",
+      "result": "PASS",
+      "passedGroups": 3,
+      "cases": [
+        {
+          "name": "empty-target helper creates exactly the required non-login book role and rejects retries",
+          "result": "PASS"
+        },
+        {
+          "name": "encrypted full backup restores into a fresh isolated PostgreSQL with all records, RLS and key ACLs",
+          "result": "PASS"
+        },
+        {
+          "name": "previous R1 runtime starts against upgraded DB without deleting Command Book data",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "Built native Node image + TLS PostgreSQL pools",
+      "result": "PASS",
+      "passedGroups": 3,
+      "cases": [
+        {
+          "name": "built non-root runtime starts with real verify-full PostgreSQL and remote API remains disabled by default",
+          "result": "PASS"
+        },
+        {
+          "name": "enabled native API uses the restricted session pool and enforces read scopes and browser separation",
+          "result": "PASS"
+        },
+        {
+          "name": "OWNER SQL revocation immediately blocks the previously valid native API key without changing account or MFA",
+          "result": "PASS"
+        }
+      ]
+    }
+  ],
+  "unitCases": {
+    "result": "PASS",
+    "distinctPassed": 37,
+    "commands": [
+      "node --test server/tests/owner-book.test.mjs tests/staging-migrate.test.mjs server/tests/config.security.test.mjs server/tests/owner-vault.test.mjs tests/vault-recovery-roles.test.mjs",
+      "node --test tests/international-r1.test.mjs server/tests/owner-book.test.mjs",
+      "node --test tests/owner-book.recovery-config.test.mjs"
+    ],
+    "counting": "32 initial + 4 distinct R1 + 1 restore-configuration; repeated 8 book cases counted once"
+  },
+  "build": {
+    "sourceSha": "df8023cf659557883274274db648c11290d073d3",
+    "targets": [
+      {
+        "target": "runtime",
+        "imageId": "sha256:86bd525d5b159fb6906a8633c315c6a95f419901ab8f17aa10a4f3378a1e6b72",
+        "tag": "shadowbridge-ownerbook-runtime:df8023cf6595",
+        "result": "PASS"
+      },
+      {
+        "target": "migrator",
+        "imageId": "sha256:1d997c3788b712e02f81add944a585b28558fe9651fb9af7ce6f175997cb5bae",
+        "tag": "shadowbridge-ownerbook-migrator:df8023cf6595",
+        "result": "PASS"
+      }
+    ],
+    "context": "git archive extracted to private temporary directory; standard 0644 modes; no untracked files",
+    "buildTrust": "existing trusted CA bundle mounted as BuildKit secret only; TLS verification enabled",
+    "testOnlyNetwork": "proxy host resolution supplied explicitly to isolated builder"
+  },
+  "restoredTables": 79,
+  "preexistingSqlFilesUnchanged": [
+    "202610180001_private_b2b.sql",
+    "202610180002_private_threads.sql",
+    "202610180003_registration_intents.sql",
+    "202610180004_security_events.sql",
+    "202610190005_contact_queue.sql",
+    "202610190006_staff_rbac.sql",
+    "202610190007_offers_workspace.sql",
+    "202610190008_taxonomy.sql",
+    "202610190009_rbac_fixes.sql",
+    "202610190010_taxonomy_fixes.sql",
+    "202610200011_project_partner_eligibility.sql",
+    "202610210012_registration_drafts.sql",
+    "202610210013_recruitment_visibility.sql",
+    "202610210014_application_decision_history.sql",
+    "202610210015_sentinel_verification.sql",
+    "202610220016_owner_vault.sql",
+    "202610230017_owner_vault_workspace.sql"
+  ],
+  "sourceSha256": {
+    "supabase/migrations/202610240018_owner_command_book.sql": "300d772a3ad4893175fc1bc503d0edd5aca80c80d0d48fde3794c59b3caf9a34",
+    "server/owner-book.mjs": "06a91489c4585fa8227acdb2c6663eb9053e1a155f069cfb2291a595cf4290fd",
+    "server/app.mjs": "df7528ae2867cb4f06b5132b82905276c5f1538ba23f296b760b8b057453fc99",
+    "server/config.mjs": "ecbce193cd0a299934a01bbe6ccfd4aa8f32af1aa81b016ca23ff22dc03b915a",
+    "assets/owner-book.js": "181326f9422ebc21302e9ad84010e2fabeb2e5433293b8828b1eedb6d987e67e",
+    "assets/owner-book.css": "f380c61de8fb49cb86f90418a5c7b8bcc4613ce56579ce200002bf72270c6b65",
+    "assets/portal.js": "87abe6eb5a9ba2dfc06a24b6b330b74643c3811199a7ae607d53d0b142da583c",
+    "assets/dashboard.js": "7df5430b5c366982b41aef49ea44fd229969d79dc60e0dfe09b1c19c5c579922",
+    "portal/admin/index.html": "d5ad0b8b496bd3f1ee06bedb457cb3437ac0ae38a5d0c27fa80be8a704cc24f3",
+    "scripts/international-r1.mjs": "66adacbf3927c52fcfebd6b0bc5739d93d1eebf82d49e12080d7de5beb35acf8",
+    "scripts/staging-backup.mjs": "b1fc5cedcddec3feef428cf809acad4f133b10149c600b7959e340fb483293ca",
+    "scripts/book-recovery-roles.mjs": "daf249bd3f06636e03e26ecfa3e4eee1cdf015e472724f39f422d5c685a5bd64",
+    "scripts/staging-ops.mjs": "2407704b6d9db62e36d21678a79da15b8ef34d3a822c795c83bde7d8664cb7a2",
+    "scripts/production-ops.mjs": "7e59df9ba1e3f522bc9da2979ddd97e240558c36a1ce29bfa3b621645da37b62"
+  },
+  "boundaries": {
+    "data": "fictional isolated clones only",
+    "sqlIdentity": "explicit test role/MFA claims; not real user login",
+    "browserAuthentication": "fixture session endpoints; real book API handlers and PostgreSQL",
+    "nativeRuntime": "real pg restricted pools with verify-full; key issued/revoked using explicit SQL OWNER fixture",
+    "goTrueInteractiveLoginTestedInThisStage": false,
+    "productionOwnerIdentityOrRoleConfirmed": false,
+    "productionMigration018Applied": false,
+    "contaboSshAvailable": false,
+    "publicHttpsChecks": "CONNECT 403 by environment proxy; origin HTTP 000, also outside sandbox; not an outage finding",
+    "actualChatGPTConnected": false,
+    "passwordManager": "external Bitwarden entry point only, not a connected vault",
+    "agentRunsOrCostsConnected": false,
+    "externalProviderCalls": 0,
+    "paidOperations": 0,
+    "realAccountsChanged": false
+  },
+  "issuesFixed": [
+    "SQL variable ambiguity in summary fixed before final PostgreSQL regression",
+    "SQL kind/scope consistency independently enforced",
+    "Book-only administrator key scopes normalized consistently in UI/API",
+    "Fresh-target restore seeds only the required NOLOGIN executor role",
+    "Restored configuration disables machine API to prevent old revoked-key resurrection",
+    "Book navigation scroll is immediate, avoiding transient mobile displacement",
+    "Native build proxy DNS resolution fixed only in isolated builder; TLS verification retained"
+  ],
+  "buildAttempts": "Earlier offline/default-network attempts were cancelled or failed due to isolated builder DNS/network. Final exact Dockerfile runtime and migrator builds passed using trusted CA BuildKit secret and explicit proxy host resolution.",
+  "notCompleted": [
+    "Interactive existing OWNER + MFA login on actual Contabo",
+    "Live container/profile/gateway/migration inventory and offsite backup confirmation",
+    "Approved release-branch integration and production update",
+    "ChatGPT assistant authorization and actual calls",
+    "Bitwarden account/recovery configuration by its owner",
+    "External agent activity/billing connections, email/push reminders",
+    "Apollo/Clay API rights, balances, real inactive n8n import and CRM integration"
+  ]
+}
