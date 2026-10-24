@@ -15,6 +15,7 @@ import { routeTaxonomy, categoryId } from './taxonomy.mjs';
 import { currencyCodes } from '../assets/business-config.js';
 import { routeOffersWorkspace } from './offers-workspace.mjs';
 import { routeOwnerVault } from './owner-vault.mjs';
+import { loadAcquisitionGateway } from './acquisition-gateway.mjs';
 import { ApiError, object, text, oneOf, number, list, identifier, profile, businessData, assertNonIdentifyingText } from './validation.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -42,7 +43,7 @@ function headers(res, config) {
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   if (config.releaseSha) res.setHeader('X-ShadowBridge-Release', config.releaseSha);
 }
-export function createApp({ config = loadConfig(), db = createDatabase({ connectionString: config.databaseUrl, sessionConnectionString: config.sessionDatabaseUrl }) } = {}) {
+export function createApp({ config = loadConfig(), db = createDatabase({ connectionString: config.databaseUrl, sessionConnectionString: config.sessionDatabaseUrl }), acquisitionGateway = null } = {}) {
   const auth = createAuthService({ config, db });
   const registration = createRegistrationService({ db, auth });
   const attempts = new Map();
@@ -414,6 +415,10 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
     headers(res,config);const requestId=randomUUID();res.setHeader('X-Request-ID',requestId);
     try {
       const url=new URL(req.url,config.appUrl);
+      if(url.pathname.startsWith('/api/integrations/acquisition/v1/')){
+        if(!acquisitionGateway)throw new ApiError(503,'ACQUISITION_DISABLED','Acquisition integration is not activated.');
+        const result=await acquisitionGateway.handle(req,url,body);return json(res,result.status,result.data);
+      }
       if(url.pathname==='/health'){await db.pool.query('SELECT 1');return json(res,200,{ok:true,environment:config.appEnv});}
       if(req.method==='GET'&&['/auth/confirm','/auth/recover'].includes(url.pathname)){
         if(config.mailDeliveryMode==='disabled')throw new ApiError(503,'MAIL_NOT_ENABLED','Email verification and email-based account recovery are temporarily unavailable. Existing members can sign in.');
@@ -441,10 +446,10 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
     }
   });
   server.requestTimeout=30000;server.headersTimeout=15000;
-  return {server,db,auth,close:async()=>{await new Promise(resolve=>server.close(resolve));await db.close();}};
+  return {server,db,auth,close:async()=>{await new Promise(resolve=>server.close(resolve));await db.close();await acquisitionGateway?.close();}};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
-  const config=loadConfig();const app=createApp({config});
+  const config=loadConfig();const acquisitionGateway=await loadAcquisitionGateway({file:process.env.ACQUISITION_GATEWAY_FILE,production:config.appEnv==='production'});const app=createApp({config,acquisitionGateway});
   app.server.listen(config.port,config.host,()=>console.log(`ShadowBridge ${config.appEnv} backend ready on ${config.host}:${config.port}.`));
   for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>app.close().then(()=>process.exit(0)));
 }

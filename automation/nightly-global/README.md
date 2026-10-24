@@ -1,5 +1,7 @@
 # Nightly Global Acquisition: pakiet do przeglądu OWNER
 
+Aktualizacja integracji i ochrony kredytów: [INTEGRATION-AUTH.md](INTEGRATION-AUTH.md). Poniższy raport opisuje wcześniejszy fundament `04ab380`; nowa bramka CRM jest kandydatem, nadal nie jest wdrożona ani podłączona do harmonogramów.
+
 Stan 24.10.2026: **workflow przygotowane do importu nieaktywnego; uruchomienie ZABLOKOWANE**. Niczego nie wdrożono na Contabo. Nie pozyskano rzeczywistych kontaktów. Nie zmieniono czterech istniejących Scoutów Relevance AI ani pilota NO/CZ.
 
 ## Co zawiera pakiet

@@ -1,0 +1,102 @@
+{
+  "date": "2026-10-24",
+  "status": "PREPARED_LOCAL_BLOCKED_FOR_LIVE_INTEGRATION",
+  "postgres": {
+    "kind": "actual-postgresql-central-vault-guard",
+    "cases": [
+      {
+        "name": "guard disabled by default; raw Vault reads and executor impersonation denied",
+        "result": "PASS"
+      },
+      {
+        "name": "Apollo to existing Vault, payload-bound retries, Clay deduplication and cross-provider aliases",
+        "result": "PASS"
+      },
+      {
+        "name": "exact name/company or shared domain ambiguity blocks purchases; same names in different companies stay distinct",
+        "result": "PASS"
+      },
+      {
+        "name": "company-only intake reuses central CRM without fictitious contact records",
+        "result": "PASS"
+      },
+      {
+        "name": "free facts awaiting controlled merge count as already owned, without overwriting curated CRM data",
+        "result": "PASS"
+      },
+      {
+        "name": "paid disabled and unknown API/budget metadata stop requests before any dispatch",
+        "result": "PASS"
+      },
+      {
+        "name": "eight concurrent cross-provider requests reserve one field once; dispatch and timeout never redispatch",
+        "result": "PASS"
+      },
+      {
+        "name": "daily and monthly credit ceilings stop new purchases without releasing uncertain charges",
+        "result": "PASS"
+      },
+      {
+        "name": "CRM is checked again at dispatch; successful synthetic enrichment is durably recorded in central Vault",
+        "result": "PASS"
+      },
+      {
+        "name": "search fingerprint remembers filters and cursor across sessions, rejects stale lease, never resets an exhausted query",
+        "result": "PASS"
+      },
+      {
+        "name": "provider-scoped report distinguishes new records, duplicates, reserved credits and unconfirmed actual costs",
+        "result": "PASS"
+      }
+    ],
+    "providerCallsReal": 0,
+    "productionChanges": false,
+    "n8nImported": false,
+    "syntheticProviderCalls": 1,
+    "providerReport": {
+      "day": "2026-10-24",
+      "provider": "apollo",
+      "timezone": "Europe/Oslo",
+      "duplicates": 1,
+      "newContacts": 4,
+      "newCompanies": 4,
+      "actualCredits": null,
+      "reviewRequired": 1,
+      "actualMoneyCost": null,
+      "billingReconciled": false,
+      "uncertainPurchases": 0,
+      "creditUpperBoundReserved": 0
+    },
+    "originalAccountFingerprintPreserved": true,
+    "result": "PASS",
+    "databaseRetained": "acquisition_crm_test_dcad8177"
+  },
+  "latestUnitHttpTests": {
+    "pass": 11,
+    "fail": 0
+  },
+  "ownerVaultValidationRegression": {
+    "pass": 7,
+    "fail": 0
+  },
+  "earlierNightlyLogicTests": {
+    "pass": 12,
+    "fail": 0
+  },
+  "providerApiEntitlements": "UNVERIFIED",
+  "accessAttempt": {
+    "proxyConnectStatus": 403,
+    "originStatus": "000",
+    "retriedOutsideSandbox": true
+  },
+  "n8nLiveImport": "NOT_EXECUTED",
+  "regionalPipelinesConnectedToCrmGuard": false,
+  "ownerReportConnectedToGuardUsage": false,
+  "paidOperationsActivated": false,
+  "hashes": {
+    "server/acquisition-gateway.mjs": "2630c65089f25d907558080abbd4724b53b75742e972c225dd62a82aafa9970f",
+    "automation/nightly-global/crm-guard.sql": "18b6a2533fb0ba3293f06b3f1d3b29eb311f0c6226a63c2ef96243f076c911d7",
+    "automation/nightly-global/credit-guard.mjs": "266d82f9ba142b0ef792821891f748cf8c1ede35d9f96797929a17ef21487edb",
+    "automation/nightly-global/authorize-n8n.mjs": "7ac7398d49d34c5c5308c92bd38f7d618802eb3ff145df94f8c6061df10b2370"
+  }
+}

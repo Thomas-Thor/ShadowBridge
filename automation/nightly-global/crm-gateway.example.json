@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "principals": [
+    {"provider": "apollo", "tokenSha256": null, "databaseUrl": null},
+    {"provider": "clay", "tokenSha256": null, "databaseUrl": null}
+  ]
+}

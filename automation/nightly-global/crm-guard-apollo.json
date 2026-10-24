@@ -1,0 +1,219 @@
+{
+  "name": "ShadowBridge shared CRM guard APOLLO",
+  "active": false,
+  "nodes": [
+    {
+      "id": "input",
+      "name": "Input from acquisition",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "gate",
+      "name": "OWNER approval gate",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "enabled",
+              "name": "enabled",
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "approved",
+      "name": "Approved for CRM access",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "enabled",
+              "leftValue": "={{ $json.enabled === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "disabled",
+      "name": "CRM authorization pending",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        720,
+        200
+      ],
+      "parameters": {
+        "errorMessage": "CRM gateway not activated. Do not perform paid operations."
+      }
+    },
+    {
+      "id": "intake",
+      "name": "Save free facts before any purchase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://shadow-bridge.eu/api/integrations/acquisition/v1/intake",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {record:$(\"Input from acquisition\").item.json.record,companySourceId:$(\"Input from acquisition\").item.json.companySourceId,requestKey:$(\"Input from acquisition\").item.json.requestKey} }}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "OWNER_SELECT_CRM_APOLLO",
+          "name": "Restricted CRM gateway apollo - not OWNER"
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "check",
+      "name": "Check central CRM, no paid action",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://shadow-bridge.eu/api/integrations/acquisition/v1/check",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {record:$(\"Input from acquisition\").item.json.record,companySourceId:$(\"Input from acquisition\").item.json.companySourceId,requiredFields:$(\"Input from acquisition\").item.json.requiredFields} }}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "OWNER_SELECT_CRM_APOLLO",
+          "name": "Restricted CRM gateway apollo - not OWNER"
+        }
+      },
+      "retryOnFail": false
+    }
+  ],
+  "connections": {
+    "Input from acquisition": {
+      "main": [
+        [
+          {
+            "node": "OWNER approval gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OWNER approval gate": {
+      "main": [
+        [
+          {
+            "node": "Approved for CRM access",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved for CRM access": {
+      "main": [
+        [
+          {
+            "node": "Save free facts before any purchase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CRM authorization pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save free facts before any purchase": {
+      "main": [
+        [
+          {
+            "node": "Check central CRM, no paid action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Europe/Oslo",
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "executionTimeout": 120
+  },
+  "pinData": {},
+  "tags": []
+}
