@@ -1,0 +1,895 @@
+{
+  "name": "ShadowBridge Global LATAM 01:00 Oslo",
+  "active": false,
+  "nodes": [
+    {
+      "id": "manual-review",
+      "name": "Manual review",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "oslo-0100",
+      "name": "Oslo 0100",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        270,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 1 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "resume-unfinished-jobs",
+      "name": "Resume unfinished jobs",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        540,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15,30,45 1-7 * * *"
+            }
+          ]
+        }
+      },
+      "disabled": true
+    },
+    {
+      "id": "owner-approval-gate",
+      "name": "OWNER approval gate",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        810,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "enabled",
+              "name": "enabled",
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "approved-for-execution",
+      "name": "Approved for execution",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1080,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "allowed",
+              "leftValue": "={{ $json.enabled === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "disabled-safely",
+      "name": "Disabled safely",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1350,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "readiness",
+              "name": "readiness",
+              "type": "object",
+              "value": {
+                "status": "DISABLED_REQUIRES_OWNER_APPROVAL",
+                "liveRecordsAcquired": null,
+                "apiUsageVerified": false,
+                "paidEnrichmentEnabled": false
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "claim-next-bounded-page",
+      "name": "Claim next bounded page",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1620,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT acquisition_ops.claim($1::text) AS job",
+        "options": {
+          "queryReplacement": "={{ [\"LATAM\"] }}",
+          "queryBatching": "single"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OWNER_SELECT_SCOPED_LATAM",
+          "name": "ShadowBridge acquisition LATAM - existing PostgreSQL"
+        }
+      }
+    },
+    {
+      "id": "page-lease-acquired",
+      "name": "Page lease acquired",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        240
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "allowed",
+              "leftValue": "={{ $json.job.fetch === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "build-verified-read-request",
+      "name": "Build verified read request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        270,
+        240
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "request",
+              "name": "request",
+              "type": "object",
+              "value": "={{ (function acquisition(action, a) {\n  const fail=m=>{throw new Error('ACQUISITION: '+m);};\n  const clean=(v,n=500)=>typeof v==='string'?v.trim().replace(/[\\u2013\\u2014]/g,'-').slice(0,n):null;\n  const get=(v,p)=>{if(!Array.isArray(p)||p.length>8||p.some(k=>typeof k!=='string'||!k||['__proto__','constructor','prototype'].includes(k)))fail('Invalid mapping path');for(const k of p)v=v?.[k];return v;};\n  const url=v=>{const s=clean(v,1000);return s&&/^https?:\\/\\/[^\\s/@?#]+(?:\\/[^\\s?#]*)?$/i.test(s)?s:null;};\n  const hosts={apollo:/^api\\.apollo\\.io$/,clay:/^(?:[a-z0-9-]+\\.)?clay\\.com$/,relevance:/^(?:api-[a-z0-9]+\\.stack\\.tryrelevance\\.com|api\\.relevanceai\\.com)$/};\n  const validEndpoint=(s)=>{const v=/^https:\\/\\/([^/?#:@]+)(\\/[^\\s#]*)?$/.exec(s.endpoint||'');return !!v&&!!hosts[s.provider]?.test(v[1])&&!/@|[\\r\\n]/.test(s.endpoint)&&!/(trigger|enrich|execute|run-agent|reveal|campaign|sequence|whatsapp|send|outreach|\\/run(?:[/?]|$))/i.test(v[2]||'');};\n  if(action==='request'){\n    const j=a.job,s=j?.source;\n    if(!j?.lease||!s?.approved||s.contractVerified!==true||s.action!=='read_stored_or_search_results'||!validEndpoint(s)||!['GET','POST'].includes(s.method))fail('Unapproved source/read contract');\n    if(!Number.isFinite(s.maxCreditsPerRequest)||s.maxCreditsPerRequest<0)fail('Unknown credit cost');\n    if(!Array.isArray(s.mapping?.rows)||!s.mapping?.companyName||!s.mapping?.companyId)fail('Missing source mapping');\n    const body=JSON.parse(JSON.stringify({...s.requestBody,...(s.regionFilters?.[j.region]||{})}));\n    const cursor=j.cursor||{page:1};\n    const field=s.pagination?.requestField;\n    if(!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(field||''))fail('Invalid pagination field');\n    body[field]=s.pagination.mode==='token'?(cursor.token||null):(cursor.page||1);\n    const sizeField=s.pagination.sizeField;\n    if(!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(sizeField||''))fail('Invalid page size field');\n    body[sizeField]=Math.min(100,Math.max(1,s.pageSize||100));\n    let endpoint=s.endpoint;\n    if(s.method==='GET'){\n      const parts=[];for(const [k,v]of Object.entries(body)){if(v!==null&&v!==undefined)parts.push(encodeURIComponent(k)+'='+encodeURIComponent(typeof v==='object'?JSON.stringify(v):String(v)));}\n      endpoint+=(endpoint.includes('?')?'&':'?')+parts.join('&');\n    }\n    return {endpoint,method:s.method,body,provider:s.provider,jobId:j.id,lease:j.lease};\n  }\n  if(action==='page'){\n    const j=a.job,s=j.source,r=a.response||{},now=Date.parse(a.now);if(!Number.isFinite(now))fail('Invalid clock');\n    const status=Number(r.statusCode||0),headers=r.headers||{};\n    if(status!==200){\n      const raw=Object.entries(headers).find(([k])=>k.toLowerCase()==='retry-after')?.[1];\n      const until=/^\\d+$/.test(String(raw||''))?now+Number(raw)*1000:Date.parse(String(raw||''));\n      if(Number.isFinite(until)&&until>8640000000000000)fail('Retry-After overflow');\n      return {ok:false,status,retryAt:new Date(Math.max(now+900000,Number.isFinite(until)?until:0)).toISOString(),permanent:status>=400&&status<500&&status!==429,records:[]};\n    }\n    let body=r.body;\n    if(typeof body==='string'){if(body.length>2*1024**2)fail('Source response too large');body=JSON.parse(body);}\n    const rows=get(body,s.mapping.rows);if(!Array.isArray(rows)||rows.length>100)fail('Unexpected source page');\n    const records=[];\n    for(const v of rows){\n      const m=s.mapping,read=(k,n)=>clean(get(v,m[k]||[]),n);\n      const country=read('country',100),countries=s.countryMap||{};\n      const iso=/^[A-Z]{2}$/.test(country||'')?country:(countries[country]||null);\n      const sourceId=read('companyId',200),name=read('companyName',200);\n      if(!sourceId||!name)continue;\n      const company={name,country:iso,registrationNumber:read('registrationNumber',100),sector:read('industry',200),category:s.category||null,description:read('description',2000),website:url(read('website',1000)),city:read('city',120)};\n      const source={system:s.identityNamespace||s.key,id:sourceId,url:url(read('sourceUrl',1000))||s.endpoint.split('?')[0],acquiredAt:a.now};\n      const companyIdentity=company.registrationNumber&&iso?'registry:'+iso+':'+company.registrationNumber:'source:'+source.system+':'+sourceId;\n      records.push({type:'company',key:companyIdentity,company,source,status:iso?'unconfirmed':'review_required',globalUniqueness:company.registrationNumber&&iso?'registry':'source_only'});\n      if(s.entityType==='contact'){\n        const id=read('contactId',200),fullName=read('contactName',200),email=read('email',254),profile=url(read('profile',1000));\n        if(!id||!fullName)continue;\n        const validEmail=email&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email),shared=validEmail&&/^(info|sales|office|contact|support|admin)@/i.test(email);\n        const individual=validEmail&&!shared&&read('emailKind',12)==='individual';\n        const contact={fullName,title:read('title',200),email:validEmail?email:null,emailKind:individual?'individual':shared?'shared':'unknown',phone:read('phone',80),professionalUrl:profile};\n        const key=profile?'profile:'+profile:individual?'email-company:'+companyIdentity+':'+email.toLowerCase():'source-person:'+source.system+':'+id;\n        records.push({type:'contact',key,companyKey:companyIdentity,company,contact,source:{...source,id},status:'unconfirmed'});\n      }\n      if(s.entityType==='opportunity'){\n        const id=read('opportunityId',200),kind=read('opportunityType',20),description=read('opportunityDescription',4000),evidence=url(read('opportunityUrl',1000));\n        if(!id||!['BUY','SELL','SURPLUS'].includes(kind)||!description||!evidence)continue;\n        records.push({type:'opportunity',key:'lot:'+source.system+':'+id,companyKey:companyIdentity,company,opportunity:{kind,description,url:evidence,quantity:read('quantity',100),currency:read('currency',3),price:read('price',100),publishedAt:read('publishedAt',50),expiresAt:read('expiresAt',50)},source:{...source,id},status:'review_required'});\n      }\n    }\n    const next=s.pagination.mode==='token'?get(body,s.pagination.nextPath||[]):null;\n    if(s.pagination.mode==='token'&&next!==null&&next!==undefined&&typeof next!=='string')fail('Invalid next cursor');\n    const current=j.cursor?.page||1;\n    const pages=s.pagination.totalPagesPath?Number(get(body,s.pagination.totalPagesPath)):null;\n    const exhausted=s.pagination.mode==='token'?!next:rows.length<(s.pageSize||100)||(Number.isFinite(pages)&&pages>0&&current>=pages);\n    return {ok:true,status,records,nextCursor:s.pagination.mode==='token'?{token:next||null}:{page:current+1},exhausted};\n  }\n  if(action==='reportText'){\n    const r=a.report;\n    return ['ShadowBridge OWNER 08:00 - '+r.day,'New companies: '+r.companies,'New contacts: '+r.contacts,'BUY: '+r.BUY+' | SELL: '+r.SELL+' | SURPLUS: '+r.SURPLUS,'New records: '+r.newRecords+' | target: '+r.target,'Duplicates: '+r.duplicates+' | errors: '+r.errors,'CRM delivered: '+r.crmDelivered+' | pending: '+r.crmPending,'Credit upper bound reserved: '+r.creditsReserved+' | actual cost: '+(r.actualCredits===null?'unconfirmed':r.actualCredits),'Blocked sources: '+r.blockedSources].join('\\n').replace(/[\\u2013\\u2014]/g,'-');\n  }\n  fail('Unknown action');\n})(\"request\", {job:$(\"Claim next bounded page\").item.json.job}) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "source-apollo",
+      "name": "Source apollo",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        540,
+        240
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "allowed",
+              "leftValue": "={{ $json.request.provider === \"apollo\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "read-apollo-approved-results",
+      "name": "Read apollo approved results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        810,
+        240
+      ],
+      "parameters": {
+        "method": "={{ $json.request.method }}",
+        "url": "={{ $json.request.endpoint }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": "={{ $json.request.method === \"POST\" }}",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.request.body }}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text",
+              "outputPropertyName": "body"
+            }
+          }
+        }
+      },
+      "retryOnFail": false,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "OWNER_SELECT_EXISTING_APOLLO",
+          "name": "Existing apollo approved read credential"
+        }
+      }
+    },
+    {
+      "id": "preserve-apollo-page",
+      "name": "Preserve apollo page",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1080,
+        240
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "context",
+              "name": "context",
+              "type": "object",
+              "value": "={{ {job:$(\"Claim next bounded page\").item.json.job,response:$json} }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "source-clay",
+      "name": "Source clay",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1350,
+        240
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "allowed",
+              "leftValue": "={{ $json.request.provider === \"clay\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "read-clay-approved-results",
+      "name": "Read clay approved results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1620,
+        240
+      ],
+      "parameters": {
+        "method": "={{ $json.request.method }}",
+        "url": "={{ $json.request.endpoint }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": "={{ $json.request.method === \"POST\" }}",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.request.body }}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text",
+              "outputPropertyName": "body"
+            }
+          }
+        }
+      },
+      "retryOnFail": false,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "OWNER_SELECT_EXISTING_CLAY",
+          "name": "Existing clay approved read credential"
+        }
+      }
+    },
+    {
+      "id": "preserve-clay-page",
+      "name": "Preserve clay page",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        480
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "context",
+              "name": "context",
+              "type": "object",
+              "value": "={{ {job:$(\"Claim next bounded page\").item.json.job,response:$json} }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "source-relevance",
+      "name": "Source relevance",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        270,
+        480
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "allowed",
+              "leftValue": "={{ $json.request.provider === \"relevance\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "read-relevance-approved-results",
+      "name": "Read relevance approved results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        540,
+        480
+      ],
+      "parameters": {
+        "method": "={{ $json.request.method }}",
+        "url": "={{ $json.request.endpoint }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": "={{ $json.request.method === \"POST\" }}",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.request.body }}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text",
+              "outputPropertyName": "body"
+            }
+          }
+        }
+      },
+      "retryOnFail": false,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "OWNER_SELECT_EXISTING_RELEVANCE",
+          "name": "Existing relevance approved read credential"
+        }
+      }
+    },
+    {
+      "id": "preserve-relevance-page",
+      "name": "Preserve relevance page",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        810,
+        480
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "context",
+              "name": "context",
+              "type": "object",
+              "value": "={{ {job:$(\"Claim next bounded page\").item.json.job,response:$json} }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "unsupported-source-blocked",
+      "name": "Unsupported source blocked",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        480
+      ],
+      "parameters": {
+        "errorMessage": "Source provider not approved; lease will expire, no cursor advanced."
+      }
+    },
+    {
+      "id": "normalize-bounded-page",
+      "name": "Normalize bounded page",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1350,
+        480
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "page",
+              "name": "page",
+              "type": "object",
+              "value": "={{ (function acquisition(action, a) {\n  const fail=m=>{throw new Error('ACQUISITION: '+m);};\n  const clean=(v,n=500)=>typeof v==='string'?v.trim().replace(/[\\u2013\\u2014]/g,'-').slice(0,n):null;\n  const get=(v,p)=>{if(!Array.isArray(p)||p.length>8||p.some(k=>typeof k!=='string'||!k||['__proto__','constructor','prototype'].includes(k)))fail('Invalid mapping path');for(const k of p)v=v?.[k];return v;};\n  const url=v=>{const s=clean(v,1000);return s&&/^https?:\\/\\/[^\\s/@?#]+(?:\\/[^\\s?#]*)?$/i.test(s)?s:null;};\n  const hosts={apollo:/^api\\.apollo\\.io$/,clay:/^(?:[a-z0-9-]+\\.)?clay\\.com$/,relevance:/^(?:api-[a-z0-9]+\\.stack\\.tryrelevance\\.com|api\\.relevanceai\\.com)$/};\n  const validEndpoint=(s)=>{const v=/^https:\\/\\/([^/?#:@]+)(\\/[^\\s#]*)?$/.exec(s.endpoint||'');return !!v&&!!hosts[s.provider]?.test(v[1])&&!/@|[\\r\\n]/.test(s.endpoint)&&!/(trigger|enrich|execute|run-agent|reveal|campaign|sequence|whatsapp|send|outreach|\\/run(?:[/?]|$))/i.test(v[2]||'');};\n  if(action==='request'){\n    const j=a.job,s=j?.source;\n    if(!j?.lease||!s?.approved||s.contractVerified!==true||s.action!=='read_stored_or_search_results'||!validEndpoint(s)||!['GET','POST'].includes(s.method))fail('Unapproved source/read contract');\n    if(!Number.isFinite(s.maxCreditsPerRequest)||s.maxCreditsPerRequest<0)fail('Unknown credit cost');\n    if(!Array.isArray(s.mapping?.rows)||!s.mapping?.companyName||!s.mapping?.companyId)fail('Missing source mapping');\n    const body=JSON.parse(JSON.stringify({...s.requestBody,...(s.regionFilters?.[j.region]||{})}));\n    const cursor=j.cursor||{page:1};\n    const field=s.pagination?.requestField;\n    if(!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(field||''))fail('Invalid pagination field');\n    body[field]=s.pagination.mode==='token'?(cursor.token||null):(cursor.page||1);\n    const sizeField=s.pagination.sizeField;\n    if(!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(sizeField||''))fail('Invalid page size field');\n    body[sizeField]=Math.min(100,Math.max(1,s.pageSize||100));\n    let endpoint=s.endpoint;\n    if(s.method==='GET'){\n      const parts=[];for(const [k,v]of Object.entries(body)){if(v!==null&&v!==undefined)parts.push(encodeURIComponent(k)+'='+encodeURIComponent(typeof v==='object'?JSON.stringify(v):String(v)));}\n      endpoint+=(endpoint.includes('?')?'&':'?')+parts.join('&');\n    }\n    return {endpoint,method:s.method,body,provider:s.provider,jobId:j.id,lease:j.lease};\n  }\n  if(action==='page'){\n    const j=a.job,s=j.source,r=a.response||{},now=Date.parse(a.now);if(!Number.isFinite(now))fail('Invalid clock');\n    const status=Number(r.statusCode||0),headers=r.headers||{};\n    if(status!==200){\n      const raw=Object.entries(headers).find(([k])=>k.toLowerCase()==='retry-after')?.[1];\n      const until=/^\\d+$/.test(String(raw||''))?now+Number(raw)*1000:Date.parse(String(raw||''));\n      if(Number.isFinite(until)&&until>8640000000000000)fail('Retry-After overflow');\n      return {ok:false,status,retryAt:new Date(Math.max(now+900000,Number.isFinite(until)?until:0)).toISOString(),permanent:status>=400&&status<500&&status!==429,records:[]};\n    }\n    let body=r.body;\n    if(typeof body==='string'){if(body.length>2*1024**2)fail('Source response too large');body=JSON.parse(body);}\n    const rows=get(body,s.mapping.rows);if(!Array.isArray(rows)||rows.length>100)fail('Unexpected source page');\n    const records=[];\n    for(const v of rows){\n      const m=s.mapping,read=(k,n)=>clean(get(v,m[k]||[]),n);\n      const country=read('country',100),countries=s.countryMap||{};\n      const iso=/^[A-Z]{2}$/.test(country||'')?country:(countries[country]||null);\n      const sourceId=read('companyId',200),name=read('companyName',200);\n      if(!sourceId||!name)continue;\n      const company={name,country:iso,registrationNumber:read('registrationNumber',100),sector:read('industry',200),category:s.category||null,description:read('description',2000),website:url(read('website',1000)),city:read('city',120)};\n      const source={system:s.identityNamespace||s.key,id:sourceId,url:url(read('sourceUrl',1000))||s.endpoint.split('?')[0],acquiredAt:a.now};\n      const companyIdentity=company.registrationNumber&&iso?'registry:'+iso+':'+company.registrationNumber:'source:'+source.system+':'+sourceId;\n      records.push({type:'company',key:companyIdentity,company,source,status:iso?'unconfirmed':'review_required',globalUniqueness:company.registrationNumber&&iso?'registry':'source_only'});\n      if(s.entityType==='contact'){\n        const id=read('contactId',200),fullName=read('contactName',200),email=read('email',254),profile=url(read('profile',1000));\n        if(!id||!fullName)continue;\n        const validEmail=email&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email),shared=validEmail&&/^(info|sales|office|contact|support|admin)@/i.test(email);\n        const individual=validEmail&&!shared&&read('emailKind',12)==='individual';\n        const contact={fullName,title:read('title',200),email:validEmail?email:null,emailKind:individual?'individual':shared?'shared':'unknown',phone:read('phone',80),professionalUrl:profile};\n        const key=profile?'profile:'+profile:individual?'email-company:'+companyIdentity+':'+email.toLowerCase():'source-person:'+source.system+':'+id;\n        records.push({type:'contact',key,companyKey:companyIdentity,company,contact,source:{...source,id},status:'unconfirmed'});\n      }\n      if(s.entityType==='opportunity'){\n        const id=read('opportunityId',200),kind=read('opportunityType',20),description=read('opportunityDescription',4000),evidence=url(read('opportunityUrl',1000));\n        if(!id||!['BUY','SELL','SURPLUS'].includes(kind)||!description||!evidence)continue;\n        records.push({type:'opportunity',key:'lot:'+source.system+':'+id,companyKey:companyIdentity,company,opportunity:{kind,description,url:evidence,quantity:read('quantity',100),currency:read('currency',3),price:read('price',100),publishedAt:read('publishedAt',50),expiresAt:read('expiresAt',50)},source:{...source,id},status:'review_required'});\n      }\n    }\n    const next=s.pagination.mode==='token'?get(body,s.pagination.nextPath||[]):null;\n    if(s.pagination.mode==='token'&&next!==null&&next!==undefined&&typeof next!=='string')fail('Invalid next cursor');\n    const current=j.cursor?.page||1;\n    const pages=s.pagination.totalPagesPath?Number(get(body,s.pagination.totalPagesPath)):null;\n    const exhausted=s.pagination.mode==='token'?!next:rows.length<(s.pageSize||100)||(Number.isFinite(pages)&&pages>0&&current>=pages);\n    return {ok:true,status,records,nextCursor:s.pagination.mode==='token'?{token:next||null}:{page:current+1},exhausted};\n  }\n  if(action==='reportText'){\n    const r=a.report;\n    return ['ShadowBridge OWNER 08:00 - '+r.day,'New companies: '+r.companies,'New contacts: '+r.contacts,'BUY: '+r.BUY+' | SELL: '+r.SELL+' | SURPLUS: '+r.SURPLUS,'New records: '+r.newRecords+' | target: '+r.target,'Duplicates: '+r.duplicates+' | errors: '+r.errors,'CRM delivered: '+r.crmDelivered+' | pending: '+r.crmPending,'Credit upper bound reserved: '+r.creditsReserved+' | actual cost: '+(r.actualCredits===null?'unconfirmed':r.actualCredits),'Blocked sources: '+r.blockedSources].join('\\n').replace(/[\\u2013\\u2014]/g,'-');\n  }\n  fail('Unknown action');\n})(\"page\", {job:$json.context.job,response:$json.context.response,now:$now.toISO()}) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "commit-page-and-checkpoint",
+      "name": "Commit page and checkpoint",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1620,
+        480
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT acquisition_ops.commit_page($1::bigint,$2::uuid,$3::jsonb) AS committed",
+        "options": {
+          "queryReplacement": "={{ [$(\"Claim next bounded page\").item.json.job.id,$(\"Claim next bounded page\").item.json.job.lease,JSON.stringify($json.page)] }}",
+          "queryBatching": "single"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OWNER_SELECT_SCOPED_LATAM",
+          "name": "ShadowBridge acquisition LATAM - existing PostgreSQL"
+        }
+      }
+    },
+    {
+      "id": "gentle-spacing",
+      "name": "Gentle spacing",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        720
+      ],
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "webhookId": "shadowbridge-global-spacing-latam"
+    },
+    {
+      "id": "region-checkpoint",
+      "name": "Region checkpoint",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        270,
+        720
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "state",
+              "name": "state",
+              "type": "object",
+              "value": {
+                "scope": "LATAM",
+                "targetCombinedNight": 1000,
+                "crmDelivery": "BLOCKED_VAULT_V3",
+                "sourceRecords": "inspect private operational report, never infer acquisition from execution success"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Manual review": {
+      "main": [
+        [
+          {
+            "node": "OWNER approval gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Oslo 0100": {
+      "main": [
+        [
+          {
+            "node": "OWNER approval gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume unfinished jobs": {
+      "main": [
+        [
+          {
+            "node": "OWNER approval gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OWNER approval gate": {
+      "main": [
+        [
+          {
+            "node": "Approved for execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved for execution": {
+      "main": [
+        [
+          {
+            "node": "Claim next bounded page",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Disabled safely",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Source apollo": {
+      "main": [
+        [
+          {
+            "node": "Read apollo approved results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Source clay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read apollo approved results": {
+      "main": [
+        [
+          {
+            "node": "Preserve apollo page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preserve apollo page": {
+      "main": [
+        [
+          {
+            "node": "Normalize bounded page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Source clay": {
+      "main": [
+        [
+          {
+            "node": "Read clay approved results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Source relevance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read clay approved results": {
+      "main": [
+        [
+          {
+            "node": "Preserve clay page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preserve clay page": {
+      "main": [
+        [
+          {
+            "node": "Normalize bounded page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Source relevance": {
+      "main": [
+        [
+          {
+            "node": "Read relevance approved results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unsupported source blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read relevance approved results": {
+      "main": [
+        [
+          {
+            "node": "Preserve relevance page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preserve relevance page": {
+      "main": [
+        [
+          {
+            "node": "Normalize bounded page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim next bounded page": {
+      "main": [
+        [
+          {
+            "node": "Page lease acquired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Page lease acquired": {
+      "main": [
+        [
+          {
+            "node": "Build verified read request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Region checkpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build verified read request": {
+      "main": [
+        [
+          {
+            "node": "Source apollo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize bounded page": {
+      "main": [
+        [
+          {
+            "node": "Commit page and checkpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit page and checkpoint": {
+      "main": [
+        [
+          {
+            "node": "Gentle spacing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gentle spacing": {
+      "main": [
+        [
+          {
+            "node": "Claim next bounded page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "Europe/Oslo",
+    "executionOrder": "v1",
+    "executionTimeout": 21600,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "pinData": {},
+  "tags": []
+}

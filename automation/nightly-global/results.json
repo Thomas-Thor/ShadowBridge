@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-24",
+  "unitTests": {
+    "passed": 12,
+    "failed": 0
+  },
+  "postgres": {
+    "kind": "real-postgresql-synthetic-acquisition-benchmark",
+    "cases": [
+      {
+        "name": "new operational schema, private rows, no OWNER role or CRM migration",
+        "result": "PASS"
+      },
+      {
+        "name": "1200 unique synthetic records in bounded SQL batches, durable cursors and replay safety",
+        "result": "PASS"
+      },
+      {
+        "name": "source identity duplicates do not overwrite records and distinct companies survive similar names",
+        "result": "PASS"
+      },
+      {
+        "name": "unknown or exhausted credit balances block calls; 429 pauses all future jobs for that source",
+        "result": "PASS"
+      },
+      {
+        "name": "parallel claims obey a global limit and expired lease cannot overwrite a replacement checkpoint",
+        "result": "PASS"
+      },
+      {
+        "name": "actual PostgreSQL Oslo daily keys survive repeated autumn 0200 and spring recovery after missing 0200",
+        "result": "PASS"
+      },
+      {
+        "name": "OWNER 0800 aggregate separates companies/contacts/opportunities, queues and actual credit uncertainty",
+        "result": "PASS"
+      }
+    ],
+    "realProvidersCalled": false,
+    "n8nStarted": false,
+    "contaboTouched": false,
+    "fixture": "nightly_global_test_bc0695f6",
+    "performance": {
+      "records": 1200,
+      "companyRecords": 600,
+      "contactRecords": 400,
+      "opportunityRecords": 200,
+      "batches": 6,
+      "batchSize": 200,
+      "elapsedMs": 1484,
+      "providerLatencyIncluded": false,
+      "n8nExecutionIncluded": false,
+      "realRecordsAcquired": 0
+    },
+    "ownerReport": {
+      "BUY": 68,
+      "day": "2026-10-24",
+      "SELL": 66,
+      "errors": 1,
+      "target": 1000,
+      "SURPLUS": 66,
+      "regions": {
+        "ASIA": 400,
+        "LATAM": 400,
+        "EUROPE": 400
+      },
+      "blockers": [
+        "VAULT_V3_MACHINE_SINK_NOT_IMPLEMENTED",
+        "PROVIDER_BALANCES_REQUIRE_READ_ONLY_CONFIRMATION",
+        "EXISTING_FOUR_RELEVANCE_SCOUTS_NOT_INSPECTED"
+      ],
+      "contacts": 400,
+      "timezone": "Europe/Oslo",
+      "companies": 600,
+      "countries": {
+        "IN": 400,
+        "MX": 400,
+        "PL": 400
+      },
+      "categories": {
+        "industrial-supplies": 1200
+      },
+      "crmPending": 1200,
+      "duplicates": 200,
+      "newRecords": 1200,
+      "jobStatuses": {
+        "done": 7,
+        "deferred": 1
+      },
+      "crmDelivered": 0,
+      "actualCredits": null,
+      "blockedSources": 0,
+      "elapsedSeconds": 139,
+      "creditsReserved": 2,
+      "providerCredits": {
+        "clay": {
+          "actual": null,
+          "requests": 4,
+          "upperBoundReserved": 0
+        },
+        "apollo": {
+          "actual": null,
+          "requests": 8,
+          "upperBoundReserved": 2
+        }
+      },
+      "automaticEnrichmentExecuted": false,
+      "companyGlobalUniquenessReview": 0,
+      "existingRelevanceScoutSchedulesChanged": false
+    },
+    "result": "PASS",
+    "retainedDatabase": "nightly_global_test_bc0695f6",
+    "originalDatabasesNotReset": true
+  },
+  "productionAccess": {
+    "ssh": false,
+    "accountCredentials": false,
+    "https": "PROXY_CONNECT_403_ORIGIN_UNVERIFIED",
+    "providerContractsVerified": false
+  },
+  "nativeN8nEndToEnd": "NOT_EXECUTED",
+  "actualAcquisitionRecords": 0,
+  "paidProviderCalls": 0,
+  "productionChanges": false,
+  "status": "BLOCKED_FOR_ACTIVATION"
+}

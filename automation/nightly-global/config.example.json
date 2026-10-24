@@ -1,0 +1,25 @@
+{
+  "enabled": false,
+  "timezone": "Europe/Oslo",
+  "targetNewUniqueRecordsPerNight": 1000,
+  "maximumNewRecordsSafetyCap": 5000,
+  "maximumParallelRequests": 3,
+  "regions": {
+    "LATAM": {"hour": 1, "priorityCountries": ["MX", "BR", "CL", "CO", "PE", "AR"], "interests": ["manufacturing", "wholesale", "import_export"]},
+    "ASIA": {"hour": 2, "priorityCountries": ["CN", "IN", "VN", "BD", "PK", "ID", "TH"], "interests": ["factories", "exporters", "apparel", "documented_production_surplus"]},
+    "EUROPE": {"hour": 3, "priorityCountries": ["PL", "DE", "NL", "CZ", "NO"], "interests": ["wholesale", "importers", "buyers", "stocklots", "pallets", "end_of_line", "documented_liquidations"]}
+  },
+  "sourceConfigurations": [],
+  "providerReadContractsVerified": {"apollo": false, "clay": false, "relevance": false},
+  "verifiedRemainingCredits": {"apollo": null, "clay": null, "relevance": null},
+  "approvedDailyCreditCaps": {"apollo": 0, "clay": 0, "relevance": 0},
+  "paidEnrichmentEnabled": false,
+  "paidEnrichmentCandidateSelection": "OWNER approved records only; no enrichment API is invoked by this package",
+  "existingRelevanceScoutIds": [],
+  "existingRelevanceScoutSchedulesChanged": false,
+  "relevancePolicy": "Read approved stored results only, never trigger agents",
+  "crmMachineSink": "BLOCKED_VAULT_V3_NOT_IMPLEMENTED",
+  "ownerSessionOrDatabaseAdminCredentialPermitted": false,
+  "outreachEnabled": false,
+  "generatedCommunicationForbiddenCharacters": ["U+2014", "U+2013"]
+}
