@@ -8,6 +8,29 @@
  const when=v=>v&&Number.isFinite(Date.parse(v))?new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Oslo',dateStyle:'medium',timeStyle:'short'}).format(new Date(v)):'Not set';
  const local=v=>{if(!v)return'';const d=new Date(v);return new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};
  const iso=v=>v?new Date(v).toISOString():null;
+ function keyExpiry(period,custom,now=Date.now()){
+  const days=['1','3','7','30','60'];let end;
+  if(period==='custom'){
+   if(typeof custom!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(custom))throw Error('Choose a valid custom expiry date and time.');
+   end=new Date(custom);if(!Number.isFinite(end.getTime())||local(end.toISOString())!==custom)throw Error('This local time does not exist. Choose a different expiry.');
+  }else{if(!days.includes(period))throw Error('Choose one of the permitted expiry periods.');end=new Date(now+Number(period)*86400000);}
+  if(end.getTime()<=now||end.getTime()>now+90*86400000)throw Error('Expiry must be in the future, within 90 days. Existing keys are never extended.');
+  return end.toISOString();
+ }
+ function startSummaryDownload(summary,{doc=document,urlApi=URL,BlobType=Blob,schedule=setTimeout,remember=()=>{}}={}){
+  if(typeof summary!=='string'||!summary||summary.length>1024*1024)throw Error('The summary is empty or too large. Select fewer records, then try again.');
+  let url,anchor,finished=false;
+  const cleanup=()=>{if(finished)return;finished=true;anchor?.remove();if(url)urlApi.revokeObjectURL(url);};
+  try{
+   if(!doc.body||typeof urlApi.createObjectURL!=='function')throw Error('Download is unavailable.');
+   url=urlApi.createObjectURL(new BlobType([summary],{type:'text/plain;charset=utf-8'}));
+   anchor=doc.createElement('a');anchor.href=url;anchor.download='ShadowBridge-owner-summary.txt';anchor.hidden=true;anchor.rel='noopener';doc.body.append(anchor);
+   // Firefox requires an attached link in several download contexts. Keep the
+   // Blob alive long enough for both Gecko and Chromium to consume the file.
+   anchor.click();remember(cleanup);schedule(cleanup,60000);return cleanup;
+  }catch{cleanup();throw Error('The TXT download could not start. Check browser download permissions or use Copy reviewed summary.');}
+ }
+ function referenceHint(holder,name){const input=holder.querySelector('[name='+name+']');if(!input)return;const id=input.id+'-reference-help';input.setAttribute('aria-describedby',id);input.closest('label').append(el('small',{id,class:'book-reference-help',text:'Optional. Reference a source, previous agreement or related material.'}));}
  const osloDay=v=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Oslo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(v)).map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day;};
  const midnight=date=>{const d=new Date(date+'T00:00:00Z'),zone=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Oslo',timeZoneName:'longOffset'}).formatToParts(d).find(p=>p.type==='timeZoneName').value;return new Date(date+'T00:00:00'+zone.replace('GMT','')).toISOString();};
  const addDay=(day,n)=>{const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
@@ -18,7 +41,7 @@
   ['title',labels[kind]+' title','text',true],['body',kind==='decision'?'Decision and rationale':'Operational details (no passwords or infrastructure keys)','textarea'],
   ['priority','Priority','select',true,['low','normal','high','critical']],['status','Status','select',true,['planned','open','in_progress','blocked','done','cancelled','recorded']],
   ...(kind==='event'?[['starts_at','Starts','datetime-local',true],['ends_at','Ends','datetime-local']]:[['due_at','Due','datetime-local']]),
-  ['remind_at','In-app reminder','datetime-local'],['source_ref','Source / previous agreement reference','text'],['archived','Move to archive','checkbox']
+  ['remind_at','In-app reminder','datetime-local'],['source_ref','Reference / Source (optional)','text'],['archived','Move to archive','checkbox']
  ];
  function validatePage(r){if(!r||!Array.isArray(r.items)||!Number.isSafeInteger(r.total)||r.total<0||r.items.length>25)throw Error('Invalid private response.');return r;}
  async function overview({host,api,access}){
@@ -44,7 +67,7 @@
     const entry={...data,kind,dependencies:[...chosen]};for(const k of ['due_at','starts_at','ends_at','remind_at'])if(Object.hasOwn(entry,k))entry[k]=iso(entry[k]);
     if(item)entry.version=item.version;
     await api(base+'/entries'+(item?'/'+item.id:''),item?'PUT':'POST',{entry,requestKey:command});if(live(s))await after();return false;
-   },values);f.autocomplete='off';f.dataset.preserveValues='true';f.querySelector('[name=title]').maxLength=200;f.querySelector('[name=source_ref]').maxLength=500;
+   },values);f.autocomplete='off';f.dataset.preserveValues='true';f.querySelector('[name=title]').maxLength=200;f.querySelector('[name=source_ref]').maxLength=500;referenceHint(f,'source_ref');
    holder.append(el('p',{class:'book-record-meta',text:`Editor dates use ${Intl.DateTimeFormat().resolvedOptions().timeZone}. Calendar and saved times are displayed in Europe/Oslo. Reminders appear in this workspace; no email or push delivery is configured.`}));
    if(kind==='task'){
     const box=el('fieldset',{class:'book-dependencies'},[el('legend',{text:'Prerequisite tasks'}),el('p',{text:'Only your own tasks. Cycles and completion before prerequisites are rejected by the database.'})]);f.querySelector('fieldset').append(box);
@@ -110,26 +133,30 @@
    const r=await api(base+'/keys');if(!live(s))return;content.replaceChildren();alert(content,'Scoped access only','Keys authorize Command Book resources only. They never grant OWNER role, CRM, bank, password manager or infrastructure access. Never paste a key into a chat or repository.');
    if(!s.config.remoteApiEnabled)alert(content,'Remote API disabled','Keys can be prepared, but external API calls remain disabled until a separately approved release configuration.');
    const holder=el('section',{class:'dashboard-card'},[el('h3',{text:'Create an expiring key'})]),selected=new Set(['task.read','note.read','idea.read','event.read','decision.read','journal.read']);content.append(holder);
-   const secret=el('div');holder.append(secret);const f=form(holder,[['name','Key name','text',true],['mode','Access mode','select',true,[{value:'read_only',label:'READ ONLY (default)'},{value:'custom',label:'CUSTOM scopes'},{value:'book_admin',label:'Book administrator (no platform security access)'}]],['days','Expires after','select',true,[{value:'7',label:'7 days'},{value:'30',label:'30 days'},{value:'89',label:'89 days'}]]],'Create scoped key',async data=>{
-    const key=await api(base+'/keys','POST',{name:data.name,mode:data.mode,scopes:[...selected],expiresAt:new Date(Date.now()+Number(data.days)*86400000).toISOString()});if(!live(s))return false;
+   const secret=el('div',{'aria-live':'polite'});holder.append(secret);const f=form(holder,[['name','Key name','text',true],['mode','Access mode','select',true,[{value:'read_only',label:'READ ONLY (default)'},{value:'custom',label:'CUSTOM scopes'},{value:'book_admin',label:'Book administrator (no platform security access)'}]],['days','Expires after','select',true,[{value:'1',label:'1 day'},{value:'3',label:'3 days'},{value:'7',label:'7 days'},{value:'30',label:'30 days'},{value:'60',label:'60 days'},{value:'custom',label:'CUSTOM date and time (max 90 days)'}]],['customExpiry','Custom expiry in your device time zone','datetime-local']],'Create scoped key',async data=>{
+    const key=await api(base+'/keys','POST',{name:data.name,mode:data.mode,scopes:[...selected],expiresAt:keyExpiry(data.days,data.customExpiry)});if(!live(s))return false;
     secret.replaceChildren();const value=el('input',{type:'password',readonly:true,autocomplete:'off','aria-label':'New API key, shown once'});value.value=key.token;delete key.token;const clear=()=>{value.value='';secret.replaceChildren();};s.secrets.push(clear);s.timers.push(setTimeout(clear,120000));
-    secret.append(ui().alert({title:'Save this key securely now',message:'Displayed once, cleared after two minutes or when the session changes. Store it in the password manager or the assistant authentication settings, never a conversation.'}),value,btn('Copy this new key',async()=>{await navigator.clipboard.writeText(value.value);}),btn('Dismiss key',clear),btn('Revoke this new key',async()=>{await api(base+'/keys/'+key.id+'/revoke','POST',{});clear();if(live(s))await showKeys();}));return false;
+    const copied=el('p',{role:'status'});secret.append(ui().alert({title:'ONE-TIME SECRET — save securely now',message:'Masked by default. COPY sends it only to your clipboard. Paste only into the integration authentication field, never a chat. Cleared here after two minutes, dismissal or session change; clearing the page does not clear the clipboard.'}),value,btn('COPY API KEY',async()=>{if(!value.value)throw Error('This one-time secret has been cleared.');await navigator.clipboard.writeText(value.value);copied.textContent='Copied. Paste into the secure Authentication field, then dismiss this secret.';},false),btn('Show / hide',()=>{value.type=value.type==='password'?'text':'password';}),btn('Dismiss key',clear),btn('Revoke this new key',async()=>{await api(base+'/keys/'+key.id+'/revoke','POST',{});clear();if(live(s))await showKeys();}),copied);return false;
    },{mode:'read_only',days:'7'});f.dataset.preserveValues='true';
    const choices=el('fieldset',{class:'book-scopes'},[el('legend',{text:'Permitted resources'})]);f.querySelector('fieldset').append(choices);const boxes=[];
    for(const scope of r.scopeCatalog){const b=el('input',{type:'checkbox'});b.checked=selected.has(scope);b.addEventListener('change',()=>b.checked?selected.add(scope):selected.delete(scope));boxes.push([scope,b]);choices.append(el('label',{class:'entry-check'},[b,document.createTextNode(scope)]));}
    const mode=f.querySelector('[name=mode]');const update=()=>{for(const [scope,b]of boxes){b.disabled=mode.value==='book_admin'||mode.value==='read_only'&&!scope.endsWith('.read');if(mode.value==='book_admin'){b.checked=true;selected.add(scope);}else if(b.disabled){b.checked=false;selected.delete(scope);}}};mode.addEventListener('change',update);update();
+   const duration=f.querySelector('[name=days]'),custom=f.querySelector('[name=customExpiry]'),expiryHint=el('p',{class:'book-record-meta',role:'status'});holder.append(expiryHint);
+   const expiryChanged=()=>{custom.closest('label').hidden=duration.value!=='custom';custom.disabled=duration.value!=='custom';custom.required=duration.value==='custom';custom.min=local(new Date(Date.now()+60000).toISOString());custom.max=local(new Date(Date.now()+90*86400000-60000).toISOString());try{expiryHint.textContent='New key expires '+when(keyExpiry(duration.value,custom.value))+' (Europe/Oslo). Existing keys stay unchanged.';}catch(e){expiryHint.textContent=e.message;}};
+   duration.addEventListener('change',expiryChanged);custom.addEventListener('input',expiryChanged);expiryChanged();
+   holder.append(btn('Prepare ChatGPT CUSTOM scopes',()=>{f.querySelector('[name=name]').value='ChatGPT Command Book';mode.value='custom';selected.clear();for(const scope of ['task.read','task.write','note.read','note.write','idea.read','idea.write','event.read','event.write','journal.read','summary.export'])selected.add(scope);for(const [scope,b]of boxes)b.checked=selected.has(scope);update();duration.value='1';expiryChanged();}));
    const list=el('div',{class:'book-records'});content.append(list);for(const key of r.items){const c=el('article',{class:'dashboard-card'},[el('h3',{text:key.name}),el('p',{text:key.mode+' · '+(key.revoked_at?'revoked':new Date(key.expires_at)<new Date()?'expired':'active')}),el('p',{class:'book-record-meta',text:'Expires '+when(key.expires_at)+' · last used '+when(key.last_used_at)}),el('p',{class:'book-scope-list',text:key.scopes.join(', ')})]);if(!key.revoked_at)c.append(btn('Revoke immediately',async()=>{await api(base+'/keys/'+key.id+'/revoke','POST',{});if(live(s))await showKeys();}));list.append(c);}
    const audit=el('section',{class:'dashboard-card'},[el('h3',{text:'API access audit'})]);content.append(audit);audit.append(btn('Load latest access events',async()=>{const a=await api(base+'/audit');if(live(s))audit.replaceChildren(el('h3',{text:'Latest access events'}),...a.items.map(x=>el('p',{text:when(x.created_at)+' · '+x.action+' · '+x.outcome})));}));
   }
   async function showTransfer(){
    content.replaceChildren();alert(content,'Review before importing or sharing','Import creates new private records and never overwrites existing entries. No passwords, access keys or bank credentials belong here. Exports contain selected book records only, never password vault or CRM data.');
-   const preview=el('section',{class:'dashboard-card'});const f=form(content,[['format','Import format','select',true,[{value:'text',label:'Plain text as one private note'},{value:'json',label:'JSON array of new book entries'}]],['sourceRef','Previous agreement / chat reference','text'],['content','Previous agreements (max 5,000 characters per record)','textarea',true]],'Preview import',async data=>{
+   const preview=el('section',{class:'dashboard-card'});const f=form(content,[['format','Import format','select',true,[{value:'text',label:'Plain text as one private note'},{value:'json',label:'JSON array of new book entries'}]],['sourceRef','Reference / Source (optional)','text'],['content','Previous agreements (max 5,000 characters per record)','textarea',true]],'Preview import',async data=>{
     const r=await api(base+'/import/preview','POST',data);if(!live(s))return false;const key=crypto.randomUUID();preview.replaceChildren(el('h3',{text:`Review ${r.items.length} new entries`}));for(const e of r.items)preview.append(el('article',{},[el('h4',{text:labels[e.kind]+': '+e.title}),el('p',{class:'book-record-body',text:e.body})]));preview.append(btn('Confirm import of these entries',async()=>{await api(base+'/import','POST',{items:r.items,requestKey:key,confirm:true});if(live(s))preview.replaceChildren(el('p',{role:'status',text:'Imported into your private book. No earlier record was overwritten.'}));},false));return false;
-   },{format:'text'});f.querySelector('[name=content]').maxLength=50000;content.append(preview);
+   },{format:'text'});f.querySelector('[name=content]').maxLength=50000;referenceHint(f,'sourceRef');content.append(preview);
    const output=el('section',{class:'dashboard-card'});content.append(output);form(output,[['resource','Summary selection','select',true,[{value:'task,note,idea,event,decision',label:'All active book resources'},...Object.entries(labels).map(([value,label])=>({value,label}))]]],'Preview summary for a new chat',async data=>{
     const r=await api(base+'/export?kinds='+encodeURIComponent(data.resource));if(!live(s))return false;
     const lines=['# ShadowBridge OWNER operational context','Exported '+r.exportedAt,r.notice];for(const item of r.items)lines.push(`\n## ${labels[item.kind]}: ${item.title}`,`Status: ${item.status}; priority: ${item.priority}; source: ${item.source_label}`,item.body,item.due_at?'Due: '+item.due_at:'',item.starts_at?'Starts: '+item.starts_at:'',item.source_ref?'Reference: '+item.source_ref:'');if(r.truncated)lines.push('\nLimited to the first 50 records. Select fewer resources for the remaining records.');
-    const summary=lines.join('\n').replace(/[\u2013\u2014]/g,'-'),pre=el('pre',{class:'book-export',text:summary}),actions=el('div',{class:'book-actions'});actions.append(btn('Copy reviewed summary',async()=>navigator.clipboard.writeText(summary)),btn('Download summary',()=>{const url=URL.createObjectURL(new Blob([summary],{type:'text/plain;charset=utf-8'})),a=el('a',{href:url,download:'ShadowBridge-owner-summary.txt'});a.click();s.timers.push(setTimeout(()=>URL.revokeObjectURL(url),1000));}));output.querySelector('[data-export-preview]')?.remove();output.append(el('div',{'data-export-preview':''},[el('p',{text:'Review this text before sharing it in a new chat. No transfer has happened.'}),pre,actions]));return false;
+    const summary=lines.join('\n').replace(/[\u2013\u2014]/g,'-'),pre=el('pre',{class:'book-export',text:summary}),actions=el('div',{class:'book-actions'}),downloadStatus=el('p',{role:'status'});actions.append(btn('Copy reviewed summary',async()=>navigator.clipboard.writeText(summary)),btn('Download summary',()=>{startSummaryDownload(summary,{remember:fn=>s.secrets.push(fn),schedule:(fn,ms)=>s.timers.push(setTimeout(fn,ms))});downloadStatus.textContent='TXT download requested. Check your browser Downloads; if blocked, use Copy reviewed summary.';}));output.querySelector('[data-export-preview]')?.remove();output.append(el('div',{'data-export-preview':''},[el('p',{text:'Review this text before sharing it in a new chat. No transfer has happened.'}),pre,actions,downloadStatus]));return false;
    },{resource:'task,note,idea,event,decision'});
   }
   function showSecure(){
@@ -137,5 +164,5 @@
   }
   run(async()=>{s.config=await api(base+'/config');if(!live(s))return;if(view==='overview')await showOverview();else if(views[view])await showEntries(views[view]);else if(view==='journal')await showJournal();else if(view==='keys')await showKeys();else if(view==='transfer')await showTransfer();else if(view==='secure')showSecure();else alert(content,'Unknown workspace','Choose a Command Book section.');if(live(s)&&location.hash==='#owner-command-book'){frame.scrollIntoView({block:'start',behavior:'instant'});nav.querySelector('[aria-current=page]')?.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});}});
  }
- window.ShadowOwnerBook=Object.freeze({overview,mount,clearPrivate(){for(const s of [...states])s.clear();}});
+ window.ShadowOwnerBook=Object.freeze({overview,mount,keyExpiry,startSummaryDownload,clearPrivate(){for(const s of [...states])s.clear();}});
 })();

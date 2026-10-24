@@ -5,6 +5,7 @@ export const bookKinds=Object.freeze(['task','note','idea','event','decision']);
 export const bookScopes=Object.freeze([...bookKinds.flatMap(k=>[k+'.read',k+'.write']),'journal.read','summary.export','records.import']);
 const priorities=['low','normal','high','critical'],statuses=['planned','open','in_progress','blocked','done','cancelled','recorded'];
 const invalid=m=>{throw new ApiError(400,'BOOK_INVALID_INPUT',m);};
+function commandUuid(value){if(typeof value!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value))invalid('Use a stable command UUID for this one explicit instruction.');return value;}
 function timestamp(v,name){if(v===undefined||v===null||v==='')return null;if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})$/.test(v)||!Number.isFinite(Date.parse(v)))invalid('Use an ISO timestamp with an explicit offset for '+name+'.');return new Date(v).toISOString();}
 export function bookRecord(input,{update=false,id}={}){
  const p=object(input,['kind','title','body','priority','status','due_at','starts_at','ends_at','remind_at','archived','dependencies','source_ref','version'],['kind','title']);
@@ -43,11 +44,11 @@ export function bookOperation(url,method,input={},prefix='/api/owner/book'){
  if(method==='GET'&&['/config','/summary','/keys','/audit'].includes(route)){if(query.size)invalid('Unexpected query parameters.');return{action:{'/config':'config','/summary':'summary','/keys':'key_list','/audit':'audit'}[route],kind:null,p:{}};}
  if(query.size)invalid('Writes do not accept query parameters.');
  if(method==='POST'&&route==='/entries'||method==='PUT'&&detail&&!detail[2]){
-  object(input,['entry','requestKey'],['entry','requestKey']);const p=bookRecord(input.entry,{update:method==='PUT',id:detail?.[1]});return{action:'save',kind:p.kind,p,commandId:identifier(input.requestKey)};
+  object(input,['entry','requestKey'],['entry','requestKey']);const p=bookRecord(input.entry,{update:method==='PUT',id:detail?.[1]});return{action:'save',kind:p.kind,p,commandId:commandUuid(input.requestKey)};
  }
  if(method==='POST'&&['/import','/import/preview'].includes(route)){
   const items=importRecords(input);if(route==='/import/preview')return{action:'preview',kind:null,p:{},preview:items};
-  if(input.confirm!==true)invalid('Review and explicitly confirm the import.');return{action:'import',kind:null,p:{items},commandId:identifier(input.requestKey)};
+  if(input.confirm!==true)invalid('Review and explicitly confirm the import.');return{action:'import',kind:null,p:{items},commandId:commandUuid(input.requestKey)};
  }
  if(method==='POST'&&route==='/keys'){
   object(input,['name','mode','scopes','expiresAt'],['name','mode','expiresAt']);const mode=oneOf(input.mode,['read_only','custom','book_admin'],'key mode');
@@ -66,7 +67,7 @@ export async function routeOwnerBook({req,url,tx,body,config}){
  if(routed.status===200){
   if(token)routed.data={...routed.data,token,displayOnce:true};
   if(op.preview)routed.data={items:op.preview,previewOnly:true,requiresConfirmation:true};
-  if(op.action==='config')Object.assign(routed.data,{remoteApiEnabled:config.ownerBookApiEnabled===true,passwordManager:{provider:'Bitwarden',url:'https://vault.bitwarden.eu/',connected:false},financialIntegration:'not_connected'});
+  if(op.action==='config')Object.assign(routed.data,{remoteApiEnabled:config.ownerBookApiEnabled===true,keyPolicy:{maxLifetimeDays:90,singleUseSupported:false},passwordManager:{provider:'Bitwarden',url:'https://vault.bitwarden.eu/',connected:false},financialIntegration:'not_connected'});
  }
  return routed;
 }
@@ -76,11 +77,20 @@ export async function routeBookToken({req,url,sessionPool,body,clientHash}){
  const call=async(op,explicit=false,commandId=null)=>(await sessionPool.query('SELECT owner_book.token_rpc($1,$2,$3,$4::jsonb,$5::uuid,$6::boolean,$7,$8::uuid) AS result',[digest,op.action,op.kind,JSON.stringify(op.p),commandId,explicit,clientHash,requestId])).rows[0].result;
  try{
   if(req.headers.cookie||req.headers.origin)throw new ApiError(403,'BOOK_MACHINE_ONLY','Use scoped server-to-server authentication, without browser cookies.');
-  const op=bookOperation(url,req.method,['GET','HEAD'].includes(req.method)?{}:await body(req),'/api/integrations/owner-book/v1');
+  let input=['GET','HEAD'].includes(req.method)?{}:await body(req),operationUrl=url,assistant=false;
+  const assistantPath=url.pathname.slice('/api/integrations/owner-book/v1'.length);
+  if(assistantPath.startsWith('/assistant/')){
+   if(!(req.method==='POST'&&assistantPath==='/assistant/entries'||req.method==='PUT'&&/^\/assistant\/entries\/[a-f0-9-]+$/i.test(assistantPath)))throw new ApiError(404,'BOOK_NOT_FOUND','Assistant operation not found.');
+   object(input,['entry','requestKey','explicitWrite'],['entry','requestKey','explicitWrite']);
+   if(input.explicitWrite!==true)throw new ApiError(403,'BOOK_EXPLICIT_WRITE_REQUIRED','An explicit confirmed OWNER command is required.');
+   if(!['task','note','idea','event'].includes(input.entry?.kind))throw new ApiError(403,'BOOK_SCOPE_DENIED','The assistant can write only tasks, notes, ideas and events.');
+   assistant=true;input={entry:input.entry,requestKey:input.requestKey};operationUrl=new URL(url);operationUrl.pathname=operationUrl.pathname.replace('/v1/assistant/','/v1/');
+  }
+  const op=bookOperation(operationUrl,req.method,input,'/api/integrations/owner-book/v1');
   if(!['list','get','history','save','journal','import','export'].includes(op.action))throw new ApiError(403,'BOOK_SCOPE_DENIED','This API cannot manage keys, account security, CRM or passwords.');
-  const write=['save','import'].includes(op.action),commandId=write?identifier(req.headers['x-shadowbridge-command-id']):null;
+  const write=['save','import'].includes(op.action),commandId=write?commandUuid(assistant?input.requestKey:req.headers['x-shadowbridge-command-id']):null;
   if(write&&op.commandId!==commandId)invalid('Use one matching command UUID in the body and header.');
-  return await call(op,req.headers['x-shadowbridge-explicit-write']==='true',commandId);
+  return await call(op,assistant||req.headers['x-shadowbridge-explicit-write']==='true',commandId);
  }catch(error){
   let audit;try{audit=await call({action:'invalid',kind:null,p:{}});}catch{throw new ApiError(503,'BOOK_API_UNAVAILABLE','The private book service is unavailable.');}
   if(audit.status===401||audit.status===429)return audit;
