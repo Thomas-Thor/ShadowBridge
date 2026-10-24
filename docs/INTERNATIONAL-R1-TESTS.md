@@ -1,5 +1,55 @@
 # R1 — rzeczywiste wyniki i granice
 
+## Domknięcie 24.10.2026
+
+- **4/4 build PASS**: oficjalny Dockerfile, Node 24 Alpine, runtime i migrator
+  dla 7f794a2 oraz R1 faed3e4. Jedynym dodatkiem Dockerfile przy budowie starszego
+  kodu była ta sama etykieta OCI; stary runtime pochodził z oryginalnego Git archive.
+- **6/6 grup full stack PASS** (`tests/international-r1-stack.integration.mjs`):
+  produkcyjny Compose i overlay gatewaya, PostgreSQL 17, GoTrue 2.184.0, Caddy,
+  rzeczywisty n8n 2.44.6. TLS DB/Auth z verify-full, normalne logowanie, OWNER MFA,
+  firma Buyer i RFQ, aktualizacja 015→017, sesje i VAULT, wymiana oraz rollback
+  rzeczywistych obrazów i ponowne R1. Odczytowy preflight również zaliczony.
+- **Pełny restore PASS** do osobnego projektu Compose i osobnych wolumenów:
+  SQL + prywatna konfiguracja, publiczny profil/gateway i dane Caddy, wszystkie
+  zaszyfrowane AES-256-GCM. 70 tabel Auth/sb/portal/VAULT + osobno ledger 17 migracji
+  (łącznie 71 tabel) identyczne. 13 plików Caddy sprawdzonych po skopiowaniu
+  do celu, nie tylko po odszyfrowaniu. Zachowano klucze DB/JWT/sesji, token proxy
+  i certyfikaty; ścieżki/projekt manifestów zmieniono wyłącznie w nowym celu.
+  Odtworzony stos obsłużył dotychczasowe sesje OWNER aal2 i Buyera, VAULT/RFQ
+  oraz świeże logowanie dotychczasowym hasłem.
+- **64/64 pliki runtime zgodne** z aktualnym drzewem, odczyt ze zbudowanego obrazu.
+  Obraz nie zawiera wyłączonych przez .dockerignore prototypów.
+- **16/16 celowanych testów PASS**: planer R1, production-ops i recovery ról;
+  to ponowiony podzbiór wcześniejszych testów, nie dodatkowe 16 różnych testów.
+
+Testy nie dotknęły Contabo, rzeczywistych użytkowników ani pierwotnego lokalnego
+projektu właściciela. Wszystkie trzy jego działające ID pozostały te same.
+Na osobnym daemonie w /tmp użyto overlay2; nie usuwano dotychczasowych zasobów
+ani żadnych wolumenów/backupów. Compose wymieniał kontener aplikacji wyłącznie
+we własnym fikcyjnym projekcie podczas testu aktualizacji. Kontenery testowe
+zatrzymano, dane zachowano. Nie prowadzono wysyłki e-mail ani importów CRM.
+
+Rozwiązano wyłącznie problemy nowego testu: brak symlinków iptables w minimalnym
+środowisku zagnieżdżonego Dockera, UID tmpfs cache n8n oraz oczekiwanie na oba
+endpointy n8n (health jest gotowe wcześniej niż frontend). Nie zmieniano z tego
+powodu aplikacji ani produkcyjnej konfiguracji n8n. Pełny restore ponowiono
+wyłącznie po dodaniu sprawdzenia kopii publicznej konfiguracji; pięć poprzednich
+grup zachowano. Ledger porównano dodatkowym odczytem dwóch baz, bez powtarzania
+pozostałych testów.
+
+**Granice:** publiczne ACME zastąpiła lokalna CA dla obu prawdziwych nazw hostów.
+Żaden port testu nie był publikowany na zewnętrznym hoście; porty istniały tylko
+w przestrzeni sieciowej izolowanego kontenera-daemona. Nie potwierdzono domen
+produkcyjnych, danych/roli realnego OWNER ani fingerprintów istniejącego Contabo.
+Wymagany przed aktualizacją preflight wykona tam odczyt; nie zmienia żadnych kont.
+Brak SMTP nadal świadomie blokuje nowe rejestracje i odzyskiwanie przez e-mail.
+
+Wyniki starsze poniżej pozostają dowodem dla niezmienionego runtime; nie
+uruchamiano ponownie całej regresji UI/ról.
+
+## Zachowane wyniki 23.10.2026
+
 23.10.2026. Testy tej sesji na zintegrowanym drzewie R1, wyłącznie fikcyjne dane.
 Nie testowano konta właściciela, Contabo ani danych produkcyjnych.
 
@@ -75,7 +125,7 @@ Po rozszerzeniu ochrony na portal i całe Auth ponowiono **tylko** odtworzenie
 backupów i zmienione testy guardów; otrzymano 71 identycznych tabel. Pozostałe
 wyniki zachowały wiarygodność: ich kod runtime nie zmienił się.
 
-## Niewykonane / zablokowane
+## Niewykonane / zablokowane na checkpointcie 23.10 (historia)
 
 - Oficjalny build i pełny produkcyjny Compose z DB/Auth TLS, obrazami R1 i aktywnym
   gatewayem oraz rollback tych obrazów. Dostępne miejsce spadło z ok. 1,3 GB
@@ -91,6 +141,32 @@ wyniki zachowały wiarygodność: ich kod runtime nie zmienił się.
   fizyczne telefony/czytnik ekranu/Safari/Firefox i testy obciążenia.
 
 ## Artefakty i uruchamianie — dla testującego kod
+
+Nowy full-stack runner wymaga **osobnego pustego Docker daemona** overlay2
+(data-root /tmp/shadowbridge-r1-isolated/overlay-data), nigdy domyślnego daemona
+właściciela lub Contabo. W tej sesji powstał w prywatnym kontenerze bez portów
+hosta, z lokalnymi kopiami przypiętych obrazów. Wrapper
+`tests/fixtures/international-r1-docker.py` przekierowuje komendy do tego jednego
+socketu i dodaje lokalny overlay CA/portów; nie symuluje odpowiedzi. Wymaga
+prywatnego wrapper.json z pustym overlays i instalacji wrappera jako bin/docker
+w tym samym katalogu testowym. W minimalnym rootfs daemona potrzebne są działające
+iptables/ip6tables (w tym symlinki /etc/alternatives); inaczej nie działa DNS.
+Przed testem buduje się po dwa obrazy z oficjalnego Dockerfile: tagi
+shadowbridge-r1-full:{baseline,candidate} i shadowbridge-r1-migrate:{baseline,candidate},
+z odpowiednim SHADOWBRIDGE_RELEASE_SHA. Repo zachowuje własne test dependencies.
+
+Uruchomienie dla dewelopera po przygotowaniu takiego izolowanego daemona/obrazów:
+
+```sh
+PATH=/tmp/shadowbridge-r1-isolated/bin:$PATH SHADOWBRIDGE_R1_ISOLATED_TEST=1 SHADOWBRIDGE_R1_TEST_GATEWAY_ADDRESS=172.17.0.X node tests/international-r1-stack.integration.mjs
+```
+
+Adres to prywatny bridge kontenera-daemona (odczyt docker inspect), nie VPS.
+Do wznowienia służy --dir=.local/r1-stack-ID; --repeat-recovery ponawia tylko
+ostatnią grupę do nowego celu i zachowuje wcześniejsze kopie. Nowy fixture
+ma wyniki i sekrety jedynie w ignorowanym .local; nic z niego nie wysyłać do GitHub.
+Nie jest to instrukcja wymagająca wykonania przez właściciela.
+
 
 Prywatne konfiguracje/backupy/wyniki i fikcyjne zrzuty pozostają w ignorowanym
 `.local/vault-test-60fd63a0e2`. Publiczny [plik wyników](INTERNATIONAL-R1-RESULTS.json)

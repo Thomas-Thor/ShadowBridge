@@ -1,6 +1,6 @@
 // Host-only R1 planning. Never deploys, migrates, stops services or rewrites an
 // existing production/gateway profile. Operator approval is a separate step.
-import { readFile, writeFile, mkdir, lstat, unlink } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, lstat, unlink, readdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { createHash,randomBytes } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { checkProduction } from './production-config.mjs';
 import { publicComposeArguments,verifyPublic,databaseFingerprints,assertPreserved } from './production-ops.mjs';
-import { productionBase, checkGatewayProfile } from './n8n-gateway-profile.mjs';
+import { productionBase, checkGatewayProfile, edgeNetwork, n8nContainer } from './n8n-gateway-profile.mjs';
 import { repositoryRoot } from './staging-prepare.mjs';
 import { encryptArchive } from './staging-backup.mjs';
 import { migrationSources,validateApplied } from './staging-migrate.mjs';
@@ -98,6 +98,39 @@ export async function backupApplicationConfiguration({profile,directory}){
  await unlink(scratch);
  return backup;
 }
+// A stopped gateway gives a consistent copy of its certificate/ACME state.
+// Nothing is stopped here. These volumes are never restored onto the source.
+export async function backupGatewayVolumes({profile,directory}){
+ const plan=await checkApplicationPlan({profile,directory});
+ const running=docker(publicComposeArguments(profile,['ps','--services','--status','running']),profile.composeEnvironment).split('\n');
+ must(!['gateway','app','auth'].some(s=>running.includes(s)),'Pause this installation gateway, app and auth before its certificate backup. No service was stopped automatically.');
+ const id=docker(publicComposeArguments(profile,['ps','--all','--quiet','gateway']),profile.composeEnvironment);
+ must(/^[a-f0-9]{64}$/.test(id),'One existing stopped gateway is required.');
+ const container=JSON.parse(docker(['inspect',id]))[0];
+ must(!container.State.Running&&container.Config.Labels?.['com.docker.compose.project']===profile.project&&container.Config.Labels?.['com.docker.compose.service']==='gateway','Gateway does not belong to the selected installation.');
+ const mounts=['/data','/config'].map(destination=>container.Mounts.find(m=>m.Destination===destination));
+ must(mounts.every(m=>m?.Type==='volume'&&typeof m.Name==='string'),'Persistent Caddy data/config volumes are required.');
+ const folder=path.join(directory,'edge-backup-'+randomBytes(5).toString('hex'));await mkdir(folder,{mode:0o700});
+ for(const name of ['data','config']){await mkdir(path.join(folder,name),{mode:0o700});docker(['cp',id+':/'+name+'/.',path.join(folder,name)]);}
+ const hashes={};let bytes=0;
+ async function walk(relative){
+  for(const name of await readdir(path.join(folder,relative))){
+   const file=path.join(relative,name),info=await lstat(path.join(folder,file));
+   must(!info.isSymbolicLink(),'Certificate backup refuses symbolic links.');
+   if(info.isDirectory())await walk(file);
+   else{must(info.isFile()&&info.size<=64*1024**2,'Unexpected certificate storage file.');bytes+=info.size;must(bytes<=256*1024**2,'Certificate storage exceeds the reviewed backup bound.');hashes[file]=sha(await readFile(path.join(folder,file)));}
+  }
+ }
+ await walk('data');await walk('config');
+ await writeFile(path.join(folder,'edge.json'),JSON.stringify({kind:'shadowbridge-r1-edge-backup-v1',project:profile.project,release:plan.releaseSha,container:id,volumes:mounts.map(m=>m.Name),hashes})+'\n',{mode:0o600,flag:'wx'});
+ const scratch=path.join(folder,'edge.tar'),previous=process.umask(0o077);
+ try{execFileSync('tar',['--format=ustar','-cf',scratch,'-C',folder,'--','data','config','edge.json'],{stdio:['ignore','pipe','pipe']});}finally{process.umask(previous);}
+ const backup=await encryptArchive({archiveFile:scratch,backupFile:path.join(folder,'caddy-state.sbb'),keyFile:path.join(folder,'caddy-state.key')});
+ await unlink(scratch);
+ // Private copied files are retained for diagnostics/recovery; source volumes,
+ // backup and recovery key are never removed or changed.
+ return {...backup,encrypted:true,sourceVolumesUnchanged:true};
+}
 export async function verifyR1Http(releaseSha,{request=fetch}={}){
  const application=await verifyPublic(releaseSha,{request,mailDisabled:true});
  for(const pathname of ['/healthz','/signin']){
@@ -107,11 +140,34 @@ export async function verifyR1Http(releaseSha,{request=fetch}={}){
  }
  return {...application,automationHttpVerified:true,credentialsTested:false};
 }
+export async function preflightExistingR1(profile,{request=fetch}={}){
+ await anchors(profile);
+ const inspect=id=>JSON.parse(docker(['inspect',id]))[0];
+ const service=name=>{
+  const id=docker(publicComposeArguments(profile,['ps','-q',name]),profile.composeEnvironment);
+  must(/^[a-f0-9]{64}$/.test(id),'One running '+name+' service is required.');
+  const c=inspect(id);must(c.State.Running&&c.Config.Labels?.['com.docker.compose.project']===profile.project,'Unexpected running installation.');return c;
+ };
+ const app=service('app'),gateway=service('gateway');
+ must(app.Config.Env.includes('RELEASE_SHA='+productionBase),'Preflight requires the existing baseline release; never overwrite a newer installation.');
+ for(const c of [app,service('auth'),service('postgres')])must(Object.values(c.HostConfig.PortBindings||{}).every(v=>!v?.length),'Application, Auth and database must not publish host ports.');
+ const automation=inspect(n8nContainer),edge=JSON.parse(docker(['network','inspect',edgeNetwork]))[0];
+ must(edge.Internal&&automation.State.Running&&gateway.NetworkSettings.Networks[edgeNetwork]?.NetworkID===edge.Id&&automation.NetworkSettings.Networks[edgeNetwork]?.NetworkID===edge.Id,'Existing Caddy/n8n internal network is not ready.');
+ must(Object.values(automation.HostConfig.PortBindings||{}).flat().filter(Boolean).every(p=>['127.0.0.1','::1'].includes(p.HostIp)),'n8n must not publish public host ports.');
+ const query=text=>docker(publicComposeArguments(profile,['exec','-T','postgres','psql','-XqAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','shadowbridge','-c',text]),profile.composeEnvironment);
+ const ledger=JSON.parse(query('SELECT json_agg(t ORDER BY name) FROM shadowbridge_migrations.applied t'));
+ validateApplied(await migrationSources(),ledger);must(ledger.length>=15,'The existing schema must include the reviewed MVP/Sentinel foundation.');
+ const owners=Number(query("SELECT count(*) FROM sb.staff_role_assignments r JOIN sb.staff_grants g USING(user_id) JOIN sb.accounts a USING(user_id) JOIN auth.users u ON u.id=r.user_id WHERE r.role_key='owner' AND r.active AND (r.expires_at IS NULL OR r.expires_at>now()) AND g.active AND a.status='active' AND u.email_confirmed_at IS NOT NULL AND EXISTS(SELECT 1 FROM auth.mfa_factors f WHERE f.user_id=u.id AND f.status='verified')"));
+ must(owners>0,'No existing active OWNER with verified email and enrolled MFA was found. Stop and review access; no account was changed.');
+ await verifyR1Http(productionBase,{request});
+ return {result:'PASS',readOnly:true,configurationAnchor:productionBase,appliedMigrations:ledger.length,ownerWithVerifiedEmailAndMfaConfigured:true,ownerInteractiveLoginStillRequired:true,automationHttpVerified:true,secretsPrinted:false,deployed:false};
+}
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  (async()=>{
   const [action,...args]=process.argv.slice(2),options={};
   for(const arg of args){const m=/^--(dir|release|image|plan)=(.+)$/.exec(arg);must(m,'Use --dir=, --release=, --image= or --plan=.');options[m[1]]=m[2];}
   const profile=await checkProduction({directory:options.dir});let directory,plan;
+  if(action==='preflight'){console.log(JSON.stringify(await preflightExistingR1(profile)));return;}
   if(action==='prepare'){
    const git=parts=>execFileSync('git',parts,{cwd:repositoryRoot,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
    must(git(['branch','--show-current'])==='release/shadowbridge-international-r1'&&git(['rev-parse','HEAD'])===options.release&&!git(['status','--porcelain']),'Prepare only from the clean, reviewed R1 branch and its full HEAD.');
@@ -123,9 +179,10 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
    const app=JSON.parse(docker(['inspect',id]))[0];must(app.State.Running,'Existing application is not running.');
    const previousReleaseSha=(app.Config.Env||[]).find(v=>v.startsWith('RELEASE_SHA='))?.slice(12);
    ({directory,plan}=await prepareApplicationPlan({profile,image:options.image,releaseSha:options.release,previousImage:app.Image,previousReleaseSha}));
-  }else{must(['check','backup-config','verify','snapshot','preserved'].includes(action)&&options.plan,'Use prepare, check, backup-config, snapshot, preserved or verify. No automatic deployment command exists.');directory=path.resolve(repositoryRoot,options.plan);plan=await checkApplicationPlan({profile,directory});}
+  }else{must(['check','backup-config','backup-edge','verify','snapshot','preserved'].includes(action)&&options.plan,'Use prepare, check, backup-config, backup-edge, snapshot, preserved or verify. No automatic deployment command exists.');directory=path.resolve(repositoryRoot,options.plan);plan=await checkApplicationPlan({profile,directory});}
   checkMergedApplication(profile,directory,plan);
   if(action==='backup-config'){console.log(JSON.stringify({...(await backupApplicationConfiguration({profile,directory})),encrypted:true,sourceUnchanged:true}));return;}
+  if(action==='backup-edge'){console.log(JSON.stringify(await backupGatewayVolumes({profile,directory})));return;}
   if(['snapshot','preserved'].includes(action)){
    const running=docker(publicComposeArguments(profile,['ps','--services','--status','running']),profile.composeEnvironment).split('\n');
    must(running.includes('postgres')&&!running.includes('app')&&!running.includes('auth'),'Pause this installation app and auth before taking/comparing data fingerprints. Leave PostgreSQL and gateway running.');

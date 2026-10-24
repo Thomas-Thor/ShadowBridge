@@ -1,6 +1,6 @@
 {
-  "status": "CHECKPOINT_NOT_RELEASE_READY",
-  "date": "2026-10-23",
+  "status": "LOCAL_RELEASE_VALIDATION_PASS_SERVER_PREFLIGHT_REQUIRED",
+  "date": "2026-10-24",
   "branch": "release/shadowbridge-international-r1",
   "productionBase": "7f794a298713d820af033ba2174cd60bfaa81e4b",
   "inputs": {
@@ -14,7 +14,9 @@
     "subsetIsNotAdditionalTests": true,
     "newR1TestsPassed": 3,
     "stagingPackageGuardsPassed": 2,
-    "containsSyntheticHttpCases": true
+    "containsSyntheticHttpCases": true,
+    "latestTargetedRecheckedPassed": 16,
+    "latestSubsetNotAdditionalTests": true
   },
   "realVault": {
     "cases": [
@@ -164,13 +166,15 @@
     "sourcePreserved": true
   },
   "untested": {
-    "officialImageBuild": true,
-    "fullProductionComposeWithTlsDbAndAuth": true,
-    "dockerImageRollback": true,
-    "completeStackAndPersistentCaddyRecovery": true,
-    "realN8nRuntime": true,
+    "officialImageBuild": false,
+    "fullProductionComposeWithTlsDbAndAuth": false,
+    "dockerImageRollback": false,
+    "completeStackAndPersistentCaddyRecovery": false,
+    "realN8nRuntime": false,
     "publicAcme": true,
-    "actualOwnerAccountRole": true
+    "actualOwnerAccountRole": true,
+    "actualContaboConfiguration": true,
+    "smtpDelivery": true
   },
   "publicEndpoints": {
     "main": "CONNECT_PROXY_403_NOT_APPLICATION_RESPONSE",
@@ -184,11 +188,14 @@
     "secretsOrOwnerMfaModified": false,
     "marketIncluded": false,
     "scoutOrImportersActivated": false,
-    "containersOrVolumesRemoved": false,
-    "externalEmailSent": false
+    "externalEmailSent": false,
+    "existingOwnerContainersChanged": false,
+    "volumesOrBackupsRemoved": false,
+    "newFictionalAppContainersReplacedByCompose": true,
+    "paidServicesCreated": false
   },
   "sourceHashes": {
-    "scripts/international-r1.mjs": "e7dd3ceb224942cbc757eb51e5deed9a9a2261e298112fc37625df54bc25c56b",
+    "scripts/international-r1.mjs": "aa72e8cb9af10abea60eaf35e80611d25e54690448aa772a505d50e312914d82",
     "scripts/production-ops.mjs": "410fa4e5a24b61ebdd542230c251089569ec4d24ef4ac5b0a63006db173cbe97",
     "scripts/production-config.mjs": "aac21a7863459ab8b11daeb4bfd56307ad904169d47e3f1de321504b95d52122",
     "scripts/n8n-gateway-profile.mjs": "8e7ec3e81e72b96e0b992dd7f8a10a999409860662714adb201b31aaaff5d873",
@@ -205,6 +212,67 @@
     "tests/international-r1.cases.mjs": "a1ff98e5d12575d1401e7051c711b5e4aa5c361d01e75c60c766df4099b1633a",
     "tests/international-r1.integration.mjs": "049241f754fbc0b2214f5a6d84a8f378eee44abe419185d35987808fd89dbe3d",
     "tests/international-r1-gateway.integration.mjs": "30e6ea477fea0073295a226d295e61eca45994851ffd3d2ef1c498a2829b8ad4",
-    "tests/international-r1.test.mjs": "4673b16115058a99465354383e1d313cd2900de56e379cc6072f0a19c1bbb9e0"
+    "tests/international-r1.test.mjs": "4673b16115058a99465354383e1d313cd2900de56e379cc6072f0a19c1bbb9e0",
+    "tests/international-r1-stack.integration.mjs": "3c73dbec2f7348fe00b9bb055b0c94e03b4b66534d39094c1e89dd4b0d2a7c66",
+    "tests/fixtures/international-r1-docker.py": "aad83ab02ee689a5df22e278a0a4814128b9a7283c15ac3133b4017f7d61fac2"
+  },
+  "realProductionStack": {
+    "kind": "real-international-r1-production-images",
+    "cases": [
+      {
+        "name": "fresh isolated production profile, real n8n and exact pinned cache images",
+        "result": "PASS"
+      },
+      {
+        "name": "real baseline credentials, OWNER MFA and company records over verified DB/Auth/public TLS",
+        "result": "PASS"
+      },
+      {
+        "name": "app-only production plan, authenticated backups and migrations 016/017 preserve all existing rows",
+        "result": "PASS"
+      },
+      {
+        "name": "actual R1 image, real n8n HTTPS and retained OWNER/Buyer sessions, MFA, RFQ and VAULT",
+        "result": "PASS"
+      },
+      {
+        "name": "immutable image rollback and reapply retain SQL 017, sessions, MFA and newly created VAULT data",
+        "result": "PASS"
+      },
+      {
+        "name": "full encrypted backup restores into a separate production Compose project including persistent Caddy certificates",
+        "result": "PASS"
+      }
+    ],
+    "sourceSha": "faed3e46aaaaf8c164d93f2eed7896e834dbe53b",
+    "realN8n": true,
+    "publicAcmeTested": false,
+    "contaboDeployed": false,
+    "mailSent": false,
+    "result": "PASS",
+    "restoredTables": 70,
+    "caddyFilesRestored": 13,
+    "publicGatewayConfigurationRestored": true,
+    "fixtureStoppedWithoutDeletion": true,
+    "migrationLedgerPreserved": true
+  },
+  "officialBuild": {
+    "result": "PASS",
+    "imagesBuilt": 4,
+    "targets": [
+      "runtime",
+      "migrator"
+    ],
+    "previousSource": "7f794a298713d820af033ba2174cd60bfaa81e4b",
+    "candidateRuntimeSource": "faed3e46aaaaf8c164d93f2eed7896e834dbe53b",
+    "node": "24-alpine",
+    "baselineDockerfileOnlyAddition": "OCI revision label from the reviewed R1 Dockerfile",
+    "publicAcmeReplacedByLocalCA": true
+  },
+  "runtimeSourceComparison": {
+    "result": "PASS",
+    "filesCompared": 64,
+    "runtimeMatchesCurrentTree": true,
+    "imageRevision": "faed3e46aaaaf8c164d93f2eed7896e834dbe53b"
   }
 }

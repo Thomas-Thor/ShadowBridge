@@ -1,6 +1,11 @@
 # International R1 — checkpoint i bramka wydania
 
-**23.10.2026. Gotowość do zatwierdzenia wdrożenia: NIE. Nie wykonano wdrożenia.**
+**24.10.2026. Pakiet techniczny: przetestowany lokalnie. Wdrożenie: niewykonane.**
+
+Zamknięto blokady lokalnych obrazów, rollbacku i pełnego odtworzenia stosu.
+Przed uruchomieniem na Contabo pozostaje obowiązkowy odczyt zastanej instalacji
+(`preflight`) oraz potwierdzenie logowania rzeczywistego OWNER. Nie mamy dostępu SSH;
+wyników lokalnych nie przedstawiamy jako weryfikacji domeny produkcyjnej.
 
 ## Co zintegrowano
 
@@ -56,25 +61,43 @@ Testy nie identyfikują osoby przez nazwę „Vincent”. Nie nadawano ani nie z
    selector i fingerprintowany gateway; stary backup instalacji obejmuje DB,
    prywatne klucze i konfigurację bazową. Są to uzupełniające się archiwa.
 
-## BLOCKER — przed zatwierdzeniem wdrożenia
+## Zamknięte blokady lokalne — 24.10
 
-- **Pełny test produkcyjnych obrazów i Compose** z weryfikowanym TLS DB/Auth,
-  aktywnym overlayem gatewaya oraz rzeczywistym rollbackiem niezmiennych obrazów.
-  Potwierdzono rollback kodu na rzeczywistym backendzie, nie obrazów Docker.
-  Po zachowaniu wszystkich zasobów pozostało około 143 MB; nie rozpoczęto budowy,
-  która groziłaby zapełnieniem dysku. Niczego nie usunięto, aby zwolnić miejsce.
-- **Odtworzenie całej instalacji** z obu archiwów oraz zabezpieczenie trwałych
-  danych Caddy/TLS w niezależnym celu. Przywrócono komplet danych SQL 017 i
-  osobno sprawdzono archiwum konfiguracji; nie są to jeszcze pełne ćwiczenia
-  odtworzenia całego produkcyjnego stosu i certyfikatów.
-- **Rzeczywista konfiguracja serwera i n8n:** potwierdzić istniejący aktywny,
-  fingerprintowany gateway, nazwy projektu/wolumenów i oba publiczne HTTPS.
-  Proxy środowiska blokuje CONNECT do obu domen kodem 403 także poza sandboxem.
-  To nie dowodzi błędu Contabo. Aktualny test Caddy używał fikcyjnego upstreamu;
-  nie deklarujemy testu prawdziwego produkcyjnego n8n.
-- Uprawniony operator/właściciel musi potwierdzić **istniejący OWNER + MFA**
-  bez zmiany konta; nie zakładamy, że wskazana osoba ma tę rolę. Potem potrzebna
-  jest osobna zgoda na okno utrzymaniowe i zastosowanie zatwierdzonego R1.
+- Zbudowano oficjalne obrazy runtime/migratora poprzedniej wersji i R1.
+  Produkcyjny Compose + overlay gatewaya działał na odrębnym Docker daemonie
+  z PostgreSQL 17, GoTrue 2.184.0, Node 24 i **prawdziwym n8n 2.44.6**.
+- Potwierdzono TLS aplikacja→PostgreSQL oraz aplikacja→Auth przez Caddy;
+  oba hosty HTTPS używały zaufanej lokalnej CA, bez wyłączania weryfikacji TLS.
+- Migrator wykonał 001–015, następnie 016/017; zachowano wszystkie wcześniejsze
+  wiersze. Rzeczywisty rollback niezmiennego obrazu i ponowne R1 zachowały sesje,
+  MFA, RFQ oraz dodane już dane VAULT. Stare obrazy zachowano.
+- Zaszyfrowane kopie SQL, prywatnej konfiguracji, profilu publicznego/gatewaya
+  i trwałych danych Caddy odtworzono do oddzielnego projektu Compose.
+  Porównano 70 tabel Auth/biznesowych i ledger (łącznie 71), 13 plików Caddy,
+  oryginalne klucze oraz token proxy. Odtworzony stos rzeczywiście działał:
+  istniejące sesje, OWNER aal2, VAULT, RFQ i logowanie starym hasłem.
+- Dodano `backup-edge` i odczytowy `preflight`; kontrola OWNER opiera się na
+  prawdziwej roli, aktywności konta, potwierdzonym e-mailu i MFA, bez nazw osób.
+- Obejście braku miejsca dotyczyło wyłącznie izolowanego testu w `/tmp`.
+  Nie czyszczono starego środowiska. Kontenery aplikacji wymieniał wyłącznie
+  Compose w nowym fikcyjnym projekcie; nie usuwano wolumenów, kont ani backupów.
+
+## Warunki przed wykonaniem aktualizacji na Contabo
+
+1. Operator uruchamia **odczytowy** `preflight` z procedury wdrożenia. Musi
+   potwierdzić niezmieniony profil 7f794a2, aktywny fingerprintowany gateway,
+   izolowaną sieć n8n, brak publicznych portów danych, istniejące OWNER+MFA,
+   historię migracji oraz odpowiedzi obu rzeczywistych domen HTTPS.
+   Brak aktywnego profilu, inny SHA lub błąd oznacza STOP, bez regenerowania
+   manifestów/sekretów. Obecnej konfiguracji serwera nie znamy z odczytu SSH.
+2. OWNER sam potwierdza normalne logowanie i MFA przed oknem oraz po aktualizacji.
+   Testowe konto nie dowodzi niczego o faktycznej roli Vincenta.
+3. Zatwierdzony pełny commit musi być dostępny na GitHubie; operator sprawdza SHA,
+   wolne miejsce i zachowuje klucze/kopie osobno, również poza VPS.
+4. Osobne zatwierdzenie okna utrzymaniowego. Bezpośrednie publiczne HTTPS/ACME
+   i rzeczywiste dane na Contabo nie były testowane: proxy blokuje CONNECT,
+   a ten etap nie łączył się z VPS. Jest to ostatnia kontrola instalacji,
+   a nie potrzeba kolejnej przebudowy platformy.
 
 ## GO-LIVE — przed zapraszaniem nowych klientów
 
@@ -101,7 +124,7 @@ ograniczonego do obecnych funkcji i nie zostają włączone przez R1.
 
 ## Najmniejszy bezpieczny pierwszy zakres
 
-Po zamknięciu BLOCKER: aktualna witryna International i prawdziwa kolejka kontaktowa;
+Po zaliczeniu kontroli Contabo: aktualna witryna International i prawdziwa kolejka kontaktowa;
 logowanie **dotychczasowych potwierdzonych kont**, MFA, bieżące role/panele,
 oferty/RFQ i przypisywane anonimowe okazje; VAULT tylko OWNER + MFA, bez importu
 i automatycznych integracji. Rejestracja/reset e-mail wyłączone, materiały ofert
@@ -110,4 +133,4 @@ użytkowników lub automatycznej obsługi transakcji.
 
 Wyniki: [R1-TESTS](INTERNATIONAL-R1-TESTS.md).
 Procedura do przeglądu: [R1-DEPLOYMENT](INTERNATIONAL-R1-DEPLOYMENT.md).
-Nie uruchamiać jej przed zamknięciem blokad i osobnym zatwierdzeniem.
+Nie uruchamiać aktualizacji przed zaliczeniem preflight i osobnym zatwierdzeniem.

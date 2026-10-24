@@ -1,9 +1,10 @@
 # International R1 — procedura operatora do zatwierdzenia
 
-**NIE URUCHAMIAĆ TERAZ.** R1 nie ma jeszcze zgody na wdrożenie. Najpierw zamknąć
-BLOCKER z [raportu gotowości](INTERNATIONAL-R1-READINESS.md). Nie wykonano poniższej
-procedury na Contabo ani pełnego ćwiczenia wymiany/rollbacku obrazów. Test kodu
-rollbacku i jego granice opisano w [raporcie testów](INTERNATIONAL-R1-TESTS.md).
+**Pakiet lokalnie przetestowany 24.10.2026; nie wdrożono go na Contabo.**
+Procedura aktualizacji wymaga zatwierdzonego okna. Można wcześniej wykonać
+wyłącznie odczytowy preflight. W izolacji sprawdzono pełne obrazy, produkcyjny
+Compose, migracje, rollback obrazu i odtworzenie całego stosu/certyfikatów.
+Nie jest to potwierdzenie aktualnego stanu serwera ani publicznego ACME.
 
 Wszystkie poniższe polecenia: **SERWER CONTABO, konto `shadowadmin`, przez sudo**,
 w Bash. Nie wykonywać na lokalnym komputerze właściciela. Nie ma tu operacji DNS,
@@ -19,13 +20,12 @@ logowanie i MFA. Nie przypisujemy roli na podstawie imienia. Jeśli gateway nie
 ma aktywnego fingerprintowanego profilu 9a64cc0 albo ma konfigurację ręczną,
 **STOP** — potrzebna odrębna ocena zastanego stanu, bez przepisywania manifestów.
 
-W odrębnym izolowanym celu trzeba wcześniej potwierdzić pełny produkcyjny build,
-Compose, TLS, migracje i rollback obrazów oraz odzyskanie obu archiwów i trwałych
-danych Caddy. Nie odzyskiwać niczego do działającej bazy. Zachować poprzednie
-obrazy przez ich niezmienne ID, certyfikaty/wolumeny Caddy i konfigurację n8n;
-nie wykonywać `prune`, `down`, usuwania wolumenów lub kontenerów. Klucze backupu
-przechowywać oddzielnie od archiwów, również poza serwerem. Zaplanować krótką
-niedostępność aplikacji; automation/Caddy pozostają uruchomione.
+Pełny test izolowany został wykonany — nie trzeba go powtarzać na danych
+właściciela. Zachować poprzednie obrazy po ID, certyfikaty/wolumeny Caddy oraz
+konfigurację n8n. Bez `prune`, `down`, resetu bazy lub kasowania wolumenów.
+Klucze backupu przechowywać oddzielnie, również poza serwerem. Okno obejmuje
+zatrzymanie app/Auth oraz krótkie zatrzymanie Caddy dla spójnej kopii certyfikatów;
+po tej kopii Caddy i n8n wracają przed migracją aplikacji.
 
 ## 1. Zatwierdzony checkout
 
@@ -50,6 +50,21 @@ SB_SOURCE=/opt/shadowbridge/.local/contabo-private
 nie jest poleceniem jego utworzenia. Jeśli jest inny, zmienić tę jedną zmienną.
 Przerwanie: Ctrl+C; uruchomione usługi nie zmieniły się. Powrót checkoutu do
 poprzedniego SHA nie jest sam w sobie rollbackiem obrazu aplikacji.
+
+### Odczytowa bramka przed budową i oknem
+
+```sh
+sudo node scripts/international-r1.mjs preflight --dir="$SB_SOURCE"
+df -h / /var/lib/docker
+```
+
+Oczekiwane: `PASS`, `readOnly:true`, `deployed:false`. Preflight niczego nie
+aktualizuje, nie uruchamia migracji i nie zmienia kont. Sprawdza profile i sieć,
+prywatne porty, istniejące OWNER+potwierdzony e-mail+MFA, ledger i oba HTTPS.
+Nie zastępuje osobistej próby logowania OWNER. Błąd/inna baza niż 7f794a2: STOP,
+zachować wynik bez sekretów; nie naprawiać manifestów ani kont na ślepo.
+Przed buildem wymagane wolne miejsce na nowe obrazy i wszystkie kopie bez
+usuwania poprzednich obrazów. Oryginalny profil pozostaje kotwicą 7f794a2.
 
 ## 2. Obraz i plan — bez zatrzymywania aplikacji
 
@@ -86,18 +101,25 @@ sudo node scripts/international-r1.mjs backup-config --dir="$SB_SOURCE" --plan="
 "${C[@]}" stop app auth
 sudo node scripts/staging-ops.mjs backup --dir="$SB_SOURCE"
 sudo node scripts/international-r1.mjs snapshot --dir="$SB_SOURCE" --plan="$R1_PLAN"
+"${C[@]}" stop gateway
+sudo node scripts/international-r1.mjs backup-edge --dir="$SB_SOURCE" --plan="$R1_PLAN"
+"${C[@]}" start gateway
 ```
 
-Oczekiwane: dwa archiwa AES-256-GCM (DB + prywatna konfiguracja i osobno publiczny
-profil + gateway), osobne klucze i `PASS` snapshotu. Brak haseł/rekordów w logu.
-DB, Caddy, n8n i wolumeny działają dalej. Stary wrapper backupu nie wznowi Auth/app,
+Oczekiwane: trzy archiwa AES-256-GCM (DB + prywatna konfiguracja, publiczny
+profil + gateway oraz trwałe dane/certyfikaty Caddy), osobne klucze i `PASS` snapshotu. Brak haseł/rekordów w logu.
+DB, n8n i wolumeny pozostają; Caddy jest krótko zatrzymany tylko dla swojej kopii. Stary wrapper backupu nie wznowi Auth/app,
 ponieważ były już zatrzymane przed jego wywołaniem. Jeśli kopia nie powiedzie się:
-**nie stosować migracji**; `"${C[@]}" start auth app` wznawia poprzednie kontenery.
+**nie stosować migracji**; `"${C[@]}" start gateway auth app` wznawia poprzednie kontenery.
 Nie usuwać nieudanej kopii lub plików diagnostycznych; nie odtwarzać kopii na źródło.
 
-Backup konfiguracji R1 uzupełnia stary backup; nie zastępuje zabezpieczenia
-trwałych wolumenów TLS Caddy. Ich osobna kopia i odtworzenie wymagają zamknięcia
-BLOCKER przed tym oknem. Nie wysyłać żadnych archiwów, kluczy ani inspect do GitHub/czatu.
+`backup-edge` wymaga zatrzymanego gatewaya, app i Auth; kopiuje tylko `/data`
+i `/config` istniejącego Caddy i szyfruje je. Nie tworzy ani nie zmienia wolumenów.
+Kopia zawiera klucze prywatne; nie udostępniać katalogu kopii, archiwów ani kluczy.
+Przed migracją operator sprawdza utworzenie wszystkich trzech par archiwum/klucz
+oraz zabezpiecza je poza VPS, z kluczami oddzielnie. Błąd backupu: bez migracji,
+wznowić stare kontenery. W lokalnym teście odtworzono wszystkie trzy archiwa,
+13 plików Caddy i działający stos w nowym projekcie; nigdy nie odtwarzać na źródło.
 
 ## 4. Tylko brakujące migracje, bez resetu
 
@@ -159,8 +181,15 @@ rollbacku aplikacji. Nie przełączać DNS, nie stosować `production:ops rollba
 
 ## Granica potwierdzenia
 
-Planowanie, porównania Compose i szyfrowanie konfiguracji przetestowano. Rollback
-kodu z działającą DB i sesjami również. **Powyższy pełny przebieg obrazów na
-produkcyjnym Compose jest nadal NIEPRZETESTOWANY** i dlatego R1 nie ma statusu
-gotowego do zatwierdzenia. Dokument opisuje docelową procedurę do przeglądu,
-nie polecenie jej wykonania ani deklarację ukończenia wdrożenia.
+Powyższy przebieg obrazów, migracji, zachowania danych, backupów i rollbacku
+sprawdzono na **produkcyjnym Compose z testowym overlayem certyfikatów/portów**,
+na całkowicie oddzielnym daemonie Docker. Zamiast publicznego ACME użyto lokalnej
+CA; oba połączenia DB/Auth zachowały `verify-full`. Użyto rzeczywistego n8n.
+Wersja runtime testowanych obrazów to faed3e4; 64 pliki runtime porównano
+z aktualnym drzewem. Dalszy commit zmienia tylko hostowe narzędzia/testy/raporty,
+nie runtime. Obraz instalowany na Contabo trzeba zbudować z pełnym zatwierdzonym
+SHA i odpowiadającą mu etykietą OCI, czego pilnuje `prepare`.
+
+Nie uruchomiono tej procedury na Contabo. Odczytowy preflight oraz osobista
+próba OWNER są wymagane na rzeczywistej instalacji. Rejestracja/reset przez
+pocztę pozostają wyłączone; nie jest to pełny go-live dla nowych użytkowników.
