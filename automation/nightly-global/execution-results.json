@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-25",
+  "timezone": "Europe/Oslo",
+  "status": "READY_FOR_OWNER_ACTION_NOT_DEPLOYED_NOT_CONNECTED",
+  "releaseBranch": "release/shadowbridge-international-r1",
+  "approvedRelease": "236e04bded81c406fb49ee0950ae20d139f257ec",
+  "productionReleaseOwnerReported": "d5582ffd9f1e7f9a40a1a49f9e16a304eae64a4e",
+  "productionReleaseIndependentlyVerified": null,
+  "acquisitionBase": "d3e10071906e85911e9d5c5b74c4b7168027fba2",
+  "productionChangesMade": false,
+  "productionApiActivatedByCodex": false,
+  "authorizedProductionBookReadVerified": false,
+  "chatgptReadOrWritePerformed": false,
+  "sourceCallsByThisTask": 0,
+  "realRecordsAcquiredByThisTask": 0,
+  "realCrmRecordsInsertedByThisTask": 0,
+  "paidOperationsByThisTask": 0,
+  "actualApolloBalance": null,
+  "actualClayBalance": null,
+  "canaryExecuted": false,
+  "schedulesActivated": false,
+  "accessEvidence": {
+    "authorizedSshAvailable": false,
+    "apolloClayN8nToolsAvailableInThisSession": false,
+    "ownerReportedApolloProfileReadSucceeded": true,
+    "ownerWillShareInstalledTools": true,
+    "publicHttpsRetriedOutsideSandbox": true,
+    "proxyConnectStatus": 403,
+    "originHttpStatus": "000",
+    "tlsVerificationConclusive": false,
+    "endpoints": [
+      "https://shadow-bridge.eu/health",
+      "https://shadow-bridge.eu/api/config",
+      "https://shadow-bridge.eu/api/integrations/owner-book/v1/entries?kind=note",
+      "https://automation.shadow-bridge.eu/healthz",
+      "https://automation.shadow-bridge.eu/signin"
+    ]
+  },
+  "latestTests": {
+    "command": "node --test automation/nightly-global/owner-next-step.test.mjs",
+    "passed": 7,
+    "failed": 0,
+    "kind": "local Git checksum and fixture tests; not live SSH or provider tests",
+    "syntaxCheckPassed": true,
+    "diffCheckPassed": true
+  },
+  "existingTestsReusedNotRepeated": {
+    "acquisitionPostgresGroups": 11,
+    "acquisitionUnitHttpGroups": 11,
+    "bookUnitCases": 37,
+    "bookChromiumPostgresGroups": 9,
+    "bookNativeRuntimePostgresGroups": 5,
+    "note": "Historical isolated results. Book auth used explicit fictional claims/session fixtures, not production OWNER. No production test implied."
+  },
+  "releaseCompatibility": {
+    "deployAcquisitionBranchAsR1": false,
+    "reason": "Acquisition d3e1007 predates Command Book. Approved immutable R1 236e04b has no acquisition gateway. Never replace R1 with this older runtime.",
+    "crmGuardSqlAppliedToProduction": false,
+    "regionalWorkflowsConnectedToCrmGuard": false,
+    "paidEnrichmentEnabled": false,
+    "canaryAcceptanceRequiresSourceContractCrmReceiptAndOwnerApproval": true
+  },
+  "operatorProcedure": {
+    "launcher": "automation/nightly-global/owner-next-step.mjs",
+    "runsOn": "OWNER local Linux, Node >=22, existing SSH and verified host key",
+    "deploysOnlyRelease": "236e04bded81c406fb49ee0950ae20d139f257ec",
+    "usesExistingInstallerWithBookApiMode": true,
+    "backup": "existing encrypted DB/config/cert backup, verified offsite copy before mutation",
+    "migrationExecution": false,
+    "rollback": "existing app-only rollback to prior R1, no database restore",
+    "n8nAction": "existing read-only collector via existing SSH, no API key prompt",
+    "anonymous401IsNotAuthorizedRead": true,
+    "firstChatgptTest": "READ ONLY; no writes until separate approval"
+  }
+}

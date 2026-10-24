@@ -1,5 +1,9 @@
 # Nightly Global Acquisition: pakiet do przeglądu OWNER
 
+Aktualny krok operacyjny (25.10): [jeden launcher OWNER: API Book i odczyt n8n](OWNER-NEXT-STEP.md).
+Nie wdrażać tej gałęzi pozyskiwania zamiast nowszego R1. Launcher używa osobnego,
+przypiętego instalatora R1 i nie uruchamia źródeł ani harmonogramów.
+
 Aktualizacja integracji i ochrony kredytów: [INTEGRATION-AUTH.md](INTEGRATION-AUTH.md). Poniższy raport opisuje wcześniejszy fundament `04ab380`; nowa bramka CRM jest kandydatem, nadal nie jest wdrożona ani podłączona do harmonogramów.
 
 Stan 24.10.2026: **workflow przygotowane do importu nieaktywnego; uruchomienie ZABLOKOWANE**. Niczego nie wdrożono na Contabo. Nie pozyskano rzeczywistych kontaktów. Nie zmieniono czterech istniejących Scoutów Relevance AI ani pilota NO/CZ.
