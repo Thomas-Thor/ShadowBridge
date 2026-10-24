@@ -1,5 +1,13 @@
 # European B2B Scout V1 — pilot n8n
 
+**24.10.2026: etap weryfikacji źródeł, bez uruchamiania pilota.**
+[Bieżący raport i blokady](SOURCE-VERIFICATION-2026-10-24.md).
+Nie potwierdzono obecnego kontraktu/warunków NO/CZ ani dystrybucji CSV/JSON;
+poniższy import jest instrukcją przyszłego etapu po osobnym zatwierdzeniu OWNER.
+Teraz nie importować na Contabo i nie włączać harmonogramu lub zgód źródeł.
+Przyszły [Surplus & Liquidations](SURPLUS-LIQUIDATIONS-ROADMAP.md) jest oddzielną
+roadmapą dokumentacyjną; nie zastępuje pilota producentów.
+
 **Nie zainstalowano tego workflow na Contabo. Nie ma integracji z CRM.**
 Plik do importu: [`europe-b2b-scout-v1.json`](europe-b2b-scout-v1.json).
 Wersja docelowa: **self-hosted n8n 2.44.6**, natywne Data Tables.

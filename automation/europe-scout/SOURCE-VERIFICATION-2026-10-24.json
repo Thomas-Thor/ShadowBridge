@@ -1,0 +1,174 @@
+{
+  "status": "BLOCKED_CURRENT_SOURCE_CONTRACT_AND_TERMS_NOT_CONFIRMED",
+  "date": "2026-10-24",
+  "branch": "feature/european-b2b-scout-v1",
+  "startingCommit": "f37f2a7d6ae478e0719aea7d7b5feadcaed0ef79",
+  "networkAttempts": [
+    {
+      "name": "no-docs",
+      "url": "https://data.brreg.no/enhetsregisteret/api/docs/index.html",
+      "method": "GET",
+      "time": "2026-10-24T11:17:56.791848+00:00",
+      "exitCode": 56,
+      "httpCode": "000",
+      "proxyConnectDenied": true,
+      "envoy": true
+    },
+    {
+      "name": "no-data",
+      "url": "https://data.brreg.no/enhetsregisteret/api/enheter?naeringskode=28&organisasjonsform=AS&size=1&page=0&sort=organisasjonsnummer,asc",
+      "method": "GET",
+      "time": "2026-10-24T11:17:56.801833+00:00",
+      "exitCode": 56,
+      "httpCode": "000",
+      "proxyConnectDenied": true,
+      "envoy": true
+    },
+    {
+      "name": "cz-docs",
+      "url": "https://ares.gov.cz/stranky/vyvojar-info",
+      "method": "GET",
+      "time": "2026-10-24T11:17:56.811936+00:00",
+      "exitCode": 56,
+      "httpCode": "000",
+      "proxyConnectDenied": true,
+      "envoy": true
+    },
+    {
+      "name": "cz-data",
+      "url": "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat",
+      "method": "POST",
+      "time": "2026-10-24T11:17:56.822132+00:00",
+      "exitCode": 56,
+      "httpCode": "000",
+      "proxyConnectDenied": true,
+      "envoy": true
+    },
+    {
+      "name": "no-docs",
+      "url": "https://data.brreg.no/enhetsregisteret/api/docs/index.html",
+      "method": "GET",
+      "time": "2026-10-24T11:19:15.286627+00:00",
+      "exitCode": 56,
+      "httpCode": "000",
+      "proxyConnectDenied": true,
+      "envoy": true,
+      "retryOutsideSandbox": true
+    },
+    {
+      "name": "no-data",
+      "url": "https://data.brreg.no/enhetsregisteret/api/enheter?naeringskode=28&organisasjonsform=AS&size=1&page=0&sort=organisasjonsnummer,asc",
+      "method": "GET",
+      "time": "2026-10-24T11:19:15.300500+00:00",
+      "exitCode": 56,
+      "httpCode": "000",
+      "proxyConnectDenied": true,
+      "envoy": true,
+      "retryOutsideSandbox": true
+    },
+    {
+      "name": "cz-docs",
+      "url": "https://ares.gov.cz/stranky/vyvojar-info",
+      "method": "GET",
+      "time": "2026-10-24T11:19:15.316147+00:00",
+      "exitCode": 56,
+      "httpCode": "000",
+      "proxyConnectDenied": true,
+      "envoy": true,
+      "retryOutsideSandbox": true
+    },
+    {
+      "name": "cz-data",
+      "url": "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat",
+      "method": "POST",
+      "time": "2026-10-24T11:19:15.329281+00:00",
+      "exitCode": 56,
+      "httpCode": "000",
+      "proxyConnectDenied": true,
+      "envoy": true,
+      "retryOutsideSandbox": true
+    }
+  ],
+  "registryResponsesReceived": 0,
+  "realCompanyRecordsReceived": 0,
+  "proxyBypassed": false,
+  "primaryDocuments": [
+    {
+      "repository": "https://github.com/brreg/openAPI",
+      "commit": "97fccebaafc4f870028d7bc4748629b16b9d54af",
+      "path": "specs/enhetsregisteret.json",
+      "infoVersion": "1.0.0",
+      "descriptionChangelogYear": 2018,
+      "licenseName": "Norsk lisens for offentlige data (NLOD)",
+      "currentLicenseVersionConfirmed": false
+    },
+    {
+      "repository": "https://github.com/brreg/docs",
+      "commit": "26ab07c64ab08a156a6ce7a56ee1d455691d98ce",
+      "path": "content/apidokumentasjon/enhetsregisteret/_index.md",
+      "contentIsPlaceholder": true,
+      "officialCatalogLink": "https://data.norge.no/datasets/68d08f28-a16d-4fab-a953-ed4ab08ce2e2",
+      "catalogReadBlockedByProxy": true
+    }
+  ],
+  "adapterReview": {
+    "liveResponseCompatibilityVerified": false,
+    "selectedExistingTestsPassed": 5,
+    "fullSuiteRerun": false,
+    "nativeN8nRerun": false,
+    "syntheticObservations": [
+      {
+        "case": "NO forced dissolution flag",
+        "added": 1,
+        "outcome": "ok",
+        "policyReviewAndTestNeededBeforeActivation": true
+      },
+      {
+        "case": "NO empty HAL without embedded collection",
+        "added": 0,
+        "outcome": "schema_error",
+        "actualCurrentEmptyResponseUnconfirmed": true
+      }
+    ]
+  },
+  "bulk": {
+    "csvDistributionConfirmed": false,
+    "jsonSnapshotDistributionConfirmed": false,
+    "historicalUpdatesEndpoint": "/oppdateringer/enheter",
+    "historicalParameters": [
+      "dato",
+      "oppdateringsid",
+      "organisasjonsnummer"
+    ],
+    "currentUpdateContractConfirmed": false,
+    "snapshotDownloadPerformed": false,
+    "bulkImporterImplemented": false
+  },
+  "retainedHistoricalTests": {
+    "unitCases": 18,
+    "nativeN8nGroups": 8,
+    "date": "2026-10-23"
+  },
+  "restrictions": {
+    "runtimeSourceModified": false,
+    "workflowModified": false,
+    "sourceApprovals": {
+      "NO": false,
+      "CZ": false
+    },
+    "workflowActive": false,
+    "deployed": false,
+    "contaboContacted": false,
+    "ownerVaultImported": false,
+    "realCompanyDataCommitted": false,
+    "emailsSent": false,
+    "newBusinessFunctionsImplemented": false
+  },
+  "nextStep": "Obtain approved current official terms/OpenAPI and minimal live responses through legitimate access; OWNER approves focused corrections before any pilot activation.",
+  "unchangedRuntimeHashes": {
+    "automation/europe-scout/scout.mjs": "bf9044cda16ca673fcecf0c365553165a0b1e196f692fdbf86ef4be5988ead85",
+    "automation/europe-scout/build-workflow.mjs": "17e035aa873bd836291b1b5790e0aa367c0dd478441bfd7f0707b7a765796489",
+    "automation/europe-scout/europe-b2b-scout-v1.json": "916a50892bbcafb982ebf9476eb860be53b7b2c6e7792385aaaa82804078d3f1",
+    "automation/europe-scout/pilot-seed.csv": "7d7a0089dea00df65f45b01de730601bda359db33fb7950293f8bfe905c59ddb"
+  }
+}

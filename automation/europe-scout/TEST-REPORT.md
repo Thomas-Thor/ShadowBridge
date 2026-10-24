@@ -1,5 +1,18 @@
 # European B2B Scout V1 — checkpoint 23.10.2026
 
+## Aktualizacja 24.10.2026 — tylko weryfikacja źródeł
+
+**5 celowanych testów PASS**, bez pełnego ponowienia zestawów poniżej.
+Źródła `NO/CZ=false`, JSON nieaktywny i zgodny z generatorem. Nie uruchamiano
+Docker/n8n. Próby oficjalnych API/dokumentacji zablokował CONNECT proxy 403,
+również poza sandboxem. Nie uzyskano rzeczywistych odpowiedzi ani danych firm.
+
+Dwie dodatkowe próby w pamięci na fikcyjnych danych ujawniły brak obsługi flagi
+przymusowego rozwiązania firmy oraz zachowanie parsera dla pustego HAL bez
+`_embedded`; nie są to testy realnego API ani naprawy. Kod i JSON nie zmieniły się.
+Opis ograniczeń/poprawek: [raport źródeł](SOURCE-VERIFICATION-2026-10-24.md).
+Poniższe 18/18 i 8/8 pozostają **wynikami historycznymi z 23.10**, nie nowymi.
+
 **Wynik: techniczny pilot przetestowany lokalnie. Pozyskiwanie z rzeczywistych
 rejestrów NIEZATWIERDZONE do uruchomienia; bieżący dostęp i warunki NO/CZ wymagają
 potwierdzenia. Nie wdrożono niczego na Contabo ani w istniejącym n8n.**
