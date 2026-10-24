@@ -52,6 +52,30 @@ try{
   assert.equal(request('/api/integrations/owner-book/v1/entries?kind=task',{headers:{...auth,cookie:'fixture=blocked'}}).status,403);
   const command=randomUUID();assert.equal(request('/api/integrations/owner-book/v1/entries',{method:'POST',headers:{...auth,'content-type':'application/json','x-shadowbridge-command-id':command,'x-shadowbridge-explicit-write':'true'},body:JSON.stringify({requestKey:command,entry:{kind:'task',title:'FICTIONAL prohibited write'}})}).status,403);
  });
+ await phase('CUSTOM assistant creates and edits an actual idea once, rejects changed replay, forbidden scopes and account access',async()=>{
+  const raw='sbob_'+randomBytes(32).toString('base64url'),scopes=['task.read','task.write','note.read','note.write','idea.read','idea.write','event.read','event.write','journal.read','summary.export'];
+  const issued=rpc('key_create',{name:'FICTIONAL native assistant',mode:'custom',scopes,expiresAt:new Date(Date.now()+86400000).toISOString(),tokenHash:createHash('sha256').update(raw).digest('hex')});assert.equal(issued.status,200);
+  const headers={authorization:'Bearer '+raw,'content-type':'application/json'},base='/api/integrations/owner-book/v1',command=randomUUID(),entry={kind:'idea',title:'FICTIONAL native assistant idea',body:'FICTIONAL confirmed command'};
+  const write=(path,p,h=headers)=>request(base+path,{method:path==='/assistant/entries'?'POST':'PUT',headers:{'content-type':'application/json',...h},body:JSON.stringify(p)}),p={entry,requestKey:command,explicitWrite:true};
+  const created=write('/assistant/entries',p);assert.equal(created.status,200);const item=created.body;assert.ok(item.id);assert.equal(write('/assistant/entries',p).body.id,item.id);
+  assert.equal(write('/assistant/entries',{...p,entry:{...entry,title:'Changed replay'}}).status,409);assert.equal(write('/assistant/entries',{...p,requestKey:randomUUID(),explicitWrite:false}).status,403);
+  assert.equal(write('/assistant/entries',{...p,requestKey:randomUUID()},auth).status,403);
+  assert.equal(write('/assistant/entries/'+item.id,{explicitWrite:true,requestKey:randomUUID(),entry:{...entry,version:item.version,body:'FICTIONAL updated through the real native API'}}).status,200);
+  assert.equal(request(base+'/entries/'+item.id+'?kind=idea',{headers}).body.body,'FICTIONAL updated through the real native API');
+  for(const kind of ['task','note','event']){const record={kind,title:'FICTIONAL native '+kind,body:'FICTIONAL confirmed '+kind,...(kind==='event'?{starts_at:new Date(Date.now()+3600000).toISOString(),ends_at:new Date(Date.now()+7200000).toISOString()}:{} )};const saved=write('/assistant/entries',{entry:record,requestKey:randomUUID(),explicitWrite:true});assert.equal(saved.status,200);assert.equal(request(base+'/entries/'+saved.body.id+'?kind='+kind,{headers}).body.kind,kind);}
+  const other=sql(db,"SELECT id FROM auth.users WHERE email="+lit('fictional-owner2-'+fixture+'@ownerbook.test.invalid'));assert.match(other,/^[a-f0-9-]{36}$/);
+  const otherRecord=JSON.parse(sql(db,'SET SESSION AUTHORIZATION shadowbridge_api;BEGIN;SET LOCAL "request.jwt.claim.sub"='+lit(other)+';SET LOCAL "request.jwt.claim.aal"=\'aal2\';SET LOCAL "request.jwt.claim.mfa_verified_at"='+lit(String(Math.floor(Date.now()/1000)))+';SELECT owner_book.owner_rpc(\'save\',\'note\','+lit(JSON.stringify({kind:'note',title:'FICTIONAL other OWNER private note'}))+'::jsonb,'+lit(randomUUID())+'::uuid,'+lit(randomUUID())+'::uuid);COMMIT;'));assert.equal(otherRecord.status,200);assert.equal(request(base+'/entries/'+otherRecord.data.id+'?kind=note',{headers}).status,404);
+  const summary=request(base+'/export?kinds=idea',{headers});assert.equal(summary.status,200);assert.ok(summary.body.items.some(e=>e.id===item.id));assert.equal(request(base+'/journal?window=24h',{headers}).status,200);
+  assert.equal(request(base+'/entries?kind=decision',{headers}).status,403);assert.equal(request(base+'/keys',{headers}).status,403);
+  assert.equal(request('/api/owner/vault/contacts',{headers}).status,401);
+  assert.equal(sql(db,"SELECT count(*) FROM owner_book.entries WHERE title='FICTIONAL native assistant idea'"),'1');
+  assert.equal(rpc('key_revoke',{id:issued.data.id}).status,200);assert.equal(request(base+'/entries?kind=idea',{headers}).status,401);assert.equal(write('/assistant/entries',{...p,requestKey:randomUUID()}).status,401);
+ });
+ await phase('native HTTP API rejects the same scoped key after its real expiry, and logs the denial',async()=>{
+  const raw='sbob_'+randomBytes(32).toString('base64url'),key=rpc('key_create',{name:'FICTIONAL native expiry',mode:'custom',scopes:['note.read'],expiresAt:new Date(Date.now()+4000).toISOString(),tokenHash:createHash('sha256').update(raw).digest('hex')});assert.equal(key.status,200);
+  const headers={authorization:'Bearer '+raw};assert.equal(request('/api/integrations/owner-book/v1/entries?kind=note',{headers}).status,200);await new Promise(r=>setTimeout(r,4100));assert.equal(request('/api/integrations/owner-book/v1/entries?kind=note',{headers}).status,401);
+  assert.equal(sql(db,"SELECT count(*) FROM owner_book.audit WHERE key_id="+lit(key.data.id)+"::uuid AND outcome='denied'"),'1');
+ });
  await phase('OWNER SQL revocation immediately blocks the previously valid native API key without changing account or MFA',async()=>{
   const before=sql(db,"SELECT md5(to_jsonb(u)::text||(SELECT jsonb_agg(to_jsonb(f) ORDER BY id)::text FROM auth.mfa_factors f WHERE user_id=u.id)) FROM auth.users u WHERE id="+lit(owner));
   assert.equal(rpc('key_revoke',{id:issued.data.id}).status,200);assert.equal(request('/api/integrations/owner-book/v1/entries?kind=task',{headers:auth}).status,401);

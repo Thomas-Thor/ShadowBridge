@@ -90,7 +90,14 @@ export async function routeBookToken({req,url,sessionPool,body,clientHash}){
   if(!['list','get','history','save','journal','import','export'].includes(op.action))throw new ApiError(403,'BOOK_SCOPE_DENIED','This API cannot manage keys, account security, CRM or passwords.');
   const write=['save','import'].includes(op.action),commandId=write?commandUuid(assistant?input.requestKey:req.headers['x-shadowbridge-command-id']):null;
   if(write&&op.commandId!==commandId)invalid('Use one matching command UUID in the body and header.');
-  return await call(op,assistant||req.headers['x-shadowbridge-explicit-write']==='true',commandId);
+  const result=await call(op,assistant||req.headers['x-shadowbridge-explicit-write']==='true',commandId);
+  if(op.action==='journal'&&result.status===200){
+   const d=result.data;
+   // Delegated journal.read is not a CRM/security-record grant. Preserve page
+   // counts while withholding private event IDs, actions and CRM aggregates.
+   result.data={items:d.items.map(e=>e.source==='owner_book.history'?{at:e.at,action:e.action,source:e.source,sourceRef:e.sourceRef,certainty:e.certainty}:{at:e.at,action:'platform.activity_recorded',source:'redacted_platform_metadata',sourceRef:'Details available only in the OWNER interface',certainty:'recorded'}),total:d.total,page:d.page,limit:d.limit,window:d.window,counts:{bookChanges:d.counts.bookChanges,tasksMarkedDone:d.counts.tasksMarkedDone,plannedItems:d.counts.plannedItems},automation:{status:d.automation.status,verifiedAgentRuns:d.automation.verifiedAgentRuns,actualCredits:d.automation.actualCredits,actualMoneyCost:d.automation.actualMoneyCost},coverage:['owner_book.history','redacted_platform_metadata'],warning:'Recorded operational metadata only. Private CRM records, identifiers, counts and security details are withheld. External agents and costs are not connected.'};
+  }
+  return result;
  }catch(error){
   let audit;try{audit=await call({action:'invalid',kind:null,p:{}});}catch{throw new ApiError(503,'BOOK_API_UNAVAILABLE','The private book service is unavailable.');}
   if(audit.status===401||audit.status===429)return audit;

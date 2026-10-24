@@ -13,3 +13,8 @@ test('an unconfirmed command, cookie, forbidden resource or account operation ne
 test('ordinary API writes still require their original explicit command headers',async()=>{
  const f=fixture();await assert.rejects(routeBookToken({...f,req:{method:'POST',headers:{authorization:'Bearer '+raw}},url:new URL('https://shadow-bridge.eu/api/integrations/owner-book/v1/entries'),body:async()=>({entry:{kind:'note',title:'FICTIONAL'},requestKey:randomUUID()}),clientHash}));assert.ok(f.calls.every(a=>a[1]==='invalid'));
 });
+test('delegated journal access never returns private CRM/security event IDs, actions, records or counts',async()=>{
+ const privateValue='FICTIONAL-PRIVATE-CRM-ID',data={items:[{at:'2026-10-24T12:00:00Z',source:'owner_vault.events',sourceRef:privateValue,action:'private-action',record:privateValue}],total:1,page:1,limit:25,window:{},counts:{bookChanges:2,tasksMarkedDone:1,plannedItems:0,crmContacts:123,crmCompanies:45},automation:{status:'not_connected',verifiedAgentRuns:null,actualCredits:null,actualMoneyCost:null},privateRecords:privateValue};
+ const sessionPool={query:async()=>({rows:[{result:{status:200,data}}]})};const r=await routeBookToken({sessionPool,req:{method:'GET',headers:{authorization:'Bearer '+raw}},url:new URL('https://shadow-bridge.eu/api/integrations/owner-book/v1/journal'),body:async()=>({}),clientHash});
+ assert.ok(!JSON.stringify(r).includes(privateValue));assert.ok(!JSON.stringify(r).includes('private-action'));assert.equal(r.data.counts.crmContacts,undefined);assert.equal(r.data.items[0].source,'redacted_platform_metadata');assert.equal(r.data.counts.bookChanges,2);
+});
