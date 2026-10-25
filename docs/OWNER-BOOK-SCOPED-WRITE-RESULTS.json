@@ -1,0 +1,52 @@
+{
+  "kind": "http-mcp-scoped-write-real-postgresql",
+  "productionChanges": false,
+  "chatgptTested": false,
+  "interactiveGoTrueTested": false,
+  "fixtureExecutorRoleSubstitution": true,
+  "cases": [
+    {
+      "name": "additive 021 preserves all old Book entries, OAuth grants, accounts, passwords, sessions and MFA",
+      "result": "PASS"
+    },
+    {
+      "name": "write consent requires actual OWNER role, fresh MFA, matching reads and cannot mix temporary import scopes",
+      "result": "PASS"
+    },
+    {
+      "name": "real HTTP MCP creates, reads and edits all five types through existing Book engine; RO cannot write",
+      "result": "PASS"
+    },
+    {
+      "name": "stable commands deduplicate across new grants; stale versions and changed commands are rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "task completion preserves prerequisites; in-app reminder appears only after its actual due time",
+      "result": "PASS"
+    },
+    {
+      "name": "write withdrawal immediately denies writes and preserves reads; full revoke denies reads and token refresh",
+      "result": "PASS"
+    },
+    {
+      "name": "foreign records and journal writes remain inaccessible; new tables and internal consent wrapper deny raw API/session access",
+      "result": "PASS"
+    },
+    {
+      "name": "expired access and the existing 10-write-per-minute limit stop writes before record changes",
+      "result": "PASS"
+    },
+    {
+      "name": "two concurrent PostgreSQL connections with different grants and one command create exactly one entry",
+      "result": "PASS"
+    }
+  ],
+  "result": "PASS",
+  "sourceFixtureUnchanged": true,
+  "unitAndHttpCasesPassed": 32,
+  "nativeImageBuilt": false,
+  "productionDeployed": false,
+  "chatgptWriteAcceptance": false,
+  "oldMigrationsChanged": false
+}

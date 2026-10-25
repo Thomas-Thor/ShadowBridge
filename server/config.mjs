@@ -70,6 +70,7 @@ export function loadConfig(env = process.env) {
     ownerBookMcpEnabled: env.OWNER_BOOK_MCP_ENABLED === 'true',
     ownerBookOAuthEnabled: env.OWNER_BOOK_OAUTH_ENABLED === 'true',
     ownerBookMcpCreateEnabled: env.OWNER_BOOK_MCP_CREATE_ENABLED === 'true',
+    ownerBookMcpWriteEnabled: env.OWNER_BOOK_MCP_WRITE_ENABLED === 'true',
     sessionLifetimeSeconds: 60 * 60 * 24 * 7,
   });
 }

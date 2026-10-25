@@ -1,6 +1,6 @@
 {
   "kind": "shadowbridge-private-mcp-connection-description-v1",
-  "status": "TEMPORARY_APPEND_PREPARED_NOT_DEPLOYED_NOT_CONNECTED",
+  "status": "SCOPED_WRITE_LOCALLY_TESTED_NOT_DEPLOYED_NOT_CONNECTED",
   "notAnInstallablePluginManifest": true,
   "url": "https://shadow-bridge.eu/api/integrations/owner-book/v1/mcp",
   "transport": "streamable-http",
@@ -54,5 +54,25 @@
       "apply_book_import"
     ],
     "revocationPreservesRead": true
+  },
+  "scopedWrites": {
+    "enabledByDefault": false,
+    "featureFlag": "OWNER_BOOK_MCP_WRITE_ENABLED",
+    "tools": [
+      "create_book_entry",
+      "update_book_entry"
+    ],
+    "scopes": [
+      "note.write",
+      "task.write",
+      "idea.write",
+      "event.write",
+      "decision.write"
+    ],
+    "pairedReadRequired": true,
+    "separateOwnerMfaConsentRequired": true,
+    "currentVersionAndStableOperationUuidRequired": true,
+    "crmOrAdminAccess": false,
+    "chatgptVerified": false
   }
 }
