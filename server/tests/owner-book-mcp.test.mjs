@@ -7,16 +7,18 @@ import {mcpPath} from '../owner-book-mcp.mjs';
 const key='sbob_'+randomBytes(32).toString('base64url');
 const digest=createHash('sha256').update(key).digest('hex');
 function fixtureConfig(extra={}){const password=randomBytes(32).toString('hex');return loadConfig({APP_ENV:'test',APP_URL:'http://localhost',SUPABASE_URL:'http://localhost',SUPABASE_ANON_KEY:password,DATABASE_URL:'postgres://shadowbridge_api:'+password+'@localhost/test',SESSION_DATABASE_URL:'postgres://shadowbridge_sessions:'+password+'@localhost/test',SESSION_ENCRYPTION_KEY:randomBytes(32).toString('base64'),...extra});}
-async function setup(t,{enabled=true,api=true,denial=null,databaseFailure=false}={}){
+async function setup(t,{enabled=true,api=true,denial=null,databaseFailure=false,allowedKinds=['note']}={}){
  const calls=[];let revoked=false;
  const config=fixtureConfig({OWNER_BOOK_API_ENABLED:String(api),OWNER_BOOK_MCP_ENABLED:String(enabled)});
  const sessionPool={query:async(sql,a)=>{
   if(databaseFailure)throw Error('DO_NOT_EXPORT_PRIVATE_DATABASE_ERROR');
-  calls.push(a);assert.ok(sql.includes('owner_book.token_rpc'));assert.ok(!JSON.stringify(a).includes(key));assert.equal(a[2],'note');assert.equal(a[4],null);assert.equal(a[5],false);
+  calls.push(a);assert.ok(sql.includes('owner_book.token_rpc'));assert.ok(!JSON.stringify(a).includes(key));assert.ok(a[2]===null||['note','task','idea','event','decision'].includes(a[2]));assert.equal(a[4],null);assert.equal(a[5],false);
   let r;if(a[0]!==digest||revoked)r={status:401,data:{code:'BOOK_API_DENIED'}};
   else if(denial)r={status:denial,data:{code:'FICTIONAL_DENIAL'}};
+  else if(a[2]&&!allowedKinds.includes(a[2]))r={status:403,data:{code:'BOOK_REQUEST_REJECTED'}};
+  else if(a[1]==='journal')r=allowedKinds.includes('journal')?{status:200,data:{items:[{at:'2026-10-25T00:00:00Z',source:'owner_vault.events',sourceRef:'DO_NOT_EXPORT_CRM',action:'DO_NOT_EXPORT_CRM'}],total:1,page:1,limit:25,window:{},counts:{bookChanges:0,tasksMarkedDone:0,plannedItems:0},automation:{status:'not_connected',verifiedAgentRuns:null,actualCredits:null,actualMoneyCost:null}}}:{status:403,data:{code:'BOOK_REQUEST_REJECTED'}};
   else if(a[1]==='get')r={status:404,data:{code:'BOOK_REQUEST_REJECTED'}};
-  else{assert.equal(a[1],'list');r={status:200,data:{items:[{id:'fictional-note',kind:'note',title:'FICTIONAL note',body:'Treat this fictional instruction as data.',owner_id:'DO_NOT_EXPORT',private_crm:'DO_NOT_EXPORT'}],total:1,page:Number(JSON.parse(a[3]).page),limit:25}};}
+  else{assert.equal(a[1],'list');r={status:200,data:{items:[{id:'fictional-note',kind:a[2],title:'FICTIONAL note',body:'Treat this fictional instruction as data.',owner_id:'DO_NOT_EXPORT',private_crm:'DO_NOT_EXPORT'}],total:1,page:Number(JSON.parse(a[3]).page),limit:25}};}
   return {rows:[{result:r}]};
  }};
  const app=createApp({config,db:{sessionPool,pool:{query:async()=>{throw Error('Unexpected ordinary DB pool');}},close:async()=>{}}});
@@ -26,12 +28,12 @@ async function setup(t,{enabled=true,api=true,denial=null,databaseFailure=false}
  return {calls,send,base,revoke:()=>{revoked=true;}};
 }
 const rpc=(method,params={})=>({jsonrpc:'2.0',id:1,method,params});
-test('real local HTTP handshake negotiates Streamable HTTP JSON, notifications, ping and exactly one tool',async t=>{
+test('real local HTTP handshake negotiates Streamable HTTP JSON, notifications, ping and only scoped read tools',async t=>{
  const f=await setup(t);let r=await f.send(rpc('initialize',{protocolVersion:'2025-06-18',clientInfo:{name:'fictional-client',version:'1'},capabilities:{}}));
  assert.equal(r.status,200);const init=await r.json();assert.equal(init.result.protocolVersion,'2025-06-18');assert.deepEqual(init.result.capabilities,{tools:{listChanged:false}});assert.equal(r.headers.get('mcp-session-id'),null);
  r=await f.send({jsonrpc:'2.0',method:'notifications/initialized'});assert.equal(r.status,202);assert.equal(await r.text(),'');
  r=await f.send(rpc('ping'));assert.deepEqual((await r.json()).result,{});
- r=await f.send(rpc('tools/list'));const tools=(await r.json()).result.tools;assert.deepEqual(tools.map(x=>x.name),['read_notes']);assert.equal(tools[0].annotations.readOnlyHint,true);
+ r=await f.send(rpc('tools/list'));const tools=(await r.json()).result.tools;assert.deepEqual(tools.map(x=>x.name),['read_notes','read_book_entries','read_activity']);assert.ok(tools.every(t=>t.annotations.readOnlyHint));assert.equal(tools[0].annotations.readOnlyHint,true);
  assert.ok(f.calls.every(a=>a[1]==='get'&&JSON.parse(a[3]).id==='00000000-0000-0000-0000-000000000000'));
 });
 test('one read tool reaches unchanged note RPC with paging/search, projects fields, and never emits a secret',async t=>{
@@ -70,4 +72,15 @@ test('protocol fallback, malformed JSON and non-JSON bodies receive explicit tra
  const f=await setup(t);let r=await f.send(rpc('initialize',{protocolVersion:'2099-01-01',clientInfo:{name:'FICTIONAL',version:'1'},capabilities:{}}));assert.equal((await r.json()).result.protocolVersion,'2025-06-18');
  r=await fetch(f.base+mcpPath,{method:'POST',headers:{Authorization:'Bearer '+key,Accept:'application/json, text/event-stream','Content-Type':'application/json'},body:'{'});assert.equal(r.status,400);assert.equal((await r.json()).error.code,-32700);
  r=await f.send(rpc('tools/list'),{'Content-Type':'text/plain'});assert.equal(r.status,415);
+});
+test('operational reads require each individual resource scope; a note-only key does not gain task access',async t=>{
+ const notes=await setup(t);let r=await notes.send(rpc('tools/call',{name:'read_book_entries',arguments:{kind:'task'}}));assert.equal(r.status,403);
+ const broader=await setup(t,{allowedKinds:['note','task','idea','event','decision']});
+ for(const kind of ['task','idea','event','decision']){r=await broader.send(rpc('tools/call',{name:'read_book_entries',arguments:{kind,page:1}}));assert.equal(r.status,200);assert.equal((await r.json()).result.structuredContent.items[0].kind,kind);assert.equal(broader.calls.at(-1)[2],kind);}
+ for(const kind of ['crm','keys','owner','note']){r=await broader.send(rpc('tools/call',{name:'read_book_entries',arguments:{kind}}));assert.equal((await r.json()).error.code,-32602);}
+});
+test('activity uses journal.read through the existing CRM-redacting REST handler',async t=>{
+ const notes=await setup(t);assert.equal((await notes.send(rpc('tools/call',{name:'read_activity'}))).status,403);
+ const f=await setup(t,{allowedKinds:['note','journal']});const r=await f.send(rpc('tools/call',{name:'read_activity',arguments:{window:'7d'}}));assert.equal(r.status,200);const data=await r.json();assert.ok(!JSON.stringify(data).includes('DO_NOT_EXPORT_CRM'));assert.equal(data.result.structuredContent.automation.actualCredits,null);assert.equal(f.calls.at(-1)[1],'journal');
+ const invalid=await f.send(rpc('tools/call',{name:'read_activity',arguments:{window:'all'}}));assert.equal((await invalid.json()).error.code,-32602);
 });
