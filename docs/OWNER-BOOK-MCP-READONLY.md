@@ -1,5 +1,7 @@
 # Command Book: minimalny adapter MCP READ ONLY
 
+Plan kontrolowanej aktualizacji i jego blokady: [OWNER-BOOK-MCP-UPDATE-PLAN.md](OWNER-BOOK-MCP-UPDATE-PLAN.md).
+
 Stan 25.10.2026: **przygotowany i przetestowany lokalnie, NIE WDROŻONY**.
 OWNER przekazał wynik odbioru produkcji `236e04b`: API włączone, ChatGPT
 niepołączony. Ta zmiana nie modyfikuje tego wydania ani działającej instalacji.
