@@ -11,6 +11,7 @@ export function acquisition(action, a) {
     const j=a.job,s=j?.source;
     if(!j?.lease||!s?.approved||s.contractVerified!==true||s.action!=='read_stored_or_search_results'||!validEndpoint(s)||!['GET','POST'].includes(s.method))fail('Unapproved source/read contract');
     if(!Number.isFinite(s.maxCreditsPerRequest)||s.maxCreditsPerRequest<0)fail('Unknown credit cost');
+    if(Object.keys(s.mapping||{}).some(k=>/phone|mobile|telephone/i.test(k)))fail('Phone collection is not permitted');
     if(!Array.isArray(s.mapping?.rows)||!s.mapping?.companyName||!s.mapping?.companyId)fail('Missing source mapping');
     const body=JSON.parse(JSON.stringify({...s.requestBody,...(s.regionFilters?.[j.region]||{})}));
     const cursor=j.cursor||{page:1};
@@ -55,7 +56,7 @@ export function acquisition(action, a) {
         if(!id||!fullName)continue;
         const validEmail=email&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),shared=validEmail&&/^(info|sales|office|contact|support|admin)@/i.test(email);
         const individual=validEmail&&!shared&&read('emailKind',12)==='individual';
-        const contact={fullName,title:read('title',200),email:validEmail?email:null,emailKind:individual?'individual':shared?'shared':'unknown',phone:read('phone',80),professionalUrl:profile};
+        const contact={fullName,title:read('title',200),email:validEmail?email:null,emailKind:individual?'individual':shared?'shared':'unknown',professionalUrl:profile};
         const key=profile?'profile:'+profile:individual?'email-company:'+companyIdentity+':'+email.toLowerCase():'source-person:'+source.system+':'+id;
         records.push({type:'contact',key,companyKey:companyIdentity,company,contact,source:{...source,id},status:'unconfirmed'});
       }
