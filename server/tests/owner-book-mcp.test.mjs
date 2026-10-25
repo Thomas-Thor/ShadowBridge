@@ -84,3 +84,7 @@ test('activity uses journal.read through the existing CRM-redacting REST handler
  const f=await setup(t,{allowedKinds:['note','journal']});const r=await f.send(rpc('tools/call',{name:'read_activity',arguments:{window:'7d'}}));assert.equal(r.status,200);const data=await r.json();assert.ok(!JSON.stringify(data).includes('DO_NOT_EXPORT_CRM'));assert.equal(data.result.structuredContent.automation.actualCredits,null);assert.equal(f.calls.at(-1)[1],'journal');
  const invalid=await f.send(rpc('tools/call',{name:'read_activity',arguments:{window:'all'}}));assert.equal((await invalid.json()).error.code,-32602);
 });
+test('archived history is an explicit existing read filter, never a write or a broader resource grant',async t=>{
+ const f=await setup(t);const r=await f.send(rpc('tools/call',{name:'read_notes',arguments:{archived:'all'}}));assert.equal(r.status,200);assert.equal(JSON.parse(f.calls.at(-1)[3]).archived,'all');
+ const bad=await f.send(rpc('tools/call',{name:'read_notes',arguments:{archived:'delete'}}));assert.equal((await bad.json()).error.code,-32602);
+});
