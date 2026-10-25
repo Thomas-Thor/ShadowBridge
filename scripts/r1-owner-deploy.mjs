@@ -12,22 +12,24 @@ const must=(v,m)=>{if(!v)throw Error(m);};
 const quote=s=>"'"+s.replaceAll("'","'\\''")+"'";
 const server='shadowadmin@169.58.232.69';
 export async function digestFile(file){const h=createHash('sha256');for await(const c of createReadStream(file))h.update(c);return h.digest('hex');}
-export function bootstrap(release,{bookApi=false}={}){
+export function bootstrap(release,{bookApi=false,bookMcp=false}={}){
+ must(!(bookApi&&bookMcp),'Choose one update mode.');
  must(/^[a-f0-9]{40}$/.test(release),'Wymagany pełny SHA wydania.');
  return `set -eu
 umask 077
 test "$(hostname)" = vmi3682957
 cd /opt/shadowbridge
+for SB_ACTIVE_LOCK in .local/r1-owner-release-*/operation.lock; do test ! -e "$SB_ACTIVE_LOCK"; done
 if test -f '.local/r1-owner-release-${release}/state.json'; then
  test "$(git -c safe.directory=/opt/shadowbridge rev-parse HEAD)" = '${release}'
- exec node scripts/r1-production-release.mjs prepare --release='${release}'${bookApi?' --book-api':''}
+ exec node scripts/r1-production-release.mjs prepare --release='${release}'${bookMcp?' --book-mcp':bookApi?' --book-api':''}
 fi
 test -z "$(git -c safe.directory=/opt/shadowbridge status --porcelain)"
-git -c safe.directory=/opt/shadowbridge fetch --no-tags https://github.com/Thomas-Thor/ShadowBridge.git release/shadowbridge-international-r1
+git -c safe.directory=/opt/shadowbridge fetch --no-tags https://github.com/Thomas-Thor/ShadowBridge.git ${bookMcp?'feature/owner-book-mcp-readonly':'release/shadowbridge-international-r1'}
 git -c safe.directory=/opt/shadowbridge merge-base --is-ancestor '${release}' FETCH_HEAD
 DIAG_DIR=$(mktemp -d /tmp/shadowbridge-approved-r1.XXXXXX)
 git -c safe.directory=/opt/shadowbridge show '${release}:scripts/international-r1-diagnose.mjs' > "$DIAG_DIR/check.mjs"
-node "$DIAG_DIR/check.mjs" --repo=/opt/shadowbridge${bookApi?' --runtime=d5582ffd9f1e7f9a40a1a49f9e16a304eae64a4e':''}
+node "$DIAG_DIR/check.mjs" --repo=/opt/shadowbridge${bookMcp?' --runtime=236e04bded81c406fb49ee0950ae20d139f257ec':bookApi?' --runtime=d5582ffd9f1e7f9a40a1a49f9e16a304eae64a4e':''}
 if git -c safe.directory=/opt/shadowbridge show-ref --verify --quiet refs/heads/release/shadowbridge-international-r1; then
  git -c safe.directory=/opt/shadowbridge switch release/shadowbridge-international-r1
  git -c safe.directory=/opt/shadowbridge merge --ff-only '${release}'
@@ -37,18 +39,20 @@ fi
 test "$(git -c safe.directory=/opt/shadowbridge rev-parse HEAD)" = '${release}'
 mkdir -p .local
 if ! node --input-type=module -e "await import('pg')" >/dev/null 2>&1; then npm ci --omit=dev --ignore-scripts > .local/r1-dependency-install.log 2>&1; fi
-exec node scripts/r1-production-release.mjs prepare --release='${release}'${bookApi?' --book-api':''}`;
+exec node scripts/r1-production-release.mjs prepare --release='${release}'${bookMcp?' --book-mcp':bookApi?' --book-api':''}`;
 }
 function run(bin,args){const r=spawnSync(bin,args,{stdio:'inherit'});must(!r.error&&r.status===0,'Operacja zatrzymana. Zachowano checkpoint i kopie; nie uruchamiaj resetów ani powtórnych migracji.');}
 const ssh=command=>run('ssh',['-t','-o','StrictHostKeyChecking=yes','-o','ServerAliveInterval=15',server,command]);
-const remote=(phase,release,bookApi=false)=>ssh('sudo node /opt/shadowbridge/scripts/r1-production-release.mjs '+phase+' --release='+release+(bookApi?' --book-api':''));
-export async function ownerDeploy(release,{bookApi=false,disable=false}={}){
+const remote=(phase,release,bookApi=false,bookMcp=false)=>ssh('sudo node /opt/shadowbridge/scripts/r1-production-release.mjs '+phase+' --release='+release+(bookMcp?' --book-mcp':bookApi?' --book-api':''));
+export async function ownerDeploy(release,{bookApi=false,bookMcp=false,disable=false,acceptOnly=false}={}){
  must(platform()==='linux'&&hostname()!=='vmi3682957','Uruchom na lokalnym Linuxie OWNER, nie na Contabo.');
  must(/^[a-f0-9]{40}$/.test(release||''),'Podaj zatwierdzony pełny SHA.');
  must(process.stdin.isTTY,'Potrzebny interaktywny terminal; nie przekazuj haseł lub TOTP jako argumentów.');
- if(disable){must(bookApi,'Wyłączenie dotyczy wyłącznie --book-api.');remote('off',release,true);return;}
+ must(!(bookApi&&bookMcp)&&!(disable&&acceptOnly),'Choose one update purpose and action.');
+ if(disable){must(bookApi||bookMcp,'Wyłączenie dotyczy wyłącznie --book-api.');remote('off',release,bookApi,bookMcp);return;}
  const ask=async text=>{const rl=createInterface({input:process.stdin,output:process.stdout});try{return(await rl.question(text)).trim();}finally{rl.close();}};
  const confirm=async text=>{must(await ask(text+' Wpisz TAK: ')==='TAK','Przerwano bez zatwierdzenia.');};
+ if(acceptOnly){await confirm('Potwierdź odbiór wdrożonej aplikacji i dotychczasowe logowanie OWNER + TOTP. Tylko zapis odbioru, bez prepare/apply.');remote('accept',release,bookApi,bookMcp);return;}
  const base=path.join(homedir(),'.local','state','shadowbridge-release',release),archives=path.join(base,'archives'),keys=path.join(base,'recovery-keys');
  for(const dir of [base,archives,keys]){await mkdir(dir,{recursive:true,mode:0o700});const s=await lstat(dir);must(s.isDirectory()&&!s.isSymbolicLink()&&(s.mode&0o777)===0o700,'Katalog lokalnej kopii musi być prywatny, bez dowiązań.');}
  const bundle='/home/shadowadmin/.shadowbridge-r1-'+release;
@@ -56,11 +60,11 @@ export async function ownerDeploy(release,{bookApi=false,disable=false}={}){
  must(await realpath(base)===base,'Dowiązania w ścieżce lokalnego backupu są zabronione.');
  let applied=false,prepared=false,applyAttempted=false;
  try{
-  console.log(bookApi?'Aktualizacja UI i aktywacja ograniczonego API Book. Bez migracji i bez zmian kont/TOTP/n8n. ChatGPT pozostaje NIEPOŁĄCZONY do rzeczywistego testu.': 'Aktualizacja R1 + OWNER Book. Zdalne API, SMTP, rejestracja i workflow pozostają wyłączone. Podczas kopii nastąpi przerwa app/Auth i krótka przerwa Caddy.');
+  console.log(bookMcp?'Aktualizacja MCP z przyjętego 236e04b. REST pozostaje aktywne. Bez migracji, resetów i canary. Połączenie ChatGPT pozostaje niepotwierdzone.':bookApi?'Aktualizacja UI i aktywacja ograniczonego API Book. Bez migracji i bez zmian kont/TOTP/n8n. ChatGPT pozostaje NIEPOŁĄCZONY do rzeczywistego testu.': 'Aktualizacja R1 + OWNER Book. Zdalne API, SMTP, rejestracja i workflow pozostają wyłączone. Podczas kopii nastąpi przerwa app/Auth i krótka przerwa Caddy.');
   await confirm('Zaloguj się teraz na https://shadow-bridge.eu istniejącym OWNER i potwierdź dotychczasowy TOTP. Czy logowanie działa i zatwierdzasz okno aktualizacji?');
   // Existing checkpoint is never silently overwritten. Operator can resume only
   // the same exact release, using the same verified offsite bundle.
-  ssh('sudo sh -c '+quote(bootstrap(release,{bookApi})));
+  ssh('sudo sh -c '+quote(bootstrap(release,{bookApi,bookMcp})));
   prepared=true;
   const manifestFile=path.join(base,'manifest.json');
   let hasManifest=false;try{const f=await lstat(manifestFile);must(f.isFile()&&!f.isSymbolicLink(),'Niebezpieczny plik wykazu kopii.');hasManifest=true;}catch(e){if(e.code!=='ENOENT')throw e;}
@@ -78,18 +82,18 @@ export async function ownerDeploy(release,{bookApi=false,disable=false}={}){
   const receipt={kind:'shadowbridge-r1-offsite-receipt-v1',release,nonce:manifest.nonce,verifiedOnDifferentHost:true,files};
   const receiptFile=path.join(base,'offsite-receipt.json');await writeFile(receiptFile,JSON.stringify(receipt)+'\n',{mode:0o600});transfer(receiptFile,server+':'+bundle+'/offsite-receipt.json');
   console.log('Wszystkie trzy zaszyfrowane kopie zweryfikowano na komputerze OWNER. Klucze zapisano osobno: '+keys);
-  applyAttempted=true;remote('apply',release,bookApi);applied=true;
-  console.log(bookApi?'Odbiór: OWNER + TOTP, nowe terminy kluczy i CUSTOM, maskowanie/COPY/Revoke, TXT w Downloads oraz opcjonalne Reference / Source. API odrzuca żądania bez klucza. Połączenie ChatGPT wymaga osobnego testu w potwierdzonym Plugin Creator; nie wpisuj klucza w terminalu.': 'Odbiór w przeglądarce: zaloguj OWNER + TOTP; sprawdź Command Center/VAULT, Book (fikcyjne zadanie i edycja, notatka, pomysł, kalendarz, decyzja, historia), API Keys (utworzenie READ ONLY, zakresy, termin, cofnięcie, audyt). Sprawdź odmowę innemu użytkownikowi i ekran n8n. Nie włączaj zdalnego API.');
+  applyAttempted=true;remote('apply',release,bookApi,bookMcp);applied=true;
+  console.log(bookMcp?'Odbiór: istniejący OWNER + TOTP, Command Book, REST, anonimowa odmowa MCP. Nie generuj klucza przed potwierdzeniem prywatnego Authentication. Tylko odczyt ChatGPT pozostaje do osobnego testu.':bookApi?'Odbiór: OWNER + TOTP, nowe terminy kluczy i CUSTOM, maskowanie/COPY/Revoke, TXT w Downloads oraz opcjonalne Reference / Source. API odrzuca żądania bez klucza. Połączenie ChatGPT wymaga osobnego testu w potwierdzonym Plugin Creator; nie wpisuj klucza w terminalu.': 'Odbiór w przeglądarce: zaloguj OWNER + TOTP; sprawdź Command Center/VAULT, Book (fikcyjne zadanie i edycja, notatka, pomysł, kalendarz, decyzja, historia), API Keys (utworzenie READ ONLY, zakresy, termin, cofnięcie, audyt). Sprawdź odmowę innemu użytkownikowi i ekran n8n. Nie włączaj zdalnego API.');
   const acceptance=await ask('Czy odbiór zakończył się poprawnie? Wpisz ODBIOR albo ROLLBACK: ');
-  if(acceptance==='ROLLBACK'){remote('rollback',release,bookApi);applied=false;return;}
-  must(acceptance==='ODBIOR','Nowa aplikacja pozostaje uruchomiona, ale odbiór NIE jest potwierdzony. Zachowano plan rollbacku.');remote('accept',release,bookApi);
-  console.log((bookApi?'API ENABLED; CHATGPT CONNECTION NOT TESTED. SHA: ':'DEPLOYED AND VERIFIED. SHA: ')+release+'. Zachowaj kopie i klucze poza repozytorium; nie przesyłaj ich w rozmowie.');
+  if(acceptance==='ROLLBACK'){remote('rollback',release,bookApi,bookMcp);applied=false;return;}
+  must(acceptance==='ODBIOR','Nowa aplikacja pozostaje uruchomiona, ale odbiór NIE jest potwierdzony. Zachowano plan rollbacku.');remote('accept',release,bookApi,bookMcp);
+  console.log((bookMcp?'MCP ENABLED; CHATGPT CONNECTION NOT TESTED. SHA: ':bookApi?'API ENABLED; CHATGPT CONNECTION NOT TESTED. SHA: ':'DEPLOYED AND VERIFIED. SHA: ')+release+'. Zachowaj kopie i klucze poza repozytorium; nie przesyłaj ich w rozmowie.');
  }catch(e){
-  if(prepared&&!applyAttempted){try{remote('cancel',release,bookApi);}catch{console.error('Nie potwierdzono wznowienia starej aplikacji. Zachowano checkpoint; potrzebny operator.');}}
+  if(prepared&&!applyAttempted){try{remote('cancel',release,bookApi,bookMcp);}catch{console.error('Nie potwierdzono wznowienia starej aplikacji. Zachowano checkpoint; potrzebny operator.');}}
   console.error(applied?'DEPLOYED_PENDING_OWNER_ACCEPTANCE':'READY FOR OWNER ACTION / sprawdź zachowany checkpoint');throw e;
  }
 
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const args=process.argv.slice(2);must(args.length>=1&&args.length<=3&&args[0].startsWith('--release=')&&args.slice(1).every(a=>['--book-api','--disable'].includes(a)),'Use --release=APPROVED_FULL_SHA [--book-api] [--disable]');ownerDeploy(args[0].slice(10),{bookApi:args.includes('--book-api'),disable:args.includes('--disable')}).catch(e=>{console.error(e.message);process.exitCode=1;});
+ const args=process.argv.slice(2);must(args.length>=1&&args.length<=4&&args[0].startsWith('--release=')&&args.slice(1).every(a=>['--book-api','--book-mcp','--disable','--accept-only'].includes(a)),'Use --release=APPROVED_FULL_SHA [--book-api|--book-mcp] [--disable|--accept-only]');ownerDeploy(args[0].slice(10),{bookApi:args.includes('--book-api'),bookMcp:args.includes('--book-mcp'),disable:args.includes('--disable'),acceptOnly:args.includes('--accept-only')}).catch(e=>{console.error(e.message);process.exitCode=1;});
 }
