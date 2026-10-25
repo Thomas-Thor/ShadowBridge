@@ -85,3 +85,29 @@ regresja koordynatora, rzeczywisty Compose config, szyfrowane kopie planu i
 rollback aplikacji. Fikstury, nie Contabo. Testy brakujących migracji/append
 aplikacji z poprzedniego checkpointu nie były niepotrzebnie ponawiane.
 Pliki runtime i migracje 001–020 nie zmieniły się względem 14cc879.
+
+## Uzupełnienie po pierwszym odczycie operatora
+
+Wynik z 25.10.2026, 21:26 CET: katalog 14cc879 ma tryb 0700, brak state.json,
+locka i logów, wolne 198 944 272 384 bajty. Nie znaleziono starego build.log,
+więc jego konflikt nie jest potwierdzoną przyczyną tej instalacji.
+
+Pierwszy kolektor zwrócił UNIQUE_APP_NOT_FOUND i zakończył odczyt zbyt wcześnie.
+To błąd filtra kolektora: wymagał working_dir równego katalogowi repo, podczas
+gdy Compose może uruchamiać produkcję z deploy/production. Nie jest to dowód
+awarii aplikacji. Naprawiono identyfikację po dokładnej ścieżce produkcyjnego
+compose.yaml; prywatny staging, obce ścieżki i zatrzymane kontenery są odrzucane.
+Odczyt n8n jest niezależny od rozpoznania app.
+
+Poprawiony kolektor odczytuje też booleany zgodności checkoutu, inne locki,
+tryb pliku odbioru poprzednika oraz liczbę rzeczywistych aktywnych OWNER ze
+świeżym zdarzeniem MFA według tego samego 30-minutowego warunku co prepare.
+Nie osłabiono tego warunku i nie zmieniono żadnego konta/faktora.
+Lista prepareBlockers jest celowo częściowa; nie zastępuje pełnego preflightu
+ani nie odtwarza historycznego błędu, którego nie zapisano.
+
+Najnowsze 8 testów kolektora PASS, w tym regresja zagnieżdżonego katalogu
+Compose, fałszywych dopasowań, braku świeżego MFA i niezależnego odczytu n8n.
+Wcześniejszych 17 testów poprawki operatora nie przedstawiać jako nowych
+testów Contabo. Produkcji i migracji nie zmieniono. Następna czynność to jeden
+ponowny odczyt poprawionym narzędziem, nie ponowne wdrożenie.

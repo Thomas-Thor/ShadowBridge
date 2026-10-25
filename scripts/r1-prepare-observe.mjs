@@ -61,26 +61,50 @@ export async function checkpointEvidence({root,release}){
  return out;
 }
 const value=(c,k)=>(c?.Config?.Env||[]).find(v=>v.startsWith(k+'='))?.slice(k.length+1);
+export function productionApp(c,root){
+ const labels=c?.Config?.Labels||{};
+ // Compose's working_dir can legitimately be deploy/production. Identify the
+ // exact production compose file instead of requiring working_dir === repo.
+ return c?.State?.Running===true&&labels['com.docker.compose.service']==='app'
+  &&(labels['com.docker.compose.project.config_files']||'').split(',').some(f=>f.trim()===path.join(root,'deploy','production','compose.yaml'));
+}
 export const n8nReadProbe=`const out={healthStatus:null,workflowApiStatus:null,credentialsVerified:false,providerBalancesVerified:false,crmWriteReadVerified:false};for(const [key,url] of [['healthStatus','/healthz'],['workflowApiStatus','/api/v1/workflows?limit=1']]){try{const r=await fetch('http://127.0.0.1:5678'+url,{redirect:'error',signal:AbortSignal.timeout(5000)});out[key]=r.status;await r.body?.cancel();}catch{}}process.stdout.write(JSON.stringify(out));`;
-export async function observeProduction({root='/opt/shadowbridge',release,execute}={}){
+export async function observeProduction({root='/opt/shadowbridge',release,execute,executeGit}={}){
  const run=execute||((args)=>execFileSync('docker',['--context','default',...args],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:20000,maxBuffer:4*1024**2}).trim());
+ const git=executeGit||((args)=>execFileSync('git',['-c','safe.directory='+root,'-C',root,...args],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:10000,maxBuffer:1024**2}).trim());
  const result={kind:'shadowbridge-prepare-read-only-evidence',readOnly:true,changesMade:false,observedAt:new Date().toISOString(),...await checkpointEvidence({root,release})};
  const f=await statfs(root);result.freeBytes=f.bavail*f.bsize;
+ try{const head=git(['rev-parse','HEAD']),branch=git(['branch','--show-current']),changes=git(['status','--porcelain=v1','-z']).split('\0').filter(Boolean);result.repository={head:/^[a-f0-9]{40}$/.test(head)?head:null,requestedReleaseMatches:head===release,onReleaseBranch:branch==='release/shadowbridge-international-r1',trackedClean:!changes.some(c=>!c.startsWith('??')),untrackedCount:changes.filter(c=>c.startsWith('??')).length};}catch(e){result.repository={status:'UNVERIFIED',failure:safeFailure(e)};}
+ try{result.otherReleaseLocks=[];for(const name of(await readdir(path.join(root,'.local'))).filter(n=>/^r1-owner-release-[a-f0-9]{40}$/.test(n)&&n!=='r1-owner-release-'+release)){try{await lstat(path.join(root,'.local',name,'operation.lock'));result.otherReleaseLocks.push(name.slice(17));}catch(e){if(e.code!=='ENOENT')throw e;}}}catch(e){result.otherReleaseLocksUnverified=true;}
+ // Independent checks must still run when app discovery is inconclusive.
+ try{result.n8n=JSON.parse(run(['exec','shadowbridge-automation-n8n-1','node','--input-type=module','-e',n8nReadProbe]));}catch(e){result.n8n={status:'UNVERIFIED',failure:safeFailure(e)};}
  const ids=run(['ps','-q','--filter','label=com.docker.compose.service=app']).split('\n').filter(x=>/^[a-f0-9]{12,64}$/.test(x));
- const apps=ids.map(id=>JSON.parse(run(['inspect',id]))[0]).filter(c=>c.Config?.Labels?.['com.docker.compose.project.working_dir']===root&&c.State?.Running);
- if(apps.length!==1){result.runtime={status:'UNIQUE_APP_NOT_FOUND'};return result;}
+ const candidates=ids.map(id=>JSON.parse(run(['inspect',id]))[0]),apps=candidates.filter(c=>productionApp(c,root));
+ result.appDiscovery={runningAppCandidates:candidates.length,productionComposeMatches:apps.length};
+ if(apps.length!==1){result.runtime={status:'UNIQUE_APP_NOT_FOUND',notProofOfApplicationOutage:true};return result;}
  const app=apps[0],project=app.Config.Labels['com.docker.compose.project'];
  if(!/^shadowbridge-(?:contabo|stageg)-[a-z0-9-]+$/.test(project))throw Error('Unrecognized project.');
  result.runtime={release:/^[a-f0-9]{40}$/.test(value(app,'RELEASE_SHA')||'')?value(app,'RELEASE_SHA'):null,createEnabled:value(app,'OWNER_BOOK_MCP_CREATE_ENABLED')==='true',mailMode:['disabled','allowlist','smtp','captured'].includes(value(app,'MAIL_DELIVERY_MODE'))?value(app,'MAIL_DELIVERY_MODE'):'UNVERIFIED',transactionalMailEnabled:value(app,'TRANSACTIONAL_MAIL_ENABLED')==='true',acquisitionGatewayConfigured:!!value(app,'ACQUISITION_GATEWAY_FILE')};
  result.buildImages={};for(const [target,tag]of [['runtime','shadowbridge-r1:'+release],['migrator',project+'-migrator']])try{const i=JSON.parse(run(['image','inspect',tag]))[0];result.buildImages[target]={found:true,revisionMatches:i.Config?.Labels?.['org.opencontainers.image.revision']===release};}catch{result.buildImages[target]={found:false};}
- try{const p=path.join(root,'.local','r1-owner-release-599fc3359ecd3d87868cb6056e35214c0baa3c00','state.json'),s=await lstat(p);if(!s.isFile()||s.isSymbolicLink()||s.size>1024*1024)throw Error('Unsafe saved acceptance.');const old=JSON.parse(await readFile(p,'utf8'));result.previousOAuth={accepted:old.release==='599fc3359ecd3d87868cb6056e35214c0baa3c00'&&old.purpose==='book-oauth'&&old.phase==='DEPLOYED_AND_VERIFIED'&&old.ownerInteractiveAcceptance===true};if(typeof old.sourceDirectory!=='string'||!old.sourceDirectory.startsWith(path.join(root,'.local')+path.sep)||await realpath(old.sourceDirectory)!==old.sourceDirectory)throw Error('Unverified profile path.');const f=path.join(old.sourceDirectory,'international-r1',release,'plan.json');try{const stat=await lstat(f);result.applicationPlan={exists:stat.isFile()&&!stat.isSymbolicLink(),fingerprintsVerified:false};}catch(e){if(e.code!=='ENOENT')throw e;result.applicationPlan={exists:false};}}catch{result.applicationPlan={status:'UNVERIFIED'};}
+ try{const p=path.join(root,'.local','r1-owner-release-599fc3359ecd3d87868cb6056e35214c0baa3c00','state.json'),s=await lstat(p);if(!s.isFile()||s.isSymbolicLink()||s.size>1024*1024)throw Error('Unsafe saved acceptance.');const old=JSON.parse(await readFile(p,'utf8'));result.previousOAuth={accepted:old.release==='599fc3359ecd3d87868cb6056e35214c0baa3c00'&&old.purpose==='book-oauth'&&old.phase==='DEPLOYED_AND_VERIFIED'&&old.ownerInteractiveAcceptance===true,fileMode600:(s.mode&511)===384};if(typeof old.sourceDirectory!=='string'||!old.sourceDirectory.startsWith(path.join(root,'.local')+path.sep)||await realpath(old.sourceDirectory)!==old.sourceDirectory)throw Error('Unverified profile path.');const f=path.join(old.sourceDirectory,'international-r1',release,'plan.json');try{const stat=await lstat(f);result.applicationPlan={exists:stat.isFile()&&!stat.isSymbolicLink(),fingerprintsVerified:false};}catch(e){if(e.code!=='ENOENT')throw e;result.applicationPlan={exists:false};}}catch{result.applicationPlan={status:'UNVERIFIED'};}
  const service=name=>{const list=run(['ps','-q','--filter','label=com.docker.compose.project='+project,'--filter','label=com.docker.compose.service='+name]).split('\n').filter(x=>/^[a-f0-9]{12,64}$/.test(x));if(list.length!==1)throw Error('Unique service required.');return list[0];};
  try{const auth=JSON.parse(run(['inspect',service('auth')]))[0];result.mail={signupDisabled:value(auth,'GOTRUE_DISABLE_SIGNUP')==='true',smtpHostIsGmail:value(auth,'GOTRUE_SMTP_HOST')==='smtp.gmail.com',smtpCredentialPresent:!!value(auth,'GOTRUE_SMTP_PASS'),confirmationPathCorrect:value(auth,'GOTRUE_MAILER_URLPATHS_CONFIRMATION')==='/auth/confirm',recoveryPathCorrect:value(auth,'GOTRUE_MAILER_URLPATHS_RECOVERY')==='/auth/recover',siteUrlCorrect:value(auth,'GOTRUE_SITE_URL')==='https://shadow-bridge.eu',deliveryTested:false};}catch(e){result.mail={status:'UNVERIFIED',failure:safeFailure(e)};}
  try{
-  const sql="BEGIN READ ONLY;SELECT json_build_object('migrationCount',(SELECT count(*) FROM shadowbridge_migrations.applied),'recentMfaEventCount',(SELECT count(*) FROM sb.audit_events WHERE action='auth.mfa_verified' AND created_at>now()-interval '30 minutes'));ROLLBACK;";
+  const owner="SELECT count(*) FROM sb.staff_role_assignments r JOIN sb.staff_grants g USING(user_id) JOIN sb.accounts a USING(user_id) JOIN auth.users u ON u.id=r.user_id WHERE r.role_key='owner' AND r.active AND (r.expires_at IS NULL OR r.expires_at>now()) AND g.active AND a.status='active' AND a.email_verified_at IS NOT NULL AND u.email_confirmed_at IS NOT NULL AND lower(a.email)=lower(u.email) AND EXISTS(SELECT 1 FROM auth.mfa_factors f WHERE f.user_id=u.id AND f.factor_type='totp' AND f.status='verified') AND EXISTS(SELECT 1 FROM sb.audit_events e WHERE e.actor_id=r.user_id AND e.action='auth.mfa_verified' AND e.created_at>now()-interval '30 minutes')";
+  const sql="BEGIN READ ONLY;SET LOCAL statement_timeout='5s';SELECT json_build_object('migrationCount',(SELECT count(*) FROM shadowbridge_migrations.applied),'databaseBytes',pg_database_size(current_database()),'freshOwnerMfaCount',("+owner+"));ROLLBACK;";
   result.database=JSON.parse(run(['exec',service('postgres'),'psql','-XqAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','shadowbridge','-c',sql]));
  }catch(e){result.database={status:'READ_FAILED',failure:safeFailure(e)};}
- try{result.n8n=JSON.parse(run(['exec','shadowbridge-automation-n8n-1','node','--input-type=module','-e',n8nReadProbe]));}catch(e){result.n8n={status:'UNVERIFIED',failure:safeFailure(e)};}
+ result.prepareBlockers=[];
+ if(result.otherReleaseLocks?.length)result.prepareBlockers.push('ANOTHER_RELEASE_LOCK');
+ if(result.repository.requestedReleaseMatches===false)result.prepareBlockers.push('CHECKOUT_SHA_MISMATCH');
+ if(result.repository.onReleaseBranch===false)result.prepareBlockers.push('CHECKOUT_BRANCH_MISMATCH');
+ if(result.repository.trackedClean===false||result.repository.untrackedCount>0)result.prepareBlockers.push('CHECKOUT_NOT_CLEAN');
+ if(result.runtime.release&&result.runtime.release!=='599fc3359ecd3d87868cb6056e35214c0baa3c00')result.prepareBlockers.push('RUNTIME_BASE_MISMATCH');
+ if(result.runtime.createEnabled)result.prepareBlockers.push('CREATE_ALREADY_ENABLED');
+ if(result.previousOAuth?.accepted===false||result.previousOAuth?.fileMode600===false)result.prepareBlockers.push('PREVIOUS_ACCEPTANCE_INVALID_OR_FILE_MODE');
+ if(result.database?.freshOwnerMfaCount===0)result.prepareBlockers.push('FRESH_OWNER_MFA_REQUIRED');
+ if(result.database?.migrationCount!==undefined&&result.database.migrationCount!==19)result.prepareBlockers.push('EXPECTED_19_MIGRATIONS');
+ result.prepareBlockersArePartial=true;
  return result;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
