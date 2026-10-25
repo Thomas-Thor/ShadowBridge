@@ -16,6 +16,7 @@ import { currencyCodes } from '../assets/business-config.js';
 import { routeOffersWorkspace } from './offers-workspace.mjs';
 import { routeOwnerVault } from './owner-vault.mjs';
 import { routeOwnerBook,routeBookToken } from './owner-book.mjs';
+import { routeBookMcp,mcpPath } from './owner-book-mcp.mjs';
 import { ApiError, object, text, oneOf, number, list, identifier, profile, businessData, assertNonIdentifyingText } from './validation.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -424,6 +425,13 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
       if(url.pathname.startsWith('/api/integrations/owner-book/v1/')){
         if(!config.ownerBookApiEnabled)throw new ApiError(503,'BOOK_API_DISABLED','Remote Command Book access has not been activated.');
         const clientHash=createHmac('sha256',config.sessionEncryptionKey).update('owner-book:'+clientAddress(req,config)).digest('hex');
+        if(url.pathname===mcpPath){
+          if(!config.ownerBookMcpEnabled)throw new ApiError(503,'BOOK_MCP_DISABLED','The MCP connector has not been activated.');
+          const result=await routeBookMcp({req,url,sessionPool:db.sessionPool,body,clientHash});
+          for(const [name,value] of Object.entries(result.headers||{}))res.setHeader(name,value);
+          if(result.status===202){res.writeHead(202);return res.end();}
+          return json(res,result.status,result.data);
+        }
         const result=await routeBookToken({req,url,sessionPool:db.sessionPool,body,clientHash});return json(res,result.status,result.data);
       }
       if(url.pathname==='/health'){await db.pool.query('SELECT 1');return json(res,200,{ok:true,environment:config.appEnv});}
