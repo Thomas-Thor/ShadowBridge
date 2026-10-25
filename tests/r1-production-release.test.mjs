@@ -14,6 +14,9 @@ test('a successful build with output redirected to a private log does not become
  try{assert.equal(runOperatorCommand(process.execPath,['-e',"process.stdout.write('FICTIONAL build completed')"],{stdio:['ignore',fd.fd,fd.fd]}),'');await fd.close();assert.equal(await readFile(file,'utf8'),'FICTIONAL build completed');}
  finally{await fd.close().catch(()=>{});await rm(dir,{recursive:true,force:true});}
 });
+test('failed operator command retains diagnostic category and exit status without exposing stderr or arguments',()=>{
+ assert.throws(()=>runOperatorCommand(process.execPath,['-e',"process.stderr.write('FICTIONAL_SECRET EACCES permission denied');process.exit(9)"]),e=>e.status===9&&e.category==='PERMISSION_DENIED'&&!e.message.includes('FICTIONAL_SECRET')&&!String(e.stack).includes('process.stderr'));
+});
 test('all six offsite artifacts must match this exact release and backup generation',()=>{
  const m=manifest();assert.doesNotThrow(()=>validateReceipt(m,receipt(m)));
  for(const mutate of [r=>r.release='c'.repeat(40),r=>r.nonce='old-backup',r=>r.verifiedOnDifferentHost=false,r=>r.files.pop(),r=>r.files[0].sha256='d'.repeat(64),r=>r.files[1].bytes=1]){const r=receipt(structuredClone(m));mutate(r);assert.throws(()=>validateReceipt(m,r));}

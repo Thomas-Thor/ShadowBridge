@@ -16,9 +16,10 @@ import {backupInstallation} from './staging-ops.mjs';
 import {decryptArchive} from './staging-backup.mjs';
 import {migrationSources,validateApplied} from './staging-migrate.mjs';
 import {prepareApplicationPlan,checkApplicationPlan,checkMergedApplication,preflightExistingR1,backupApplicationConfiguration,applicationBackupFiles,backupGatewayVolumes,verifyR1Http,disabledApplicationArguments} from './international-r1.mjs';
+import {prepareAttempt,safeFailure} from './r1-prepare-observe.mjs';
 
 const must=(v,m)=>{if(!v)throw Error(m);},hash=b=>createHash('sha256').update(b).digest('hex');
-export const runOperatorCommand=(bin,args,options={})=>{try{const output=execFileSync(bin,args,{cwd:repositoryRoot,encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:32*1024**2,...options});return typeof output==='string'?output.trim():'';}catch{throw Error('Operacja nie powiodła się; prywatne dane wyjściowe nie zostały opublikowane.');}};
+export const runOperatorCommand=(bin,args,options={})=>{try{const output=execFileSync(bin,args,{cwd:repositoryRoot,encoding:'utf8',stdio:['ignore','pipe','pipe'],maxBuffer:32*1024**2,...options});return typeof output==='string'?output.trim():'';}catch(e){const failure=safeFailure(e),error=Error('OPERATOR_COMMAND_FAILED: '+failure.category+'; exit='+failure.exitStatus+'. Prywatne dane wyjściowe nie zostały opublikowane.');Object.assign(error,{category:failure.category,code:failure.code,status:failure.exitStatus,signal:failure.signal});throw error;}};
 const exec=runOperatorCommand;
 const docker=args=>exec('docker',['--context','default',...args]);
 const git=args=>exec('git',['-c','safe.directory='+repositoryRoot,...args]);
@@ -75,7 +76,7 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
  const folder=path.join(repositoryRoot,'.local','r1-owner-release-'+release);await mkdir(folder,{mode:0o700,recursive:true});
  const info=await lstat(folder);must(info.isDirectory()&&!info.isSymbolicLink()&&(info.mode&0o777)===0o700,'Niebezpieczny katalog wydania.');
  const lock=path.join(folder,'operation.lock'),handle=await open(lock,'wx',0o600);await handle.write(String(process.pid));await handle.close();
- const stateFile=path.join(folder,'state.json');let state,profile,paused=false,migrationAttempted=false;
+ const stateFile=path.join(folder,'state.json');let state,profile,attempt,paused=false,migrationAttempted=false;
  const save=()=>privateJson(stateFile,state);
  const command=action=>exec('node',['scripts/international-r1.mjs',action,'--dir='+profile.sourceDirectory,'--plan='+state.planDirectory]);
  const query=q=>publicCompose(profile,['exec','-T','postgres','psql','-XqAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','shadowbridge','-c','BEGIN READ ONLY;'+q+';ROLLBACK;']);
@@ -124,17 +125,20 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
   await assertNoOtherReleaseLock(path.join(repositoryRoot,'.local'),folder);
   try{state=JSON.parse(await readFile(stateFile,'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
   if(phase==='prepare'&&!state){
+   attempt=await prepareAttempt(folder);
    let previousAcceptance;
+   await attempt.run('PREVIOUS_ACCEPTANCE',async()=>{
    if(bookMcp||bookOAuth||bookCreate){const previousStateFile=path.join(repositoryRoot,'.local','r1-owner-release-'+(bookCreate?ownerBookOAuthR1:bookOAuth?ownerBookMcpR1:ownerBookApiR1),'state.json');await privateRegular(previousStateFile);const old=JSON.parse(await readFile(previousStateFile,'utf8'));previousAcceptance=old;must(old.release===(bookCreate?ownerBookOAuthR1:bookOAuth?ownerBookMcpR1:ownerBookApiR1)&&old.purpose===(bookCreate?'book-oauth':bookOAuth?'book-mcp':'book-api')&&old.phase==='DEPLOYED_AND_VERIFIED'&&old.ownerInteractiveAcceptance===true,'Accepted '+(bookCreate?'599fc33 OAuth':bookOAuth?'35c41f7 MCP':'236e04b API')+' checkpoint required; do not rerun an earlier deployment.');}
-   const inventory=await diagnose({runtimeRelease:runtimeBase});must(inventory.status==='READY FOR PREFLIGHT','Preflight BLOCKED: '+inventory.blockers.join(', '));
-   profile=await checkProduction({directory:inventory.installation.sourceDirectory});await preflightExistingR1(profile,{runtimeRelease:runtimeBase});
-   must(Math.min(inventory.disk.configurationFreeBytes,inventory.disk.dockerFreeBytes)>=Math.max(8*1024**3,8*inventory.database.databaseBytes+4*1024**3),'Za mało miejsca na pełne kopie, weryfikację i nowe obrazy.');
-   must(recentOwnerCount()>0,'OWNER musi teraz zalogować się w przeglądarce i potwierdzić dotychczasowe TOTP.');
-   const previous=currentImage(),buildLog=await open(path.join(folder,'build.log'),'wx',0o600);
-   try{for(const target of bookApi&&!bookOAuth&&!bookCreate?['runtime']:['runtime','migrator'])exec('docker',['--context','default','build','--target',target,'--build-arg','SHADOWBRIDGE_RELEASE_SHA='+release,'-t',target==='runtime'?'shadowbridge-r1:'+release:profile.project+'-migrator','-f','deploy/staging/Dockerfile','.'],{stdio:['ignore',buildLog.fd,buildLog.fd],timeout:1200000});}finally{await buildLog.close();}
-   const image=JSON.parse(docker(['image','inspect','shadowbridge-r1:'+release]))[0],migrator=bookApi&&!bookOAuth&&!bookCreate?null:JSON.parse(docker(['image','inspect',profile.project+'-migrator']))[0];must([image,...(migrator?[migrator]:[])].every(i=>i.Config.Labels['org.opencontainers.image.revision']===release),'Niezgodny obraz aplikacji/migratora.');
-   const {directory}=await prepareApplicationPlan({profile,image:image.Id,releaseSha:release,previousImage:previous.Image,previousReleaseSha:inventory.application.release,ownerBookApi:bookApi,expectedPreviousReleaseSha:runtimeBase,previousAcceptance,ownerBookMcpCreate:bookCreate?true:undefined,previousOwnerBookMcpCreate:bookCreate?(previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_MCP_CREATE_ENABLED='))?.split('=')[1]==='false'?false:undefined):undefined,ownerBookOAuth:bookOAuth||bookCreate?true:undefined,previousOwnerBookOAuth:bookCreate?true:bookOAuth?(previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_OAUTH_ENABLED='))?.split('=')[1]==='false'?false:undefined):undefined,ownerBookMcp:bookMcp||bookOAuth||bookCreate?true:undefined,previousOwnerBookMcp:bookOAuth||bookCreate?true:bookMcp?(previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_MCP_ENABLED='))?.split('=')[1]==='false'?false:undefined):undefined,previousOwnerBookApi:previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_API_ENABLED='))?.split('=')[1]==='true'?true:undefined});
-   state={kind:'shadowbridge-r1-owner-release-v1',purpose,release,sourceDirectory:profile.sourceDirectory,planDirectory:directory,image:image.Id,migratorImage:migrator?.Id,previousRelease:inventory.application.release,previousImage:previous.Image,previousMigrationCount:inventory.database.migrationCount,protected:protectedServices(inventory),phase:'PLANNED'};await save();await checkPlan();
+   });
+   const inventory=await attempt.run('READ_ONLY_INVENTORY',async()=>{const r=await diagnose({runtimeRelease:runtimeBase});must(r.status==='READY FOR PREFLIGHT','Preflight BLOCKED: '+r.blockers.join(', '));return r;});
+   await attempt.run('RUNTIME_PREFLIGHT',async()=>{profile=await checkProduction({directory:inventory.installation.sourceDirectory});await preflightExistingR1(profile,{runtimeRelease:runtimeBase});});
+   await attempt.run('DISK_RESERVE',async()=>{must(Math.min(inventory.disk.configurationFreeBytes,inventory.disk.dockerFreeBytes)>=Math.max(8*1024**3,8*inventory.database.databaseBytes+4*1024**3),'Za mało miejsca na pełne kopie, weryfikację i nowe obrazy.');});
+   await attempt.run('FRESH_OWNER_MFA',async()=>{must(recentOwnerCount()>0,'OWNER musi teraz zalogować się w przeglądarce i potwierdzić dotychczasowe TOTP.');});
+   const previous=await attempt.run('CURRENT_APP_IMAGE',async()=>currentImage()),buildLog=await attempt.run('BUILD_LOG_OPEN',()=>open(attempt.buildLog,'wx',0o600));
+   try{for(const target of bookApi&&!bookOAuth&&!bookCreate?['runtime']:['runtime','migrator'])await attempt.run('BUILD_'+target.toUpperCase(),async()=>exec('docker',['--context','default','build','--target',target,'--build-arg','SHADOWBRIDGE_RELEASE_SHA='+release,'-t',target==='runtime'?'shadowbridge-r1:'+release:profile.project+'-migrator','-f','deploy/staging/Dockerfile','.'],{stdio:['ignore',buildLog.fd,buildLog.fd],timeout:1200000}));}finally{await buildLog.close();}
+   const {image,migrator}=await attempt.run('IMAGE_IDENTITY',async()=>{const image=JSON.parse(docker(['image','inspect','shadowbridge-r1:'+release]))[0],migrator=bookApi&&!bookOAuth&&!bookCreate?null:JSON.parse(docker(['image','inspect',profile.project+'-migrator']))[0];must([image,...(migrator?[migrator]:[])].every(i=>i.Config.Labels['org.opencontainers.image.revision']===release),'Niezgodny obraz aplikacji/migratora.');return{image,migrator};});
+   const {directory}=await attempt.run('APPLICATION_PLAN',()=>prepareApplicationPlan({profile,image:image.Id,releaseSha:release,previousImage:previous.Image,previousReleaseSha:inventory.application.release,ownerBookApi:bookApi,expectedPreviousReleaseSha:runtimeBase,previousAcceptance,ownerBookMcpCreate:bookCreate?true:undefined,previousOwnerBookMcpCreate:bookCreate?(previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_MCP_CREATE_ENABLED='))?.split('=')[1]==='false'?false:undefined):undefined,ownerBookOAuth:bookOAuth||bookCreate?true:undefined,previousOwnerBookOAuth:bookCreate?true:bookOAuth?(previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_OAUTH_ENABLED='))?.split('=')[1]==='false'?false:undefined):undefined,ownerBookMcp:bookMcp||bookOAuth||bookCreate?true:undefined,previousOwnerBookMcp:bookOAuth||bookCreate?true:bookMcp?(previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_MCP_ENABLED='))?.split('=')[1]==='false'?false:undefined):undefined,previousOwnerBookApi:previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_API_ENABLED='))?.split('=')[1]==='true'?true:undefined}));
+   await attempt.run('PLANNED_CHECKPOINT',async()=>{state={kind:'shadowbridge-r1-owner-release-v1',purpose,release,sourceDirectory:profile.sourceDirectory,planDirectory:directory,image:image.Id,migratorImage:migrator?.Id,previousRelease:inventory.application.release,previousImage:previous.Image,previousMigrationCount:inventory.database.migrationCount,protected:protectedServices(inventory),phase:'PLANNED'};await save();await checkPlan();});
    paused=true;publicCompose(profile,['stop','app','auth']);
    const configuration=await backupApplicationConfiguration({profile,directory}),database=await backupInstallation(profile.sourceDirectory);
    state.before=await databaseFingerprints(profile.sourceDirectory);command('snapshot');
@@ -205,7 +209,7 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
   // successful backup intentionally holds them paused for offsite transfer.
   if(paused&&state?.phase!=='BACKUPS_VERIFIED_WAITING_OFFSITE'&&!migrationAttempted)try{publicCompose(profile,['start','gateway','auth','app']);}catch{}
   throw e;
- }finally{await unlink(lock);}
+ }finally{try{await attempt?.close();}finally{await unlink(lock);}}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [phase,...args]=process.argv.slice(2);must(args.length>=1&&args.length<=2&&args[0].startsWith('--release=')&&(args.length===1||['--book-api','--book-mcp','--book-oauth','--book-create'].includes(args[1])),'Use prepare|apply|accept|rollback|cancel|off|resume|verify --release=FULL_SHA [--book-api|--book-mcp|--book-oauth]');
