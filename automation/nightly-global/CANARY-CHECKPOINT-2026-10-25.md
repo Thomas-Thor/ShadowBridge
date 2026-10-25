@@ -1,5 +1,18 @@
 # Canary: kontrola przed uruchomieniem, 25.10.2026
 
+Aktualizacja po nowym poleceniu OWNER: otrzymano pełne prywatne archiwum z
+kierunkami sourcingu. Nie prosimy o odtwarzanie tej historii. Starsza uwaga poniżej
+o brakującym fragmencie dotyczy wcześniejszego checkpointu. Nadal nie ma odczytu
+bieżącego Book/n8n i potwierdzonego odbiorcy CRM ani zatwierdzonego budżetu canary.
+Nie konfigurujemy ponownie wtyczek ChatGPT. Nie uruchomiono żadnego workflow.
+
+Commit 10be001 usuwa zbieranie telefonu z normalizera i blokuje mapowanie telefonu
+przed requestem. Nie usuwa istniejących danych CRM. Importer nieaktywny przypina
+teraz ten sprawdzony eksport, a nie starszy 04ab380 z dawnym normalizerem.
+Nie uruchamiać importera lub przepływu bez sprawdzenia istniejących połączeń.
+W tej sesji brak autoryzowanego testu write/read jednego rekordu centralnego CRM.
+Test fikcyjnego importu Book nie jest takim testem CRM.
+
 **PREPARED:** odczytowa kontrola kodu i niezależny kolektor diagnostyczny.
 **SCHEDULED: NIE. EXECUTED: NIE.** Brak terminu startu; nic nie zostało dodane do
 n8n. Faktyczne nowe rekordy CRM i płatne wywołania wykonane w tym zadaniu: 0.

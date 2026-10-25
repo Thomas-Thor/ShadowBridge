@@ -1,5 +1,9 @@
 # Apollo, Clay, n8n: wspólna pamięć i ochrona kredytów
 
+Aktualizacja 25.10: importer wskazuje nieaktywny eksport 10be001 z polityką bez telefonów.
+Nie uruchomiono go; przed użyciem sprawdzić istniejące połączenia, nie rekonfigurować
+wtyczek ChatGPT. Wyniki SQL poniżej są historyczne, nie dowodzą bieżącego dostępu.
+
 24.10.2026. **Przygotowano kod i testy lokalne. Nie podłączono rzeczywistych kont i nie aktywowano automatyzacji.** Nie utworzono kont, nie kupiono pakietów i nie wykonano płatnego wywołania.
 
 ## Dostępność i warunki: co rzeczywiście sprawdzono
@@ -57,12 +61,12 @@ AUTH_DIR=$(mktemp -d /tmp/shadowbridge-authorize.XXXXXX) &&
 curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
   'https://raw.githubusercontent.com/Thomas-Thor/ShadowBridge/feature/nightly-global-acquisition/automation/nightly-global/authorize-n8n.mjs' \
   -o "$AUTH_DIR/authorize-n8n.mjs" &&
-printf '%s  %s\n' '7ac7398d49d34c5c5308c92bd38f7d618802eb3ff145df94f8c6061df10b2370' \
+printf '%s  %s\n' 'cdab49873ae7057ca06350a55cba611d1a19a9afd1d231d8ab2196a62b195b1b' \
   "$AUTH_DIR/authorize-n8n.mjs" | sha256sum -c - &&
 node "$AUTH_DIR/authorize-n8n.mjs" --apply
 ```
 
-Oczekiwany rezultat: JSON z `IMPORTED_INACTIVE_NOT_CONNECTED_TO_PROVIDERS`, 0 kosztownych wywołań i 0 zmienionych aktywnych workflow. Klucze wprowadzone do n8n nie są dowodem dostępu do API ani kosztu odczytu. Dla Clay nagłówek/kontrakt trzeba potwierdzić przed podłączeniem źródła. Zwróć wyłącznie JSON, bez sekretów i prywatnego checkpointu. Ctrl+C przerywa bez aktywacji; checkpoint nie pozwoli automatycznie powtórzyć niepewnego zapisu. Cztery bazowe JSON są pobierane z ustalonego `04ab380`, dwa współdzielone guardy budowane lokalnie z tego sprawdzanego sumą skryptu.
+Oczekiwany rezultat: JSON z `IMPORTED_INACTIVE_NOT_CONNECTED_TO_PROVIDERS`, 0 kosztownych wywołań i 0 zmienionych aktywnych workflow. Klucze wprowadzone do n8n nie są dowodem dostępu do API ani kosztu odczytu. Dla Clay nagłówek/kontrakt trzeba potwierdzić przed podłączeniem źródła. Zwróć wyłącznie JSON, bez sekretów i prywatnego checkpointu. Ctrl+C przerywa bez aktywacji; checkpoint nie pozwoli automatycznie powtórzyć niepewnego zapisu. Cztery bazowe JSON są pobierane z ustalonego `10be001`, dwa współdzielone guardy budowane lokalnie z tego sprawdzanego sumą skryptu.
 
 Ta autoryzacja nie otwiera tej sesji Codexa bezpośredniego SSH ani dostępu przez blokujący proxy. Skrypt wykonuje dozwoloną konfigurację lokalnie za operatora. Dalsza automatyczna konfiguracja wymaga autoryzowanego kanału do istniejącej instancji, bez przekazywania sekretów w czacie. Nie będziemy twierdzić, że samo utworzenie credentials oznacza uruchomione pozyskiwanie.
 

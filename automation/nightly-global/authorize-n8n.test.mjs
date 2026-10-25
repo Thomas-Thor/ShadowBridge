@@ -1,4 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile}from'node:fs/promises';import {provisionInactive,crmGuardWorkflow} from './authorize-n8n.mjs';import{workflows}from './build-workflows.mjs';
+import{regionalWorkflowRelease}from'./authorize-n8n.mjs';import{execFileSync}from'node:child_process';
+test('inactive importer pins the reviewed no-phone workflow revision without downloading or activating anything',()=>{
+ assert.equal(regionalWorkflowRelease,'10be0014738c30a9241fdb874b6bbe66bf1506a5');
+ for(const region of ['latam','asia','europe','report']){const w=JSON.parse(execFileSync('git',['show',regionalWorkflowRelease+':automation/nightly-global/'+region+'.json'],{encoding:'utf8'}));assert.equal(w.active,false);assert.equal(w.nodes.find(n=>n.name==='OWNER approval gate').parameters.assignments.assignments[0].value,false);if(region!=='report')assert.ok(!JSON.stringify(w).includes("phone:read('phone'"));}
+});
 test('authorization imports inactive only, binds account credential, and never calls providers or activates workflows',async()=>{
  const calls=[],state={},known=[];let id=0;
  const api=async(method,url,body)=>{calls.push({method,url});assert.ok(!/activate|execute|reveal|enrich/.test(url));if(url==='/workflows?limit=100')return{data:known};if(method==='GET'&&url.startsWith('/credentials/schema/'))return{};if(method==='GET')return{active:false};if(url==='/workflows'){assert.ok(!Object.hasOwn(body,'active'));assert.equal(body.nodes.find(n=>n.name==='OWNER approval gate').parameters.assignments.assignments[0].value,false);known.push({name:body.name,active:false});}return{id:String(++id)}};

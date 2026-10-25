@@ -1,5 +1,8 @@
 # Nightly Global Acquisition: pakiet do przeglądu OWNER
 
+Polityka aktualna: nie pozyskiwać nowych telefonów. Istniejących danych CRM nie usuwamy.
+Eksporty pozostają nieaktywne; nie uruchomiono canary ani operacji kosztowych.
+
 Po odbiorze produkcji 236e04b: [aktualny checkpoint canary](CANARY-CHECKPOINT-2026-10-25.md).
 Do samej kontroli służy `owner-readiness-only.mjs --read-only`; nie ponawia wdrożenia.
 

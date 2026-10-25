@@ -2,6 +2,7 @@
 // provider calls, purchases, workflow activation or secrets written to disk.
 import {readFile,writeFile,mkdir,open,unlink} from 'node:fs/promises';
 import {homedir} from 'node:os';import path from 'node:path';import {fileURLToPath} from 'node:url';
+export const regionalWorkflowRelease='10be0014738c30a9241fdb874b6bbe66bf1506a5';
 export function crmGuardWorkflow(provider){
  if(!['apollo','clay'].includes(provider))throw Error('Unsupported source');
  const credential={httpHeaderAuth:{id:'OWNER_SELECT_CRM_'+provider.toUpperCase(),name:'Restricted CRM gateway '+provider+' - not OWNER'}};
@@ -66,7 +67,7 @@ export async function main(){
   };
   const workflows=[];
   for(const region of ['latam','asia','europe','report']){
-   const url='https://raw.githubusercontent.com/Thomas-Thor/ShadowBridge/04ab380c197bce49fdfb69e726946fa1f7cfccbc/automation/nightly-global/'+region+'.json';
+   const url='https://raw.githubusercontent.com/Thomas-Thor/ShadowBridge/'+regionalWorkflowRelease+'/automation/nightly-global/'+region+'.json';
    const r=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('Cannot read pinned inactive workflow');workflows.push(await r.json());
   }
   workflows.push(crmGuardWorkflow('apollo'),crmGuardWorkflow('clay'));
