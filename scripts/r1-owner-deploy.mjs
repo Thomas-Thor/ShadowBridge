@@ -66,7 +66,7 @@ export async function ownerDeploy(release,{bookApi=false,bookMcp=false,bookOAuth
  must(/^[a-f0-9]{40}$/.test(release||''),'Podaj zatwierdzony pełny SHA.');
  must(process.stdin.isTTY,'Potrzebny interaktywny terminal; nie przekazuj haseł lub TOTP jako argumentów.');
  must([bookApi,bookMcp,bookOAuth].filter(Boolean).length<=1&&!(disable&&acceptOnly),'Choose one update purpose and action.');
- if(disable){must(bookApi||bookMcp||bookOAuth,'Wyłączenie dotyczy wyłącznie --book-api.');remote('off',release,bookApi,bookMcp,bookOAuth);return;}
+ if(disable){must(bookApi||bookMcp||bookOAuth,'Wybierz zatwierdzony tryb --book-api, --book-mcp albo --book-oauth.');remote('off',release,bookApi,bookMcp,bookOAuth);return;}
  const ask=async text=>{const rl=createInterface({input:process.stdin,output:process.stdout});try{return(await rl.question(text)).trim();}finally{rl.close();}};
  const confirm=async text=>{must(await ask(text+' Wpisz TAK: ')==='TAK','Przerwano bez zatwierdzenia.');};
  if(acceptOnly){await confirm('Potwierdź odbiór wdrożonej aplikacji i dotychczasowe logowanie OWNER + TOTP. Tylko zapis odbioru, bez prepare/apply.');remote('accept',release,bookApi,bookMcp,bookOAuth);return;}
@@ -119,5 +119,5 @@ export async function ownerDeploy(release,{bookApi=false,bookMcp=false,bookOAuth
 
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const args=process.argv.slice(2);must(args.length>=1&&args.length<=4&&args[0].startsWith('--release=')&&args.slice(1).every(a=>['--book-api','--book-mcp','--book-oauth','--disable','--accept-only'].includes(a)),'Use --release=APPROVED_FULL_SHA [--book-api|--book-mcp] [--disable|--accept-only]');ownerDeploy(args[0].slice(10),{bookApi:args.includes('--book-api'),bookMcp:args.includes('--book-mcp'),bookOAuth:args.includes('--book-oauth'),disable:args.includes('--disable'),acceptOnly:args.includes('--accept-only')}).catch(e=>{console.error(e.message);process.exitCode=1;});
+ const args=process.argv.slice(2);must(args.length>=1&&args.length<=4&&args[0].startsWith('--release=')&&args.slice(1).every(a=>['--book-api','--book-mcp','--book-oauth','--disable','--accept-only'].includes(a)),'Use --release=APPROVED_FULL_SHA [--book-api|--book-mcp|--book-oauth] [--disable|--accept-only]');ownerDeploy(args[0].slice(10),{bookApi:args.includes('--book-api'),bookMcp:args.includes('--book-mcp'),bookOAuth:args.includes('--book-oauth'),disable:args.includes('--disable'),acceptOnly:args.includes('--accept-only')}).catch(e=>{console.error(e.message);process.exitCode=1;});
 }

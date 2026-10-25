@@ -126,3 +126,21 @@ References checked 25 October 2026:
 
 No SSH credentials/agent or callable ChatGPT connector were available in Codex.
 No production deployment or actual ChatGPT read is claimed by this document.
+
+Local verification: [machine-readable results](OWNER-BOOK-MCP-OAUTH-RESULTS.json).
+There are 51 distinct targeted cases, six real PostgreSQL security groups and
+seven built-image/restore/rollback groups. Later focused reruns are not added to
+that total. Real PostgreSQL/native tests substitute only the retained fixture's
+executor role name and use explicit fictional SQL OWNER/MFA claims; they are not
+an interactive GoTrue/TOTP test or a ChatGPT connection. Migration hashes and
+all pre-existing data are checked. The old native image's 68 pinned runtime files
+were byte-compared with the required 35c41f7 base before rollback compatibility
+was accepted. Its image revision label remains 9192b868; it is not falsely labeled
+as a production image.
+
+The Codex Docker DNS issue was resolved only for isolated builds by mapping the
+already configured proxy name to its actual host-resolved address, with the
+existing build CA supplied as a secret. No production Dockerfile, DNS setting,
+proxy credential, TLS policy or dependency was changed. Both original Dockerfile
+targets built successfully. Tests and backups stay on the separate temporary
+filesystem; no shared cache, existing data or volume was removed.

@@ -123,7 +123,7 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
   try{state=JSON.parse(await readFile(stateFile,'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
   if(phase==='prepare'&&!state){
    let previousAcceptance;
-   if(bookMcp||bookOAuth){const previousStateFile=path.join(repositoryRoot,'.local','r1-owner-release-'+(bookOAuth?ownerBookMcpR1:ownerBookApiR1),'state.json');await privateRegular(previousStateFile);const old=JSON.parse(await readFile(previousStateFile,'utf8'));previousAcceptance=old;must(old.release===(bookOAuth?ownerBookMcpR1:ownerBookApiR1)&&old.purpose===(bookOAuth?'book-mcp':'book-api')&&old.phase==='DEPLOYED_AND_VERIFIED'&&old.ownerInteractiveAcceptance===true,'Accepted 236e04b checkpoint required; do not rerun its acceptance.');}
+   if(bookMcp||bookOAuth){const previousStateFile=path.join(repositoryRoot,'.local','r1-owner-release-'+(bookOAuth?ownerBookMcpR1:ownerBookApiR1),'state.json');await privateRegular(previousStateFile);const old=JSON.parse(await readFile(previousStateFile,'utf8'));previousAcceptance=old;must(old.release===(bookOAuth?ownerBookMcpR1:ownerBookApiR1)&&old.purpose===(bookOAuth?'book-mcp':'book-api')&&old.phase==='DEPLOYED_AND_VERIFIED'&&old.ownerInteractiveAcceptance===true,'Accepted '+(bookOAuth?'35c41f7 MCP':'236e04b API')+' checkpoint required; do not rerun an earlier deployment.');}
    const inventory=await diagnose({runtimeRelease:runtimeBase});must(inventory.status==='READY FOR PREFLIGHT','Preflight BLOCKED: '+inventory.blockers.join(', '));
    profile=await checkProduction({directory:inventory.installation.sourceDirectory});await preflightExistingR1(profile,{runtimeRelease:runtimeBase});
    must(Math.min(inventory.disk.configurationFreeBytes,inventory.disk.dockerFreeBytes)>=Math.max(8*1024**3,8*inventory.database.databaseBytes+4*1024**3),'Za mało miejsca na pełne kopie, weryfikację i nowe obrazy.');
@@ -205,6 +205,6 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
  }finally{await unlink(lock);}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const [phase,...args]=process.argv.slice(2);must(args.length>=1&&args.length<=2&&args[0].startsWith('--release=')&&(args.length===1||['--book-api','--book-mcp','--book-oauth'].includes(args[1])),'Use prepare|apply|accept|rollback|off --release=FULL_SHA [--book-api|--book-mcp]');
+ const [phase,...args]=process.argv.slice(2);must(args.length>=1&&args.length<=2&&args[0].startsWith('--release=')&&(args.length===1||['--book-api','--book-mcp','--book-oauth'].includes(args[1])),'Use prepare|apply|accept|rollback|cancel|off|resume|verify --release=FULL_SHA [--book-api|--book-mcp|--book-oauth]');
  runRelease({phase,release:args[0].slice(10),bookApi:args.includes('--book-api'),bookMcp:args.includes('--book-mcp'),bookOAuth:args.includes('--book-oauth')}).catch(e=>{console.error(JSON.stringify({status:'BLOCKED',reason:e.message,deploymentNotClaimed:true}));process.exitCode=1;});
 }

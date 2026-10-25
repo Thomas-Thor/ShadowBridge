@@ -1,0 +1,117 @@
+{
+  "status": "LOCAL_VERIFIED_NOT_DEPLOYED_NOT_CHATGPT_CONNECTED",
+  "runtimeSourceSha": "a3c86854b1b6aa4aca9568c8d28783e7b0e2ec30",
+  "baseRequired": "35c41f7a986d0cbe1f0b4b2aa87fa418cf762384",
+  "testedAtDateEuropeOslo": "2026-10-25",
+  "targetedTests": {
+    "distinctCases": 51,
+    "result": "PASS",
+    "type": "unit, local HTTP fixtures, actual Compose planning and authenticated configuration backups",
+    "laterFocusedRetestCases": 11
+  },
+  "postgres": {
+    "result": "PASS",
+    "cases": [
+      {
+        "name": "019 applies transactionally to a clone; source accounts, passwords, sessions and MFA remain unchanged",
+        "result": "PASS"
+      },
+      {
+        "name": "fresh real OWNER eligibility is required; non-owners, AAL1, stale MFA, write scopes and redirect changes are denied",
+        "result": "PASS"
+      },
+      {
+        "name": "PKCE, resource, registered callback, one-use code and per-owner read isolation are enforced in PostgreSQL",
+        "result": "PASS"
+      },
+      {
+        "name": "refresh rotation, replay family revocation, expiry, owner revocation and unchanged REST credentials are real",
+        "result": "PASS"
+      },
+      {
+        "name": "RLS and function grants deny raw OAuth tables, unauthorized consent and cross-owner connection lists",
+        "result": "PASS"
+      },
+      {
+        "name": "delegation immediately fails when OWNER loses active verified MFA; restore only the fictional test transaction",
+        "result": "PASS"
+      }
+    ],
+    "fictionalIsolatedDataOnly": true,
+    "fixtureExecutorRoleSubstitution": true,
+    "interactiveGoTrueLoginTested": false
+  },
+  "native": {
+    "result": "PASS",
+    "images": {
+      "runtime": "sha256:2b7339df1ebb14a1062f372ade60fa493048c1d93ef088603d83600957746906",
+      "migrator": "sha256:9c308368c1be8eddeb7f80fd683b29f8c03f7372bbb08634a949a19fe4b9fbf9"
+    },
+    "cases": [
+      {
+        "name": "authenticated encrypted PostgreSQL backup restores to a new database with every original table unchanged",
+        "result": "PASS"
+      },
+      {
+        "name": "only missing additive 019 is tracked; original rows and hashes remain intact, second pass has zero pending migrations",
+        "result": "PASS"
+      },
+      {
+        "name": "non-root built image with OAuth off preserves the existing REST and MCP bearer paths",
+        "result": "PASS"
+      },
+      {
+        "name": "real image discovers OAuth, registers a PKCE client and reads the persisted note through actual restricted TLS PostgreSQL",
+        "result": "PASS"
+      },
+      {
+        "name": "confidential dynamic registration and Basic client authentication reject wrong secrets and revoke via the standard endpoint",
+        "result": "PASS"
+      },
+      {
+        "name": "real refresh rotation, restart persistence and owner revocation deny stale tokens without changing REST",
+        "result": "PASS"
+      },
+      {
+        "name": "old native MCP image remains compatible after 019: application-only rollback retains notes, REST, roles, sessions and MFA",
+        "result": "PASS"
+      }
+    ],
+    "encryptedBackupRestored": true,
+    "fixtureExecutorRoleSubstitution": true,
+    "rollbackCompatibilityImage": "sha256:c3eff7c346ab0e2bc98d6a7d6c9c0df681b0d2bfcb1f5378b9cacc328a7af113",
+    "rollbackCompatibilitySource": "9192b868cba4284c15a935d24060529ced4b2af9",
+    "rollbackRuntimeMatches35c41f7": true,
+    "originalFixtureUnchanged": true
+  },
+  "migrations": {
+    "001through018Changed": false,
+    "019AppliedInIsolation": true,
+    "019AppliedOnContabo": false,
+    "idempotentLedgerSecondPassPending": 0
+  },
+  "production": {
+    "sshAvailable": false,
+    "updatedByCodex": false,
+    "ownerLoginTestedByCodex": false,
+    "chatgptConnected": false,
+    "chatgptReadNotesTested": false
+  },
+  "sources": {
+    "officialMcpSpecificationRead": true,
+    "officialOpenAiExampleRead": true,
+    "fullOpenAiGuideBlockedByEnvironmentProxy": true
+  },
+  "limits": {
+    "scope": "Book read-only",
+    "accessTokenMinutes": 10,
+    "grantDays": 7,
+    "authorizationCodeSeconds": 120,
+    "consentMinutes": 5,
+    "registrationRequestsPerMinutePerClientBucket": 5,
+    "tokenOrReadRequestsPerMinutePerClientBucket": 60,
+    "readsPerGrantPerMinute": 60
+  },
+  "noApiKeyFormAttempted": true,
+  "noRealSecretsOrCustomerDataInArtifacts": true
+}

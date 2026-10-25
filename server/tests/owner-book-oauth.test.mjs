@@ -40,7 +40,7 @@ test('consent page escapes client metadata and binds an HttpOnly cookie; unautho
  const denied=await f.post('/consent',{ticket,approve:true},{Origin:'https://attacker.invalid'});assert.equal(denied.status,403);assert.ok(!f.calls.some(c=>c.a[0]==='authorize'));
  const absent=await setup(t,{owner:false});assert.equal((await fetch(absent.base+oauthPrefix+'/context')).status,403);assert.equal(absent.calls.length,0);
 });
-test('valid browser consent uses normal CSRF and actual owner transaction; signed client data cannot be altered by the browser',async t=>{
+test('valid browser consent uses normal CSRF and the existing owner transaction contract; signed client data cannot be altered by the browser',async t=>{
  const f=await setup(t),r=await fetch(f.base+oauthPrefix+'/authorize?'+parameters()),page=await r.text(),cookie=r.headers.get('set-cookie').split(';')[0],ticket=page.match(/id="oauth-ticket" type="hidden" value="([^"]+)/)[1];
  const context=await fetch(f.base+oauthPrefix+'/context'),csrfCookie=context.headers.get('set-cookie').split(';')[0],d=await context.json();
  const result=await f.post('/consent',{ticket,approve:true},{Origin:'http://localhost',Cookie:cookie+'; '+csrfCookie,'X-CSRF-Token':d.csrfToken,'X-Session-Token':d.csrfToken});assert.equal(result.status,200);const target=new URL((await result.json()).redirect);assert.equal(target.origin+target.pathname,redirect);assert.ok(target.searchParams.get('code').startsWith('sbocc_'));assert.equal(target.searchParams.get('iss'),'https://shadow-bridge.eu');
