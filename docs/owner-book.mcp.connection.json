@@ -1,6 +1,6 @@
 {
   "kind": "shadowbridge-private-mcp-connection-description-v1",
-  "status": "SCOPED_WRITE_LOCALLY_TESTED_NOT_DEPLOYED_NOT_CONNECTED",
+  "status": "OWNER_REPORTED_WRITE_CONFIGURED_CHATGPT_TOOLS_UNAVAILABLE",
   "notAnInstallablePluginManifest": true,
   "url": "https://shadow-bridge.eu/api/integrations/owner-book/v1/mcp",
   "transport": "streamable-http",
@@ -26,8 +26,11 @@
     "read_book_entries",
     "read_activity"
   ],
-  "writeTools": [],
-  "instructions": "Reuse this existing OAuth MCP connection. Start with note.read. Temporary append-only scopes require separate explicit OWNER + fresh MFA consent, exact preview approval and operator-authenticated backup before apply. Read back IDs and withdraw only create access. Never pass secrets in chat or claim production connection/import from code alone.",
+  "writeTools": [
+    "create_book_entry",
+    "update_book_entry"
+  ],
+  "instructions": "Reuse the existing OAuth MCP connection, not a new plugin/server or a Bearer API key in chat. Read-only is the default; only explicit OWNER commands with separately approved paired read/write scopes may create/edit single records. Discover actual tool schemas, preserve version checks and stable operation IDs, read back persisted results, and verify rejection after OWNER withdrawal. No CRM, key administration, deletion or journal writes. Temporary historical import is a separate reviewed flow.",
   "temporaryAppend": {
     "enabledByDefault": false,
     "separateOwnerMfaConsentRequired": true,
@@ -74,5 +77,21 @@
     "currentVersionAndStableOperationUuidRequired": true,
     "crmOrAdminAccess": false,
     "chatgptVerified": false
+  },
+  "ownerReportedDeployment": {
+    "approvedRelease": "80f4a0d333d31a6d57ada714b0df17bc0584a07b",
+    "terminalMessage": "WRITE CONFIGURED; REAL CHATGPT WRITE NOT VERIFIED",
+    "independentLiveReleaseRechecked": false
+  },
+  "firstWriteAcceptance": {
+    "scopes": [
+      "note.read",
+      "note.write",
+      "task.read",
+      "task.write"
+    ],
+    "hostToolsAvailable": false,
+    "executed": false,
+    "guide": "OWNER-BOOK-EXISTING-CONNECTOR-UPDATE.md"
   }
 }
