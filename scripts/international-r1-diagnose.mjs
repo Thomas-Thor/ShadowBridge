@@ -10,6 +10,7 @@ import {fileURLToPath} from 'node:url';
 import {isDeepStrictEqual} from 'node:util';
 export const baseline='7f794a298713d820af033ba2174cd60bfaa81e4b';
 export const ownerBookR1='d5582ffd9f1e7f9a40a1a49f9e16a304eae64a4e';
+export const ownerBookAppendR1='14cc8796cf718cc15e1ca1cc63154ed078685c6d';
 export const ownerBookOAuthR1='599fc3359ecd3d87868cb6056e35214c0baa3c00';
 export const ownerBookMcpR1='35c41f7a986d0cbe1f0b4b2aa87fa418cf762384';
 export const ownerBookApiR1='236e04bded81c406fb49ee0950ae20d139f257ec';
@@ -172,7 +173,7 @@ export function safeContainer(c){return {
  volumes:(c.Mounts||[]).filter(m=>m.Type==='volume').map(m=>({name:m.Name,target:m.Destination})),
  };}
 export function evaluateInventory(r,{runtimeRelease=baseline}={}){
- must([baseline,ownerBookR1,ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1].includes(runtimeRelease),'UNREVIEWED_RUNTIME_RELEASE');
+ must([baseline,ownerBookR1,ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1,ownerBookAppendR1].includes(runtimeRelease),'UNREVIEWED_RUNTIME_RELEASE');
  const blockers=[];
  if(r.legacyPublicGateway)blockers.push('LEGACY_PUBLIC_CADDY_REQUIRES_COMPATIBILITY_STAGE');
  if(!r.installation?.unique)blockers.push('INSTALLATION_NOT_UNIQUE');
@@ -181,10 +182,11 @@ export function evaluateInventory(r,{runtimeRelease=baseline}={}){
  if(!r.profiles?.valid||!r.profiles?.gatewayMounted||r.profiles?.gatewayState!=='active'||!r.profiles?.runtimeConfigurationMatchesProfile)blockers.push('ACTIVE_FINGERPRINTED_GATEWAY_NOT_PROVEN');
  if(!r.application?.internalAuthTlsVerified)blockers.push('PRIVATE_AUTH_TLS_NOT_PROVEN');
  if(!r.network?.internal||!r.network?.gatewayConnected||!r.network?.n8nConnected||!r.network?.webhookUrlCorrect)blockers.push('AUTOMATION_NETWORK_OR_URL_NOT_PROVEN');
- if(runtimeRelease!==baseline&&r.application?.ownerBookApiEnabled!==[ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1].includes(runtimeRelease))blockers.push('ACTIVE_R1_API_STATE_NOT_PROVEN');
+ if(runtimeRelease!==baseline&&r.application?.ownerBookApiEnabled!==[ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1,ownerBookAppendR1].includes(runtimeRelease))blockers.push('ACTIVE_R1_API_STATE_NOT_PROVEN');
  if(runtimeRelease===ownerBookApiR1&&r.application?.ownerBookMcpEnabled!==false)blockers.push('MCP_ALREADY_ENABLED_OR_NOT_PROVEN');
  if(runtimeRelease===ownerBookMcpR1&&(r.application?.ownerBookMcpEnabled!==true||r.application?.ownerBookOAuthEnabled===true||r.database?.migrationCount!==18))blockers.push('ACCEPTED_MCP_OAUTH_STATE_NOT_PROVEN');
  if(runtimeRelease===ownerBookOAuthR1&&(r.application?.ownerBookMcpEnabled!==true||r.application?.ownerBookOAuthEnabled!==true||r.application?.ownerBookMcpCreateEnabled===true||r.database?.migrationCount!==19))blockers.push('ACCEPTED_OAUTH_CREATE_STATE_NOT_PROVEN');
+ if(runtimeRelease===ownerBookAppendR1&&(r.application?.ownerBookMcpEnabled!==true||r.application?.ownerBookOAuthEnabled!==true||r.application?.ownerBookMcpCreateEnabled!==true||r.application?.ownerBookMcpWriteEnabled===true||r.database?.migrationCount!==20))blockers.push('ACCEPTED_APPEND_WRITE_STATE_NOT_PROVEN');
  if(!r.privatePorts)blockers.push('PRIVATE_PORTS_NOT_PROVEN');
  if(!r.database?.migrationPrefixValid||r.database?.migrationCount<(runtimeRelease!==baseline?18:15))blockers.push('MIGRATION_PROVENANCE_NOT_PROVEN');
  if(!(r.database?.activeOwnersWithVerifiedTotp>0))blockers.push('OWNER_WITH_EMAIL_AND_TOTP_NOT_PROVEN');
@@ -233,7 +235,7 @@ export function probeSpecification(host,route,kind){
  return {hostname:host,port:443,path:route,servername:host,headers:{Accept:spec[2]},rejectUnauthorized:true,signal:AbortSignal.timeout(10000)};
 }
 export function safeHttpEvidence({status,headers={},body={},certificate,authorized},kind,{expectedRelease=baseline}={}){
- must([baseline,ownerBookR1,ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1].includes(expectedRelease),'UNREVIEWED_RUNTIME_RELEASE');
+ must([baseline,ownerBookR1,ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1,ownerBookAppendR1].includes(expectedRelease),'UNREVIEWED_RUNTIME_RELEASE');
  const release=headers['x-shadowbridge-release'],httpOk=status===200,tlsVerified=authorized===true;
  const endpointOk=kind==='main'?release===expectedRelease&&body.ok===true:kind==='automation'?body.status==='ok':kind==='signin'?/^text\/html(?:;|$)/i.test(headers['content-type']||''):false;
  const ok=httpOk&&tlsVerified&&!headers['www-authenticate']&&endpointOk;
@@ -251,26 +253,26 @@ export async function probe(host,route,kind,{get=https.get,expectedRelease=basel
  });
 }
 export async function pinnedR1Runtime(repo,release=ownerBookR1){
- must([ownerBookR1,ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1].includes(release),'UNREVIEWED_RUNTIME_RELEASE');
+ must([ownerBookR1,ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1,ownerBookAppendR1].includes(release),'UNREVIEWED_RUNTIME_RELEASE');
  // Expected files come from one reviewed immutable Git object, never HEAD or a
  // caller-provided revision. Binary assets are hashed as bytes.
  const args=['-c','safe.directory='+repo,'-C',repo];
  const names=run('git',[...args,'ls-tree','-r','--name-only',release]).split('\n');
  const files=names.filter(f=>{const p=f.split('/'),ext=path.extname(f);return !f.startsWith('assets/prototypes.')&&(['package.json','index.html','robots.txt','sitemap.xml','member-sign-in/index.html','legal/index.html','cartel/index.html'].includes(f)||f.startsWith('apply/')||f.startsWith('portal/')||f.startsWith('assets/fonts/')||p.length===2&&p[0]==='server'&&ext==='.mjs'||p.length===2&&p[0]==='assets'&&['.js','.css','.svg','.png'].includes(ext));});
- must(files.length===(release===ownerBookOAuthR1?70:release===ownerBookMcpR1?68:67),'INCOMPLETE_PINNED_R1_RUNTIME');const result={};for(const file of files)result[file]=hash(execFileSync('git',[...args,'show',release+':'+file],{stdio:['ignore','pipe','pipe'],maxBuffer:8*1024**2}));return result;
+ must(files.length===(release===ownerBookAppendR1?72:release===ownerBookOAuthR1?70:release===ownerBookMcpR1?68:67),'INCOMPLETE_PINNED_R1_RUNTIME');const result={};for(const file of files)result[file]=hash(execFileSync('git',[...args,'show',release+':'+file],{stdio:['ignore','pipe','pipe'],maxBuffer:8*1024**2}));return result;
 }
 async function databaseEvidence(pg,{runtimeRelease,repo}={}){
  const sql=text=>docker(['exec','-i',pg.Id,'psql','-XqAt','-v','ON_ERROR_STOP=1','-U','postgres','-d','shadowbridge'],"BEGIN READ ONLY; SET LOCAL statement_timeout='5s';\n"+text+';\nROLLBACK;');
  const exists=sql("SELECT to_regclass('shadowbridge_migrations.applied') IS NOT NULL AND to_regclass('sb.staff_role_assignments') IS NOT NULL");must(exists==='t','MIGRATION_LEDGER_OR_RBAC_MISSING');
  const migrations=JSON.parse(sql("SELECT coalesce(json_agg(json_build_object('name',name,'sha256',sha256) ORDER BY name),'[]'::json) FROM shadowbridge_migrations.applied"));
- const expected=[...catalog.migrations];if(runtimeRelease===ownerBookOAuthR1){const name='202610250019_owner_book_oauth.sql';expected.push({name,sha256:hash(execFileSync('git',['-c','safe.directory='+repo,'-C',repo,'show',ownerBookOAuthR1+':supabase/migrations/'+name],{stdio:['ignore','pipe','pipe']}))});}
+ const expected=[...catalog.migrations];if([ownerBookOAuthR1,ownerBookAppendR1].includes(runtimeRelease)){for(const name of ['202610250019_owner_book_oauth.sql',...(runtimeRelease===ownerBookAppendR1?['202610250020_book_temporary_append.sql']:[])])expected.push({name,sha256:hash(execFileSync('git',['-c','safe.directory='+repo,'-C',repo,'show',runtimeRelease+':supabase/migrations/'+name],{stdio:['ignore','pipe','pipe']}))});}
  const valid=migrations.length<=expected.length&&migrations.every((m,i)=>m.name===expected[i].name&&m.sha256===expected[i].sha256);
  const owner=sql("SELECT count(*) FROM sb.staff_role_assignments r JOIN sb.staff_grants g USING(user_id) JOIN sb.accounts a USING(user_id) JOIN auth.users u ON u.id=r.user_id WHERE r.role_key='owner' AND r.active AND (r.expires_at IS NULL OR r.expires_at>now()) AND g.active AND a.status='active' AND lower(a.email)=lower(u.email) AND a.email_verified_at IS NOT NULL AND u.email_confirmed_at IS NOT NULL AND EXISTS(SELECT 1 FROM auth.mfa_factors f WHERE f.user_id=u.id AND f.factor_type='totp' AND f.status='verified')");
  const size=Number(sql('SELECT pg_database_size(current_database())'));
  return {migrationPrefixValid:valid,migrationCount:migrations.length,migrations,activeOwnersWithVerifiedTotp:Number(owner),databaseBytes:size,ownerIdentityNotInferred:true,interactiveOwnerLoginStillRequired:true,passwordsOrFactorSecretsRead:false,transactionReadOnly:true};
 }
 export async function diagnose({repo='/opt/shadowbridge',runtimeRelease=baseline}={}){
- must([baseline,ownerBookR1,ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1].includes(runtimeRelease),'UNREVIEWED_RUNTIME_RELEASE');
+ must([baseline,ownerBookR1,ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1,ownerBookAppendR1].includes(runtimeRelease),'UNREVIEWED_RUNTIME_RELEASE');
  const r={kind:'shadowbridge-international-r1-read-only-inventory-v1',readOnly:true,deployed:false,knownBaselineIsOwnerStatementNotSshEvidence:true};
  repo=await realpath(repo);must(repo==='/opt/shadowbridge','Run only against the existing /opt/shadowbridge; never the Codex/owner local database');
  const git=args=>run('git',['-c','safe.directory='+repo,'-C',repo,...args]);
@@ -291,14 +293,14 @@ export async function diagnose({repo='/opt/shadowbridge',runtimeRelease=baseline
   const sourceCandidate=pg[0].Mounts?.find(m=>m.Destination==='/run/secrets/postgres.crt')?.Source;
   const sourceDirectory=sourceCandidate?path.dirname(path.dirname(sourceCandidate)):null;
   if(sourceDirectory?.startsWith(path.join(repo,'.local')+path.sep)&&(await realpath(sourceDirectory))===sourceDirectory)r.installation.sourceDirectory=sourceDirectory;
-  r.application=app.length===1?{release:safeContainer(app[0]).release,imageId:app[0].Image,ownerBookApiEnabled:envValue(app[0],'OWNER_BOOK_API_ENABLED')==='true',ownerBookMcpEnabled:envValue(app[0],'OWNER_BOOK_MCP_ENABLED')==='true',ownerBookOAuthEnabled:envValue(app[0],'OWNER_BOOK_OAUTH_ENABLED')==='true',ownerBookMcpCreateEnabled:envValue(app[0],'OWNER_BOOK_MCP_CREATE_ENABLED')==='true'}:{};
+  r.application=app.length===1?{release:safeContainer(app[0]).release,imageId:app[0].Image,ownerBookApiEnabled:envValue(app[0],'OWNER_BOOK_API_ENABLED')==='true',ownerBookMcpEnabled:envValue(app[0],'OWNER_BOOK_MCP_ENABLED')==='true',ownerBookOAuthEnabled:envValue(app[0],'OWNER_BOOK_OAUTH_ENABLED')==='true',ownerBookMcpCreateEnabled:envValue(app[0],'OWNER_BOOK_MCP_CREATE_ENABLED')==='true',ownerBookMcpWriteEnabled:envValue(app[0],'OWNER_BOOK_MCP_WRITE_ENABLED')==='true'}:{};
   try{const runtimeFiles=runtimeRelease===baseline?catalog.baselineRuntime:await pinnedR1Runtime(repo,runtimeRelease),files=Object.keys(runtimeFiles),values=docker(['exec',app[0].Id,'sha256sum',...files.map(f=>'/app/'+f)]).split('\n');r.application.sourceMatchesBaseline=values.length===files.length&&values.every(line=>{const [digest,file]=line.trim().split(/\s+/);return digest===runtimeFiles[file.replace('/app/','')];});r.application.baselineFilesCompared=files.length;r.application.expectedRuntime=runtimeRelease;}catch{r.application.sourceMatchesBaseline=false;}
   try{r.profiles=await profileEvidence(repo,pg[0],gateway[0]);}catch(e){r.profiles={valid:false,error:e.message.match(/^[A-Z_]+$/)?e.message:'PROFILE_UNVERIFIED'};}
   if(r.profiles.valid){
    try{
     const folder=path.join(r.profiles.sourceDirectory,'production-no-mail',baseline);
-    const match=async(file,c)=>{const values=(await regular(path.join(folder,file),0o600)).toString().split('\n').filter(v=>v&&!v.startsWith('#'));return !!c&&values.every(line=>{const i=line.indexOf('=');return i>0&&envValue(c,line.slice(0,i))===(file==='app.env'&&line.startsWith('RELEASE_SHA=')?runtimeRelease:file==='app.env'&&line.startsWith('OWNER_BOOK_API_ENABLED=')&&[ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1].includes(runtimeRelease)?'true':line.slice(i+1));})&&!c.Config.Env.includes('NODE_TLS_REJECT_UNAUTHORIZED=0');};
-    r.profiles.runtimeConfigurationMatchesProfile=(await match('app.env',app[0]))&&(await match('auth.env',member('auth')[0]))&&(runtimeRelease===baseline||envValue(app[0],'OWNER_BOOK_API_ENABLED')===String([ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1].includes(runtimeRelease)))&&(runtimeRelease!==ownerBookApiR1||envValue(app[0],'OWNER_BOOK_MCP_ENABLED')!=='true')&&(runtimeRelease!==ownerBookMcpR1||envValue(app[0],'OWNER_BOOK_MCP_ENABLED')==='true'&&envValue(app[0],'OWNER_BOOK_OAUTH_ENABLED')!=='true')&&(runtimeRelease!==ownerBookOAuthR1||envValue(app[0],'OWNER_BOOK_MCP_ENABLED')==='true'&&envValue(app[0],'OWNER_BOOK_OAUTH_ENABLED')==='true'&&envValue(app[0],'OWNER_BOOK_MCP_CREATE_ENABLED')!=='true');
+    const match=async(file,c)=>{const values=(await regular(path.join(folder,file),0o600)).toString().split('\n').filter(v=>v&&!v.startsWith('#'));return !!c&&values.every(line=>{const i=line.indexOf('=');return i>0&&envValue(c,line.slice(0,i))===(file==='app.env'&&line.startsWith('RELEASE_SHA=')?runtimeRelease:file==='app.env'&&line.startsWith('OWNER_BOOK_API_ENABLED=')&&[ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1,ownerBookAppendR1].includes(runtimeRelease)?'true':line.slice(i+1));})&&!c.Config.Env.includes('NODE_TLS_REJECT_UNAUTHORIZED=0');};
+    r.profiles.runtimeConfigurationMatchesProfile=(await match('app.env',app[0]))&&(await match('auth.env',member('auth')[0]))&&(runtimeRelease===baseline||envValue(app[0],'OWNER_BOOK_API_ENABLED')===String([ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1,ownerBookAppendR1].includes(runtimeRelease)))&&(runtimeRelease!==ownerBookApiR1||envValue(app[0],'OWNER_BOOK_MCP_ENABLED')!=='true')&&(runtimeRelease!==ownerBookMcpR1||envValue(app[0],'OWNER_BOOK_MCP_ENABLED')==='true'&&envValue(app[0],'OWNER_BOOK_OAUTH_ENABLED')!=='true')&&(runtimeRelease!==ownerBookOAuthR1||envValue(app[0],'OWNER_BOOK_MCP_ENABLED')==='true'&&envValue(app[0],'OWNER_BOOK_OAUTH_ENABLED')==='true'&&envValue(app[0],'OWNER_BOOK_MCP_CREATE_ENABLED')!=='true');
    }catch{r.profiles.runtimeConfigurationMatchesProfile=false;}
   }
   try{r.application.internalAuthTlsVerified=docker(['exec',app[0].Id,'node','--input-type=module','-e',"const r=await fetch('https://auth-proxy:8444/auth/v1/health',{signal:AbortSignal.timeout(5000)});await r.arrayBuffer();if(!r.ok)process.exit(1);console.log('PASS');"])==='PASS';}catch{r.application.internalAuthTlsVerified=false;}
@@ -318,6 +320,6 @@ export async function diagnose({repo='/opt/shadowbridge',runtimeRelease=baseline
  return {...r,...evaluateInventory(r,{runtimeRelease})};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const args=process.argv.slice(2);must(args.length<=2&&args.every(a=>a==='--repo=/opt/shadowbridge'||[ownerBookR1,ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1].some(r=>a==='--runtime='+r)),'Use --repo=/opt/shadowbridge and optionally the reviewed R1 --runtime.');
+ const args=process.argv.slice(2);must(args.length<=2&&args.every(a=>a==='--repo=/opt/shadowbridge'||[ownerBookR1,ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1,ownerBookAppendR1].some(r=>a==='--runtime='+r)),'Use --repo=/opt/shadowbridge and optionally the reviewed R1 --runtime.');
  diagnose({runtimeRelease:args.find(a=>a.startsWith('--runtime='))?.slice(10)||baseline}).then(r=>{console.log(JSON.stringify(r,null,2));if(r.status==='BLOCKED')process.exitCode=2;}).catch(()=>{console.log(JSON.stringify({status:'BLOCKED',readOnly:true,error:'INVENTORY_INCOMPLETE_NO_CHANGES_MADE'}));process.exitCode=2;});
 }
