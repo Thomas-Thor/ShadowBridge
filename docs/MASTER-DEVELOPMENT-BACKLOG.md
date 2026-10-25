@@ -64,6 +64,8 @@ To plan prac w repozytorium, nie potwierdzenie wdrożenia na Contabo.
    CRM, tokeny, e-maile i dane formularzy wyłączone z analityki. Brak fikcyjnych
    liczników, oddzielne okresy/dedup konwersji i retencja. Przed uruchomieniem:
    decyzja o dostawcy, prywatności/cookies i kosztach; sekrety tylko serwerowo.
+   Uzupełnienie OWNER z 25.10.2026: zakres podobny do StatCounter opisano poniżej;
+   bez włączania trackera w zatwierdzonej aktualizacji MCP 021.
 9. **S1 — dalszy Sentinel:** H3-B kolejka → H3-C rejestry → H3-D panel → H3-E analityka.
    Sygnały rynkowe mogą wykorzystywać zatwierdzone agregaty T1. Bez automatycznego
    dostępu do VAULT, ocen personalnych lub przyznawania dostępu.
@@ -71,6 +73,49 @@ To plan prac w repozytorium, nie potwierdzenie wdrożenia na Contabo.
     imiennym zakresem uprawnień. Wiadomość zewnętrzna wymaga zatwierdzenia,
     aktywnego SMTP, idempotentnego outboxu i limitów. Brak autonomicznego
     przyznawania członkostwa, publikacji lub eksportu poufnych rekordów.
+
+## T1 — Umami: uzupełniony zakres OWNER, 25.10.2026
+
+Status: **kolejka po rzeczywistym odbiorze zapisu MCP**, bez instalacji i bez
+trackera na produkcji. Rozszerzenie istniejącego T1, nie drugi moduł analityczny.
+Zatwierdzone wydanie MCP `80f4a0d333d31a6d57ada714b0df17bc0584a07b` pozostaje
+niezmienione. Tego wpisu nie zapisano jeszcze do produkcyjnego Book.
+
+- Odsłony, wizyty i szacowane unikalne odwiedziny; popularne strony, okresy
+  dzienne/tygodniowe/miesięczne, porównanie okresów i bieżąca aktywność.
+- Źródła wejść, domeny odsyłające, zatwierdzone parametry kampanii i opcjonalne
+  anonimowe zdarzenia, np. kliknięcie wejścia Buyer/Supplier/Partner na stronie
+  publicznej. Bez treści formularzy i bez oznaczania kliknięcia jako transakcji.
+- Kraje oraz, jeśli przypięta wersja i dostępna baza GeoIP to obsługują, regiony
+  i przybliżone miasta. To lokalizacja sieci, nie dokładny adres ani GPS osoby.
+- Komputer/telefon/tablet, system operacyjny, przeglądarka i rozdzielczość ekranu.
+  Potwierdzić dostępność konkretnych pól w wybranej wersji zamiast obiecywać
+  pełną zgodność wszystkich funkcji StatCounter. Dane mogą pomijać blokowane
+  trackery; unikalny odwiedzający nie jest tożsamością kontrahenta.
+- Preferowany self-host Umami na istniejącym Contabo, bez nowego abonamentu.
+  Najpierw sprawdzić aktualną wersję/licencję, zasoby i kopie. Dedykowana baza
+  i ograniczona rola analityki, bez uprawnień do baz Book, CRM i Auth. Nie
+  zakładać wolnej pamięci tylko na podstawie nominalnych 12 GB serwera.
+- Własny widok agregatów w istniejącym Command Center wyłącznie dla OWNER,
+  z autoryzacją API i MFA. Sekrety API tylko serwerowo. Panel administracyjny
+  Umami i PostgreSQL nie mogą zostać publicznie wystawione. Wystawić jedynie
+  potrzebny, ograniczony endpoint zbierania publicznych statystyk.
+- Tracker tylko na zatwierdzonych stronach publicznych. Wykluczyć prywatne
+  panele, OWNER Book/VAULT, logowanie, OAuth/MCP, tokeny, API, reset/aktywację
+  i dane aplikantów. Usuwać query/hash i wrażliwe referrery; żadnych identyfikatorów
+  kont/firm, e-maili, treści notatek, formularzy lub haseł w zdarzeniach.
+  Brak łączenia wizyt z prywatnymi osobami w CRM i brak nagrywania formularzy.
+- Ustalić minimalizację danych i retencję; zaktualizować informację o prywatności
+  i ocenić wymagane zgody. Sam brak cookies nie oznacza automatycznie pełnej
+  zgodności z prawem. Sprawdzić też licencję/aktualizację użytej bazy GeoIP.
+- Testy przed uruchomieniem: desktop/mobile, poprawne odsłony/źródła/kraj,
+  konfiguracja zaufanych proxy Caddy i odporność na podrobione nagłówki klienta,
+  brak prywatnych ścieżek/query/tokenów w payloadach i logach, izolacja OWNER,
+  limit zasobów, backup/restore i wyłączenie trackera bez wpływu na aplikację.
+
+Nie instalowano Umami, nie utworzono bazy, nie zmieniono DNS ani Caddy i nie
+rozpoczęto zbierania danych. Publiczne wdrożenie analityki stanowi osobny etap
+po zamknięciu aktualizacji i testu MCP; nie dopisywać go do trwającego instalatora.
 
 ## Bramka każdego etapu
 
