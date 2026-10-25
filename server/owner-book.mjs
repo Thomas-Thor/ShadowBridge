@@ -10,7 +10,7 @@ function timestamp(v,name){if(v===undefined||v===null||v==='')return null;if(typ
 export function bookRecord(input,{update=false,id}={}){
  const p=object(input,['kind','title','body','priority','status','due_at','starts_at','ends_at','remind_at','archived','dependencies','source_ref','version'],['kind','title']);
  const kind=oneOf(p.kind,bookKinds,'resource kind'),title=text(p.title,'title',{min:1,max:200}),content=text(p.body??'','body',{max:5000});
- if(/-----BEGIN [A-Z ]*PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{30,}|sbob_[A-Za-z0-9_-]{43}/i.test(title+' '+content+' '+(p.source_ref??'')))invalid('Use the separate password manager for access secrets.');
+ if(/-----BEGIN [A-Z ]*PRIVATE KEY-----|github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{30,}|(?:sbob_|sboa_|sbor_|sbocc_|sbocs_)[A-Za-z0-9_-]{43}/i.test(title+' '+content+' '+(p.source_ref??'')))invalid('Use the separate password manager for access secrets.');
  if(update&&(!Number.isSafeInteger(p.version)||p.version<1))invalid('Use the current entry version.');if(!update&&p.version!==undefined)invalid('An import/create cannot overwrite an existing version.');
  if(p.archived!==undefined&&typeof p.archived!=='boolean')invalid('Invalid archive flag.');
  const deps=p.dependencies??[];if(!Array.isArray(deps)||deps.length>20)invalid('Use at most 20 task dependencies.');
@@ -72,7 +72,7 @@ export async function routeOwnerBook({req,url,tx,body,config}){
  return routed;
 }
 export async function routeBookToken({req,url,sessionPool,body,clientHash}){
- const requestId=randomUUID(),match=/^Bearer (sbob_[A-Za-z0-9_-]{43})$/.exec(req.headers.authorization||'');
+ const requestId=randomUUID(),match=/^Bearer ((?:sbob_|sboa_|sbor_|sbocc_|sbocs_)[A-Za-z0-9_-]{43})$/.exec(req.headers.authorization||'');
  const digest=createHash('sha256').update(match?.[1]||'').digest('hex');
  const call=async(op,explicit=false,commandId=null)=>(await sessionPool.query('SELECT owner_book.token_rpc($1,$2,$3,$4::jsonb,$5::uuid,$6::boolean,$7,$8::uuid) AS result',[digest,op.action,op.kind,JSON.stringify(op.p),commandId,explicit,clientHash,requestId])).rows[0].result;
  try{
@@ -91,17 +91,21 @@ export async function routeBookToken({req,url,sessionPool,body,clientHash}){
   const write=['save','import'].includes(op.action),commandId=write?commandUuid(assistant?input.requestKey:req.headers['x-shadowbridge-command-id']):null;
   if(write&&op.commandId!==commandId)invalid('Use one matching command UUID in the body and header.');
   const result=await call(op,assistant||req.headers['x-shadowbridge-explicit-write']==='true',commandId);
-  if(op.action==='journal'&&result.status===200){
-   const d=result.data;
-   // Delegated journal.read is not a CRM/security-record grant. Preserve page
-   // counts while withholding private event IDs, actions and CRM aggregates.
-   result.data={items:d.items.map(e=>e.source==='owner_book.history'?{at:e.at,action:e.action,source:e.source,sourceRef:e.sourceRef,certainty:e.certainty}:{at:e.at,action:'platform.activity_recorded',source:'redacted_platform_metadata',sourceRef:'Details available only in the OWNER interface',certainty:'recorded'}),total:d.total,page:d.page,limit:d.limit,window:d.window,counts:{bookChanges:d.counts.bookChanges,tasksMarkedDone:d.counts.tasksMarkedDone,plannedItems:d.counts.plannedItems},automation:{status:d.automation.status,verifiedAgentRuns:d.automation.verifiedAgentRuns,actualCredits:d.automation.actualCredits,actualMoneyCost:d.automation.actualMoneyCost},coverage:['owner_book.history','redacted_platform_metadata'],warning:'Recorded operational metadata only. Private CRM records, identifiers, counts and security details are withheld. External agents and costs are not connected.'};
-  }
-  return result;
+  return redactBookJournal(result,op.action);
  }catch(error){
   let audit;try{audit=await call({action:'invalid',kind:null,p:{}});}catch{throw new ApiError(503,'BOOK_API_UNAVAILABLE','The private book service is unavailable.');}
   if(audit.status===401||audit.status===429)return audit;
   if(error.status)throw error;
   throw new ApiError(503,'BOOK_API_UNAVAILABLE','The private book service could not complete the operation.');
  }
+}
+
+export function redactBookJournal(result,action){
+  if(action==='journal'&&result.status===200){
+   const d=result.data;
+   // Delegated journal.read is not a CRM/security-record grant. Preserve page
+   // counts while withholding private event IDs, actions and CRM aggregates.
+   result.data={items:d.items.map(e=>e.source==='owner_book.history'?{at:e.at,action:e.action,source:e.source,sourceRef:e.sourceRef,certainty:e.certainty}:{at:e.at,action:'platform.activity_recorded',source:'redacted_platform_metadata',sourceRef:'Details available only in the OWNER interface',certainty:'recorded'}),total:d.total,page:d.page,limit:d.limit,window:d.window,counts:{bookChanges:d.counts.bookChanges,tasksMarkedDone:d.counts.tasksMarkedDone,plannedItems:d.counts.plannedItems},automation:{status:d.automation.status,verifiedAgentRuns:d.automation.verifiedAgentRuns,actualCredits:d.automation.actualCredits,actualMoneyCost:d.automation.actualMoneyCost},coverage:['owner_book.history','redacted_platform_metadata'],warning:'Recorded operational metadata only. Private CRM records, identifiers, counts and security details are withheld. External agents and costs are not connected.'};
+  }
+ return result;
 }

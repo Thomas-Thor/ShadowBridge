@@ -1,10 +1,11 @@
 // Stateless Streamable HTTP, JSON responses, scoped read-only tools. No SSE channel,
-// session store, OAuth workaround, credentials file, external fetch or writes.
+// MCP sessions, credentials file, external fetch or writes. OAuth shares this route.
 import {routeBookToken} from './owner-book.mjs';
 import {ApiError} from './validation.mjs';
+import {routeOAuthBookRead,oauthChallenge} from './owner-book-oauth.mjs';
 
 export const mcpPath='/api/integrations/owner-book/v1/mcp';
-const versions=['2025-06-18','2025-03-26'];
+const versions=['2025-06-18','2025-03-26','2025-11-25'];
 const probeId='00000000-0000-0000-0000-000000000000';
 const plain=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const rpcError=(id,code,message,status=200)=>({status,data:{jsonrpc:'2.0',id,error:{code,message}}});
@@ -16,7 +17,7 @@ export const readNotesTool=Object.freeze({name:'read_notes',title:'Read OWNER no
 const entryKinds=['task','idea','event','decision'];
 export const bookReadTools=Object.freeze([readNotesTool,{...readNotesTool,name:'read_book_entries',title:'Read OWNER tasks, ideas, calendar or decisions',description:'Read one page of the selected OWNER Book resource. Requires its individual .read scope. No changes or CRM access.',inputSchema:{...readNotesTool.inputSchema,required:['kind'],properties:{...readNotesTool.inputSchema.properties,kind:{type:'string',enum:entryKinds}}}},{...readNotesTool,name:'read_activity',title:'Read recorded OWNER activity',description:'Read recorded activity through the existing redacted journal. Requires journal.read. Missing agent/cost data remains missing.',inputSchema:{type:'object',additionalProperties:false,properties:{page:{type:'integer',minimum:1,maximum:10000},window:{type:'string',enum:['24h','7d','14d','since_login']}}}}]);
 
-export async function routeBookMcp({req,url,sessionPool,body,clientHash}){
+export async function routeBookMcp({req,url,sessionPool,body,clientHash,oauthEnabled=false}){
  if(req.headers.origin!==undefined||req.headers.cookie!==undefined)throw new ApiError(403,'BOOK_MACHINE_ONLY','Use the private server-to-server connector without Origin or cookies.');
  if(req.method!=='POST')return {status:405,headers:{Allow:'POST'},data:{code:'MCP_POST_REQUIRED'}};
  if(url.search)throw new ApiError(400,'MCP_INVALID_REQUEST','MCP does not accept query parameters.');
@@ -31,10 +32,11 @@ export async function routeBookMcp({req,url,sessionPool,body,clientHash}){
   Object.keys(message).some(k=>!['jsonrpc','id','method','params'].includes(k))||
   Object.hasOwn(message,'id')&&!(typeof id==='string'&&id.length<=128||Number.isSafeInteger(id))||
   message.params!==undefined&&!plain(message.params))return rpcError(null,-32600,'Invalid JSON-RPC request.',400);
- const tokenRead=async(path)=>routeBookToken({req:{method:'GET',headers:req.headers},
+ const usingOAuth=oauthEnabled&&/^Bearer sboa_/.test(req.headers.authorization||'');
+ const tokenRead=async(path)=>(usingOAuth?routeOAuthBookRead:routeBookToken)({req:{method:'GET',headers:req.headers},
   url:new URL('/api/integrations/owner-book/v1/'+path,url.origin),sessionPool,body:async()=>({}),clientHash});
  const denied=r=>({status:r.status===429?429:r.status===401?401:r.status===403?403:503,
-  headers:r.status===401?{'WWW-Authenticate':'Bearer realm="ShadowBridge OWNER Book"'}:r.status===429?{'Retry-After':'60'}:{},
+  headers:r.status===401?{'WWW-Authenticate':oauthEnabled?oauthChallenge:'Bearer realm="ShadowBridge OWNER Book"'}:r.status===429?{'Retry-After':'60'}:{},
   data:{code:r.status===429?'BOOK_RATE_LIMITED':r.status===401?'BOOK_API_DENIED':r.status===403?'BOOK_SCOPE_DENIED':'BOOK_API_UNAVAILABLE'}});
  const p=message.params||{};
  // A metadata handshake checks the same SQL owner/MFA/key/scope/rate rules via
@@ -58,7 +60,7 @@ export async function routeBookMcp({req,url,sessionPool,body,clientHash}){
  if(message.method==='ping')return ok({});
  if(message.method==='tools/list'){
   if(p.cursor!==undefined)return rpcError(id,-32602,'No tool-list cursor is supported.');
-  return ok({tools:bookReadTools});
+  return ok({tools:bookReadTools.map(t=>oauthEnabled?{...t,securitySchemes:[{type:'oauth2',scopes:t.name==='read_notes'?['note.read']:t.name==='read_activity'?['journal.read']:entryKinds.map(k=>k+'.read')}]}:t)});
  }
  if(message.method==='tools/call'){
   // Authenticate even invalid calls, without exposing which keys/scopes exist.

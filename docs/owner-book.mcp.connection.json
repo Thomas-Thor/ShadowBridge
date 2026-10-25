@@ -1,23 +1,31 @@
 {
   "kind": "shadowbridge-private-mcp-connection-description-v1",
-  "status": "PREPARED_NOT_DEPLOYED_NOT_CONNECTED",
+  "status": "OAUTH_PREPARED_NOT_DEPLOYED_NOT_CONNECTED",
   "notAnInstallablePluginManifest": true,
   "url": "https://shadow-bridge.eu/api/integrations/owner-book/v1/mcp",
   "transport": "streamable-http",
   "authentication": {
-    "type": "api_key",
-    "headerScheme": "bearer",
-    "headerName": "Authorization",
+    "type": "oauth",
+    "issuer": "https://shadow-bridge.eu",
+    "authorizationServerMetadata": "https://shadow-bridge.eu/.well-known/oauth-authorization-server",
+    "registration": "dynamic",
+    "pkce": "S256",
     "secretIncluded": false,
-    "privateAuthenticationFieldAndServerStorageVerified": false
+    "clientIdMetadataDocumentsSupported": false,
+    "chatgptFormAndConnectionVerified": false
   },
   "firstConnection": {
-    "scopes": ["note.read"],
-    "keyLifetimeDays": 1,
+    "scopes": [
+      "note.read"
+    ],
     "testTool": "read_notes",
-    "fictionalNoteTitle": "TEST-CONNECTION-NOTE"
+    "expectedSource": "An existing OWNER-authorized Book note, compared with the OWNER UI"
   },
-  "tools": ["read_notes", "read_book_entries", "read_activity"],
+  "tools": [
+    "read_notes",
+    "read_book_entries",
+    "read_activity"
+  ],
   "writeTools": [],
-  "instructions": "Verify private secret storage and actual deployment before issuing a key. Never include the key in this description, plugin package, browser code, model messages or logs. Listing tools does not grant their scopes."
+  "instructions": "Connect using OAuth and existing OWNER + fresh MFA. Leave optional client credentials empty for dynamic registration. No write grants. Do not select no authentication or paste keys into chat. A deployment/401 does not prove an authenticated ChatGPT read."
 }

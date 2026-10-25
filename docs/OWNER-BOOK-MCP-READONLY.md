@@ -1,3 +1,9 @@
+# OAuth update
+
+The API-key connection instructions below are historical. The current ChatGPT
+form has no confirmed API-key field. Use [OWNER-BOOK-MCP-OAUTH.md](OWNER-BOOK-MCP-OAUTH.md)
+for the OAuth update; do not issue a key or select no authentication.
+
 # OWNER Book MCP READ ONLY
 
 Stan 25.10.2026: kod i izolowane testy wykonane; aktualizacji Contabo i połączenia

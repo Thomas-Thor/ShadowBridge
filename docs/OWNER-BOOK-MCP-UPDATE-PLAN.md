@@ -1,3 +1,9 @@
+# OAuth supersedes the connection step
+
+This file records the earlier 236e04b → 35c41f7 MCP installation. For the next
+update on an already accepted 35c41f7 installation use
+[OWNER-BOOK-MCP-OAUTH.md](OWNER-BOOK-MCP-OAUTH.md). Do not rerun this older rollout.
+
 # Kontrolowana aktualizacja MCP z przyjętego R1 236e04b
 
 25.10.2026. Implementacja instalatora jest gotowa w tej gałęzi i przetestowana

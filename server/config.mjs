@@ -68,6 +68,7 @@ export function loadConfig(env = process.env) {
     proxyAuthToken, releaseSha: releaseSha?.toLowerCase() || null,
     ownerBookApiEnabled: env.OWNER_BOOK_API_ENABLED === 'true',
     ownerBookMcpEnabled: env.OWNER_BOOK_MCP_ENABLED === 'true',
+    ownerBookOAuthEnabled: env.OWNER_BOOK_OAUTH_ENABLED === 'true',
     sessionLifetimeSeconds: 60 * 60 * 24 * 7,
   });
 }
