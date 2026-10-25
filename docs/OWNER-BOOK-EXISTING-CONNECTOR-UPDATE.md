@@ -1,5 +1,11 @@
 # Existing ChatGPT connector: actual write acceptance
 
+For the reported old 0.1.0 package plus separate OAuth app and three-tool-only
+inventory, first use [the connector triage procedure](OWNER-BOOK-CONNECTOR-TRIAGE.md).
+Identify the active integration and compare raw server discovery with host
+inventory before changing consent. Missing write scope alone does not hide write
+tools in the 80f4a0d server's `tools/list`.
+
 OWNER reported `WRITE CONFIGURED; REAL CHATGPT WRITE NOT VERIFIED` after the
 approved `80f4a0d333d31a6d57ada714b0df17bc0584a07b` update. In the launcher this
 line follows successful release acceptance. No actual ChatGPT save/readback is
