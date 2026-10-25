@@ -1,81 +1,90 @@
-# MCP READ ONLY: plan kontrolowanej aktualizacji, bez wykonania
+# Kontrolowana aktualizacja MCP z przyjętego R1 236e04b
 
-25.10.2026, Europe/Oslo. **PREPARED: plan do przeglądu. Nie wykonano deployu,
-backupu produkcyjnego, migracji, wydania klucza ani testu ChatGPT.**
+25.10.2026. Implementacja instalatora jest gotowa w tej gałęzi i przetestowana
+lokalnie. Nie wykonano nowego wdrożenia ani backupu produkcji z tej sesji.
+Baza: 236e04bded81c406fb49ee0950ae20d139f257ec, z odbiorem potwierdzonym przez OWNER.
+Adapter wywodzi się z 45ed3ee; bieżące wydanie dodaje scoped odczyt operacyjny.
+Kandydat do instalacji to pełny niezmienny SHA z najnowszego raportu, nie 45ed3ee.
 
-## Tożsamość i kontrakt
+## Jedna procedura na lokalnym Pop!_OS
 
-- Baza: `236e04bded81c406fb49ee0950ae20d139f257ec`. OWNER przekazał udany wynik
-  `API_ENABLED_CHATGPT_NOT_CONNECTED`, `ownerInteractiveAcceptance:true`.
-  Nie zastępuje to nowego odczytu stanu kontenera i manifestów.
-- Kandydat aplikacji: `45ed3ee306e0d293b95c15f10aaff4aeabdf208a`.
-  Różnica to 5 plików: moduł MCP, routing, flaga konfiguracji, test i dokumentacja.
-  Migracje 001–018, zależności, UI oraz konfiguracje deploy pozostają identyczne.
-- Endpoint po późniejszym wdrożeniu:
-  `https://shadow-bridge.eu/api/integrations/owner-book/v1/mcp`.
-- Transport klienta: `streamable-http`; bezstanowy POST JSON-RPC, odpowiedzi JSON.
-  `Content-Type: application/json`; `Accept: application/json, text/event-stream`.
-  Negocjowane wersje `2025-06-18` / `2025-03-26`. GET/DELETE: 405.
-- Uwierzytelnianie klienta: `api_key`, `headerScheme: bearer`, nagłówek
-  `Authorization: Bearer <prywatny sekret>`. Nie umieszczać sekretu w URL.
-- Jedno narzędzie: `read_notes`; jedyny wymagany zakres: `note.read`.
-  Przykład argumentów bez danych prywatnych: `{"page":1,"q":"TEST-CONNECTION-NOTE"}`.
-- Aktywna rola OWNER, zweryfikowane e-mail/TOTP, wygaśnięcie/cofnięcie klucza,
-  RLS/RPC, audyt i limity pozostają egzekwowane. Bez cookie/Origin i bez CORS.
+Pobrać `scripts/r1-owner-deploy.mjs` z podanego pełnego SHA, sprawdzić SHA-256
+z raportu i uruchomić `node <zweryfikowany plik> --release=<pełny SHA> --book-mcp`.
+Potrzebne Node >=22, dotychczasowe SSH/sudo shadowadmin i sprawdzony host Contabo.
+Sekretów nie umieszczać w komendach, rozmowie, repozytorium ani logach.
+Instalator nie potrzebuje klucza Book, nie prosi o nowy OWNER ani reset MFA.
 
-## Obowiązkowa kolejność późniejszej aktualizacji
+Kolejność jest automatyczna z niezbędnymi potwierdzeniami operatora:
 
-1. **Preflight tylko odczytowy.** Potwierdzić pełny SHA checkoutu i kontenera,
-   źródła obrazu, `state.json` odbioru 236e04b, aktywny plan R1 i wszystkie jego
-   fingerprinty wraz z wcześniejszym planem d5582ff. Sprawdzić HTTPS/n8n,
-   ledger 001–018, OWNER/TOTP, sieci, wolumeny, brak publicznych portów DB/Auth,
-   miejsce na build oraz kopie. Brak dowodu lub rozbieżność oznacza STOP.
-2. **Przygotować osobny plan app-only.** Zachować obecny obraz i kompletny
-   override środowiska 236e04b. Kandydat musi mieć OCI revision 45ed3ee i zgodne
-   pliki źródłowe. Dopuszczalna zmiana: obraz app, RELEASE_SHA i jawna flaga MCP.
-   `OWNER_BOOK_API_ENABLED=true` pozostaje zachowane. Nie edytować aktywnych
-   manifestów, konfiguracji podstawowej, GoTrue, gatewaya, n8n ani sekretów.
-3. **Backup przed wymianą.** Użyć istniejących mechanizmów szyfrowania R1 do DB,
-   konfiguracji i stanu certyfikatów; objąć też aktywny plan oraz checkpoint
-   236e04b. Zweryfikować integralność/authentication archiwów i potwierdzić
-   kopię poza VPS wraz z SHA. Klucze oddzielnie, prywatne pliki 0600/0700.
-   Backup pozostaje u operatora, nigdy w repozytorium ani środowisku Codexa.
-   Uzgodnić wymaganą krótką przerwę app/Auth/Caddy dla spójnej kopii.
-4. **Wymiana tylko app, po osobnej zgodzie.** Żadnego migratora. Wszystkie
-   pozostałe kontenery, ID, środowiska, sieci i wolumeny mają pozostać zgodne.
-   Najpierw uruchomić kandydat z MCP wyłączonym i potwierdzić zdrowie oraz
-   istniejące logowanie OWNER/TOTP. Aktywację MCP wykonać wyłącznie przez
-   zweryfikowany nowy override/plan, nie przez ręczną zmianę pliku prywatnego.
-5. **Odbiór transportu i odczytu.** Po aktywacji anonimowe poprawne POST MCP
-   ma zwrócić 401, a nie notatki. Dopiero po potwierdzeniu bezpiecznego pola
-   sekretu w integracji OWNER może wydać 1-dniowy klucz `note.read`.
-   `initialize` → `notifications/initialized` → `tools/list` (dokładnie jedno
-   `read_notes`) → `tools/call`. Odczytać fikcyjną notatkę i porównać jej ID/treść
-   z UI. Zwykła rola bez uprawnienia, brak zakresu i cofnięty klucz mają odmówić
-   odczytu. Sprawdzić audyt bez sekretów. Nie dodawać narzędzi zapisu.
-6. **Wyłączenie i rollback.** Przy problemie wyłączyć sam MCP przez nowy
-   zatwierdzony override. Jeśli aplikacja nadal nie przechodzi odbioru,
-   odtworzyć tylko poprzedni obraz/override app 236e04b. Zachować REST API,
-   nowe wpisy, konta i MFA. Nie przywracać starej bazy na produkcję, nie kasować
-   wolumenów, nie ponawiać migracji. Zweryfikować SHA/HTTPS/n8n/OWNER po cofnięciu.
+1. OWNER loguje się normalnie i potwierdza dotychczasowe TOTP. Każdy zachowany
+   operation.lock zatrzymuje bootstrap zamiast przerywać działającą aktualizację.
+   Sprawdzany jest dokładny kandydat Git; bez force, resetów i zmian main.
+2. Nowa samodzielna diagnostyka sprawdza działający 236e04b (67 plików z
+   niezmiennego obiektu Git), API=true i MCP=false, komplet 001–018, profile,
+   gateway, TLS/n8n, sieci, prywatne porty, OWNER/TOTP i wolne miejsce.
+   Wymagany stary checkpoint DEPLOYED_AND_VERIFIED z osobistym odbiorem OWNER;
+   nie wywołuje ponownie jego accept. Każda rozbieżność oznacza STOP.
+3. Budowany jest tylko runtime. Nowy plan zachowuje REST=true, poprzedni obraz
+   i jego kompletny override, aktywne manifesty i fingerprinty. Dopuszcza tylko
+   nowy obraz, RELEASE_SHA i osobno zatwierdzoną flagę MCP. Nie modyfikuje
+   gatewaya, Auth, bazy, sieci, wolumenów ani sekretów.
+4. W krótkim oknie app/Auth oraz Caddy wykonywane są istniejące zaszyfrowane
+   kopie DB/config/certyfikatów. Weryfikacja GCM i SHA oraz kopia poza VPS są
+   obowiązkowe przed wymianą aplikacji. Kopia konfiguracji obejmuje aktywne
+   plany d5582ff/236e04b, nowy plan i prywatny snapshot starego odbioru.
+   Nie kopiuje się produkcyjnej bazy do Codexa lub repozytorium.
+5. Faza apply pomija budowanie i uruchamianie migratora. Stabilny snapshot
+   i ledger są kontrolowane, a wymieniana jest wyłącznie app (--no-deps,
+   --no-build). Następnie HTTPS, SHA/obraz, ledger, chronione usługi i odmowy
+   anonimowe REST/MCP. Istniejące n8n i jego workflow nie są modyfikowane.
+6. OWNER potwierdza TOTP po aktualizacji (np. ponownym logowaniem w UI), a następnie
+   odbiera Book, REST i witrynę. Odbiór wymaga nowego zdarzenia MFA po apply. Wpis ODBIOR
+   zatwierdza nową generację; ROLLBACK cofa samą aplikację bez odtwarzania starej
+   DB. Wynik MCP_ENABLED_CHATGPT_NOT_CONNECTED nie oznacza jeszcze połączenia.
 
-## Blokady wykonania tego planu
+Po przerwaniu na DEPLOYED_PENDING_OWNER_ACCEPTANCE użyć tego samego sprawdzonego
+instalatora z `--book-mcp --accept-only`. Ten tryb wykonuje tylko nowy accept,
+bez prepare/apply, kopiowania backupów i ponownego deploymentu. Przy innym
+checkpoincie zatrzyma się. Nie kasować plików lock ani nadpisywać checkpointów.
 
-Istniejący `r1-owner-deploy.mjs --book-api` obsługuje aktualizację **z d5582ff**,
-nie z aktywnego 236e04b. Planer dopuszcza tylko historyczne bazy 7f794a2/d5582ff
-i nie dopuszcza jeszcze zmiany flagi MCP. Nie wolno uruchamiać tego instalatora
-ponownie, zmieniać mu ręcznie SHA bazowego ani pomijać fingerprintów.
-Przed wdrożeniem trzeba osobno zaimplementować i przetestować obsługę bazy
-236e04b, zachowania REST=true, nowej flagi MCP oraz rollbacku w tych narzędziach.
-**To plan aktualizacji, nie gotowy ani przetestowany instalator dla MCP.**
+## Wyłączenie i rollback
 
-Druga blokada: deklaracja Plugin Creator o `api_key/bearer` nie dowodzi, że
-sekret będzie poza pakietem, modelem, kodem klienta i logami. W tej sesji brak
-narzędzia create_plugin i autoryzowanego odczytu Book. Pole Authentication oraz
-serwerowe przechowywanie/cofanie sekretu trzeba potwierdzić przed jego wydaniem.
-Nie wygenerowano klucza i nie proponujemy słabszego mechanizmu OWNER/MFA.
+`--book-mcp --disable` wyłącza tylko MCP, zachowując REST=true i dane. Obraz musi
+należeć do tej samej generacji i przejść kontrolę planu. Nowy mcp-disabled.json
+jest hashowany/zweryfikowany, nie jest ręczną edycją prywatnych plików.
 
-Historyczny wynik adaptera: 8 grup HTTP z fiksturą SQL + 4 regresje REST PASS.
-Nie powtarzano ich przy zmianie wyłącznie dokumentacji. Wciąż nieprzetestowane:
-klient Plugin Creator/SDK, nowy update runner, aktualizacja/rollback MCP na
-rzeczywistej instalacji, `read_notes` na produkcji. Status połączenia: NOT CONNECTED.
+Awaria apply uruchamia istniejący rollback aplikacji do poprzedniego obrazu
+236e04b i jego API=true. Zachowuje ledger 001–018, nowe dane i backupy. Odbiór
+może też jawnie wybrać ROLLBACK. Żadnego compose down -v, prune, resetu lub
+przywracania starej DB na produkcję. Weryfikowane są HTTPS i chronione usługi.
+
+## Odbiór prywatnego połączenia i importu
+
+Pole Authentication i brak sekretu w paczce/modelu/JS/logach muszą być
+potwierdzone przez rzeczywistą integrację. Potem pierwszy test tylko note.read,
+1 dzień. Nie podłączać REST /entries jako MCP. Nie używać book_admin.
+
+Tymczasowy zapis do importu: istniejące API/GUI, minimalne CUSTOM obejmujące
+wyłącznie potrzebne read/write + records.import. Dopiero po odczycie obecnego
+Book, porównaniu source_ref/treści, podglądzie zatwierdzonym przez OWNER i kopii.
+Powtórzenie używa tego samego klucza i UUID polecenia dla tego samego payloadu;
+po niepewnym wyniku nie tworzyć nowego UUID lub klucza. Po rotacji klucza trzeba
+najpierw ponownie porównać source_ref z Book, bo deduplikacja komend jest per-key.
+Nie ma nowej globalnej unikalności source_ref ani niezależnego importera.
+
+Po imporcie odczytać ID i treść. OWNER cofa klucz tymczasowy w UI z MFA; stare
+read/write mają zwrócić 401, odrębny READ ONLY nadal działa. Tego produkcyjnego
+importu i cofnięcia nie wykonano; scenariusz przeszedł w izolowanym PostgreSQL.
+Raporty przyszłych agentów wymagają odrębnego reports-only principal. Obecne
+klucze Book należą do aktywnego OWNER; nie podsuwamy takiego klucza jako konta
+technicznego z prawem tylko do raportów. Ten ograniczony principal jest później.
+
+## Wyniki i ograniczenia
+
+25 celowanych testów aktualizatora/R1: PASS, w tym rzeczywiste Compose config,
+GCM, niezmienne source hashes, MCP-off z REST=true, rollback i kopia starego
+odbioru. 11 HTTP MCP + 4 REST: PASS. 6 grup native image + TLS PostgreSQL: PASS.
+To fikcyjne dane, SQL claims OWNER/MFA ustawione jawnie na nowym klonie; brak
+interaktywnego GoTrue/Plugin Creator/Contabo. Konta i MFA źródłowej fikstury
+pozostały bez zmian. SQL 001–018 nie został zmieniony. Nie używać historycznego
+instalatora z samego 236e04b do instalacji nowego MCP.

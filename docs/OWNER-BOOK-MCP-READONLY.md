@@ -1,75 +1,59 @@
-# Command Book: minimalny adapter MCP READ ONLY
+# OWNER Book MCP READ ONLY
 
-Plan kontrolowanej aktualizacji i jego blokady: [OWNER-BOOK-MCP-UPDATE-PLAN.md](OWNER-BOOK-MCP-UPDATE-PLAN.md).
+Stan 25.10.2026: kod i izolowane testy wykonane; aktualizacji Contabo i połączenia
+ChatGPT w tej sesji nie wykonano. OWNER przekazał odbiór produkcji 236e04b.
 
-Stan 25.10.2026: **przygotowany i przetestowany lokalnie, NIE WDROŻONY**.
-OWNER przekazał wynik odbioru produkcji `236e04b`: API włączone, ChatGPT
-niepołączony. Ta zmiana nie modyfikuje tego wydania ani działającej instalacji.
-
-## Kontrakt
-
-Planowany endpoint po osobno zatwierdzonej aktualizacji:
+Endpoint po zatwierdzonej aktualizacji:
 `https://shadow-bridge.eu/api/integrations/owner-book/v1/mcp`.
-Transport: bezstanowy MCP Streamable HTTP, odpowiedzi JSON, bez SSE/session ID.
-POST wymaga `Accept: application/json, text/event-stream` i JSON-RPC 2.0.
-Negocjowane wersje: `2025-06-18`, `2025-03-26`; brak zgodności klienta oznacza
-STOP. GET/DELETE zwracają 405. Nie podłączać starego REST `/entries` jako MCP.
+Transport `streamable-http`, POST JSON-RPC; `Content-Type: application/json`,
+`Accept: application/json, text/event-stream`. Negocjacja 2025-06-18 / 2025-03-26.
+Bez SSE i sesji MCP; GET/DELETE 405. To osobny endpoint od REST `/entries`.
 
-Jedno narzędzie: `read_notes({page?: integer, q?: string})`, strona do 25
-niearchiwalnych notatek własnego OWNER. Nie udostępnia innych rodzajów, CRM,
-kluczy, haseł, importu ani zapisu. Treści są niezaufanymi danymi referencyjnymi,
-nie instrukcjami dla narzędzi. Nie zmienia istniejącego REST ani UI.
+| Narzędzie | Odczyt | Zakres |
+|---|---|---|
+| read_notes | notatki, raporty i prywatny rejestr kredytów zapisane w notatniku | note.read |
+| read_book_entries | wskazany rodzaj: task, idea, event lub decision | odpowiednie resource.read |
+| read_activity | istniejący dziennik z redakcją metadanych CRM | journal.read |
 
-Bearer jest sprawdzany przez istniejące `owner_book.token_rpc` w ograniczonej
-puli sesji. Pozostają aktywny OWNER, zweryfikowany e-mail/TOTP, data ważności,
-cofnięcie klucza, zakres `note.read`, audyt i limit 60 żądań/minutę. MCP nie
-przechowuje kopii tokenu, nie przekazuje go do zewnętrznego serwera i nie daje
-sesji OWNER. Cookie i Origin są odrzucane. Nie otwieramy CORS.
+Listy do 25 pozycji ze stronicowaniem. read_notes/read_book_entries obsługują też
+jawny filtr archived=false|true|all, aby historyczna pamięć nie była ukryta. Pierwszy test i klucz tylko `note.read`.
+W UI wybrać READ ONLY, 1 dzień i odznaczyć inne zasoby; zostawić tylko note.read.
+Nie używać istniejącego presetu CUSTOM write do pierwszego połączenia.
+Inne zakresy można dodać do odrębnego klucza READ ONLY dopiero świadomie;
+listing narzędzi sam nie przyznaje dostępu. Nie ma narzędzi zapisu, importu,
+CRM, kont, kluczy lub haseł. Koszty/aktywność agentów bez źródła pozostają null.
 
-Handshake, ping i lista narzędzi także wymagają ważnego `note.read`. Korzystają
-z kontrolnego odczytu stałego UUID `00000000-0000-0000-0000-000000000000` przez
-istniejące RPC; spodziewane 404 potwierdza przejście autoryzacji. Odpowiedź tego
-odczytu nigdy nie jest udostępniana. Taki kontrolny brak rekordu trafia do audytu
-`get / note / denied_or_error` i zużywa limit; sam nie oznacza ataku. Nie dodano
-osobnego grantowania dostępu, tabel ani migracji. Właściwe wywołanie narzędzia
-wykonuje jeden autoryzowany `list / note` i jest rejestrowane normalnie.
+Klient deklaruje `api_key`, `headerScheme: bearer`; sekret trafia wyłącznie
+w Authorization. Serwer zachowuje token_rpc/RLS, aktywnego rzeczywistego OWNER,
+zweryfikowane e-mail/TOTP, wygaśnięcie, cofnięcie, limit 60/min i audyt. Nie
+używa sesji OWNER, nie zapisuje kopii klucza i nie pobiera nowych uprawnień.
+Cookie i Origin odrzucane; CORS nie jest otwierane.
 
-## Aktywacja i sekret: nadal wymagane
+Metadane MCP sprawdzają note.read przez stały pusty UUID. Oczekiwany brak notatki
+404 pochodzi z istniejącego RPC i jest rejestrowany jako get/note/denied_or_error;
+to kontrola dostępu, nie dowód incydentu. Jej odpowiedź nie jest udostępniana.
+Właściwy odczyt jest rejestrowany normalnie i aktualizuje last_used_at.
 
-Wymagane są obie flagi: istniejąca `OWNER_BOOK_API_ENABLED=true` oraz nowa,
-**domyślnie wyłączona** `OWNER_BOOK_MCP_ENABLED=true`. W tym etapie nie zmieniono
-Compose, fingerprintów, prywatnych profili, skryptów aktywnego wydania ani
-Contabo. Obecny instalator z `236e04b` nie wdraża tego adaptera. Nie używać go
-ponownie jako procedury instalacji MCP i nie włączać flag ręcznie z pominięciem
-manifestów. Kolejny krok techniczny to przejrzana aktualizacja samej aplikacji
-z nowym niezmiennym SHA, backupem, zgodnym planem profilu i rollbackiem do
-`236e04b`; żadnych migracji. Nie została jeszcze przygotowana ani wykonana.
+Potrzebne obie flagi: OWNER_BOOK_API_ENABLED=true i OWNER_BOOK_MCP_ENABLED=true.
+MCP jest domyślnie wyłączone. [Procedura aktualizacji](OWNER-BOOK-MCP-UPDATE-PLAN.md)
+używa nowego trybu --book-mcp; nie powtarza starego wdrożenia --book-api.
 
-OWNER zgłosił obsługę Streamable HTTP i API key/Bearer w Plugin Creator.
-**Nie potwierdzono w tej sesji narzędzia create_plugin, importu pluginu ani
-bezpiecznego miejsca przechowywania Bearera.** Nie wygenerowano i nie pobrano
-klucza. Nie umieszczać go w paczce, URL, pliku publicznym, kodzie Sites ani
-rozmowie. Przed użyciem należy sprawdzić prywatne pole Authentication i to,
-że sekret pozostaje poza modelem/eksportem pluginu/logami. Jeśli narzędzie nie
-zapewnia tego mechanizmu, integracja pozostaje zablokowana.
+Wtyczka Plugin Creator jest zgłoszona przez OWNER jako podłączona, ale jej
+narzędzia nie są wywoływalne w tej sesji. Nie potwierdzono rzeczywistego pola
+Authentication, serwerowego przechowywania sekretu poza modelem/paczką/logami
+ani połączenia. Nie wygenerowano klucza. Nie tworzymy pliku z tokenem, Sites JS,
+nowego adaptera ani no-auth/OAuth obejścia. Ukryty monit operatora jest dozwolony
+przez OWNER wyłącznie do kontrolowanych operacji istniejącego API, nie zastępuje
+faktycznego połączenia ChatGPT.
 
-Odbiór po zatwierdzonym wdrożeniu i potwierdzeniu magazynu sekretu: OWNER tworzy
-fikcyjną notatkę `TEST-CONNECTION-NOTE`, wydaje klucz 1 dzień, READ ONLY z samym
-`note.read`, wprowadza go wyłącznie w prywatnym Authentication. Plugin negocjuje
-MCP, widzi dokładnie `read_notes`, odczytuje tę samą notatkę/ID i odpowiada 401 po
-cofnięciu klucza. Dopiero ten test oznacza połączenie READ ONLY. Zapis wymaga
-odrębnego etapu i zgody. Adapter nie udostępnia nawet zapisu przy szerszym kluczu.
+Odbiór po wdrożeniu: fikcyjna notatka TEST-CONNECTION-NOTE, wprowadzenie 1-dniowego
+note.read wyłącznie do zweryfikowanego prywatnego Authentication, initialize,
+notifications/initialized, tools/list, read_notes i porównanie ID/treści w UI.
+Po Revoke ponowny odczyt ma odmówić 401. Dopiero to potwierdza połączenie.
 
-## Rzeczywiste wyniki testów
-
-`node --test server/tests/owner-book-mcp.test.mjs server/tests/owner-book-assistant.test.mjs`
-
-8 nowych grup MCP: rzeczywisty lokalny HTTP/Node, handshake/ping/notifications,
-jedna lista narzędzi i odczyt strony, odmowy/wycofany klucz, zakresy, dwie flagi,
-Cookie/Origin, wersje/Accept, GET/DELETE, błędny JSON, blokada zapisów/innych
-zasobów, 429, ukrywanie szczegółów błędu bazy. 4 istniejące testy REST asystenta
-przeszły jako celowana regresja. **SQL jest kontrolowaną fiksturą**; nie jest to
-test rzeczywistego PostgreSQL, MFA/GoTrue, oficjalnego SDK klienta MCP, Plugin
-Creator ani produkcji. Historycznych testów SQL 018 nie powtarzano bez zmian.
-Pierwszy przebieg zatrzymał się na zbyt krótkim fikcyjnym haśle konfiguracji
-testowej; poprawiono fiksturę, bez osłabiania walidacji produkcyjnej.
+Testy: 11 lokalnych HTTP z kontrolowanym SQL, 4 regresje REST oraz 6 grup native
+Node image + rzeczywisty TLS PostgreSQL na nowym klonie fikcyjnej bazy. Testowano
+izolację OWNER, zakresy, wygaśnięcie i cofanie; istniejący import przyjął fikcyjną
+partię raz po bezpiecznym ponowieniu, wycofano zapis, osobny READ ONLY pozostał
+aktywny. Nie testowano interaktywnego GoTrue ani klienta Plugin Creator.
+Dowody: [checkpoint](OWNER-BOOK-COMPLETION-CHECKPOINT.md).

@@ -169,12 +169,12 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false}){
     // Stop only the new app/Auth so protected-data comparison has a stable view.
     publicCompose(profile,['stop','app','auth']);await rollback();
    }});
-   state.phase='DEPLOYED_PENDING_OWNER_ACCEPTANCE';state.appliedAt=new Date().toISOString();await save();console.log(JSON.stringify({status:state.phase,release,remoteBookApiEnabled:bookApi,chatgptConnected:false,accountsPreserved:true}));return;
+   state.phase='DEPLOYED_PENDING_OWNER_ACCEPTANCE';state.appliedAt=new Date().toISOString();await save();console.log(JSON.stringify({status:state.phase,release,remoteBookApiEnabled:bookApi,remoteBookMcpEnabled:bookMcp,mcpAuthenticatedReadVerified:false,chatgptConnected:false,accountsPreserved:true}));return;
   }
   if(phase==='rollback'){must(['DEPLOYED_PENDING_OWNER_ACCEPTANCE','DEPLOYED_AND_VERIFIED'].includes(state.phase),'Nieprawidłowy etap rollbacku.');publicCompose(profile,['stop','app','auth']);await rollback();console.log(JSON.stringify({status:state.phase,release:state.previousRelease,databaseRestored:false}));return;}
   must(state.phase==='DEPLOYED_PENDING_OWNER_ACCEPTANCE','Odbiór nie jest dostępny dla tego checkpointu.');
   await verify();must(recentOwnerCount(state.appliedAt)>0,'Brak potwierdzenia istniejącego OWNER + MFA po aktualizacji.');
-  state.phase='DEPLOYED_AND_VERIFIED';state.ownerInteractiveAcceptance=true;await save();console.log(JSON.stringify({status:bookMcp?'MCP_ENABLED_CHATGPT_NOT_CONNECTED':bookApi?'API_ENABLED_CHATGPT_NOT_CONNECTED':state.phase,release,ownerInteractiveAcceptance:true,remoteBookApiEnabled:bookApi,chatgptConnected:false}));
+  state.phase='DEPLOYED_AND_VERIFIED';state.ownerInteractiveAcceptance=true;await save();console.log(JSON.stringify({status:bookMcp?'MCP_ENABLED_CHATGPT_NOT_CONNECTED':bookApi?'API_ENABLED_CHATGPT_NOT_CONNECTED':state.phase,release,ownerInteractiveAcceptance:true,remoteBookApiEnabled:bookApi,remoteBookMcpEnabled:bookMcp,mcpAuthenticatedReadVerified:false,chatgptConnected:false}));
  }catch(e){
   // A pre-migration preparation error must resume existing services. A recorded
   // successful backup intentionally holds them paused for offsite transfer.

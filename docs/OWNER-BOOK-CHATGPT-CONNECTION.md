@@ -1,5 +1,9 @@
 # OWNER Book API + ChatGPT: stan i bezpieczne uruchomienie
 
+Raport historyczny przygotowania 236e04b. OWNER później potwierdził jego odbiór.
+Aktualny etap MCP: [checkpoint wykonania](OWNER-BOOK-COMPLETION-CHECKPOINT.md) i
+[aktualizacja z 236e04b](OWNER-BOOK-MCP-UPDATE-PLAN.md). Nie ponawiać starego --book-api.
+
 **Kod przygotowany i przetestowany lokalnie. Nie wdrożono tej aktualizacji i nie
 połączono ChatGPT.** OWNER zgłosił działające R1 `d5582ffd9f1e7f9a40a1a49f9e16a304eae64a4e`,
 logowanie/TOTP i zarządzanie kluczami. Sesja Codexa nie ma autoryzowanego SSH;

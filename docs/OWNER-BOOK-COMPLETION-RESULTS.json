@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-25",
+  "timezone": "Europe/Oslo",
+  "status": "PREPARED_AND_ISOLATED_TESTED_NOT_DEPLOYED",
+  "baseRelease": "236e04bded81c406fb49ee0950ae20d139f257ec",
+  "ownerReportedBaseAcceptance": true,
+  "branch": "feature/owner-book-mcp-readonly",
+  "implementationCheckpoints": [
+    "54dc7ac",
+    "70dd5e0",
+    "9192b86"
+  ],
+  "productionChangesMadeByThisTask": false,
+  "productionBackupExecutedByThisTask": false,
+  "productionBookRead": false,
+  "productionBookImport": false,
+  "chatgptConnected": false,
+  "mcpUrl": "https://shadow-bridge.eu/api/integrations/owner-book/v1/mcp",
+  "transport": "streamable-http",
+  "authentication": {
+    "type": "api_key",
+    "headerScheme": "bearer",
+    "privateSecretStorageVerified": false,
+    "firstScope": "note.read"
+  },
+  "operatorInstallerSha256": "eea86c1150701dadd366b404dfdbaf43197d68f1f95deee01742edd1140e0b01",
+  "tests": {
+    "rolloutAndR1": {
+      "passed": 25,
+      "kind": "unit, actual local Compose config and GCM; not Contabo"
+    },
+    "mcpHttp": {
+      "passed": 11,
+      "sql": "controlled fixture"
+    },
+    "restTargetedRegression": {
+      "passed": 4
+    },
+    "nativeMcp": {
+      "kind": "native-mcp-real-postgresql",
+      "sourceSha": "9192b868cba4284c15a935d24060529ced4b2af9",
+      "imageId": "sha256:c3eff7c346ab0e2bc98d6a7d6c9c0df681b0d2bfcb1f5378b9cacc328a7af113",
+      "cases": [
+        {
+          "name": "native non-root image preserves REST while MCP is separately disabled",
+          "result": "PASS"
+        },
+        {
+          "name": "actual restricted TLS PostgreSQL authorizes handshake and note.read; other OWNER notes stay isolated",
+          "result": "PASS"
+        },
+        {
+          "name": "scoped operational reads use real task/decision RPC and redacted journal; writes remain denied",
+          "result": "PASS"
+        },
+        {
+          "name": "existing API imports a fictional batch once, revokes temporary write and preserves independent READ ONLY",
+          "result": "PASS"
+        },
+        {
+          "name": "real expiry and OWNER revocation deny MCP, while a separate READ ONLY key remains valid",
+          "result": "PASS"
+        },
+        {
+          "name": "fictional accounts, password/MFA records and the original retained database are unchanged",
+          "result": "PASS"
+        }
+      ],
+      "accountsAndMfaPreserved": true,
+      "result": "PASS",
+      "interactiveGoTrueLoginTested": false,
+      "pluginCreatorTested": false,
+      "productionChanges": false
+    },
+    "sourceNoPhoneAndCreditGuard": {
+      "distinctPassed": 20,
+      "firstCommandPassed": 19,
+      "latestInactiveImporterCommandPassed": 5,
+      "overlappingRepeatedCases": 4
+    },
+    "privateImportReview": {
+      "passed": 6,
+      "kind": "pure comparison; incomplete Book never becomes missing entries"
+    }
+  },
+  "privateMemoryPreview": {
+    "entries": 25,
+    "tasks": 5,
+    "decisions": 8,
+    "notes": 12,
+    "historicalSourceChunks": 9,
+    "sourceBulletsPreserved": 257,
+    "currentBookReconciled": false,
+    "ownerApproval": false,
+    "applied": false,
+    "historicalRegistry71_12_15Located": false,
+    "missingEntries": null,
+    "duplicatesAgainstCurrentBook": null,
+    "existingUiCharacters": 49240,
+    "uiCharacterLimit": 50000,
+    "compactRequestBytes": 51499,
+    "restByteLimit": 65536,
+    "actualPrivateBalancesPublished": false
+  },
+  "sourcing": {
+    "providerCalls": 0,
+    "newCrmRecords": 0,
+    "canaryScheduled": false,
+    "canaryExecuted": false,
+    "paidOperations": 0,
+    "phoneCollectionEnabled": false,
+    "existingCrmDataDeleted": false,
+    "n8nConnections": "UNVERIFIED",
+    "crmTestWriteRead": "NOT EXECUTED"
+  },
+  "access": {
+    "authorizedSshAvailable": false,
+    "bookPluginCreatorApolloClayN8nToolsCallable": false,
+    "proxyConnectStatus": 403,
+    "originHttp": "000",
+    "retriedOutsideSandbox": true
+  },
+  "testsOnlyInfrastructure": {
+    "isolatedServicesStopped": true,
+    "databasesImagesVolumesRetained": true,
+    "priorThreeLocalOwnerContainersUnchanged": true,
+    "heavyWorkspace": "separate /tmp pool; disk guard passed"
+  },
+  "productionTemporaryImportKeyIssuedOrRevokedByThisTask": false
+}

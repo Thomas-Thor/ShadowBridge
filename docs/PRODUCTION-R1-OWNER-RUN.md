@@ -1,3 +1,7 @@
+> Aktualizacja z przyjętego 236e04b do MCP używa nowego trybu --book-mcp.
+> Aktualny opis: [OWNER-BOOK-MCP-UPDATE-PLAN.md](OWNER-BOOK-MCP-UPDATE-PLAN.md).
+> Poniższy starszy przebieg nie jest poleceniem ponownego wdrożenia 236e04b.
+
 # R1 + OWNER Command Book: jedna procedura operatora
 
 **Działające R1 `d5582ff` i aktywacja API:** użyć [nowej procedury Book API](OWNER-BOOK-CHATGPT-CONNECTION.md).

@@ -1,0 +1,23 @@
+{
+  "kind": "shadowbridge-private-mcp-connection-description-v1",
+  "status": "PREPARED_NOT_DEPLOYED_NOT_CONNECTED",
+  "notAnInstallablePluginManifest": true,
+  "url": "https://shadow-bridge.eu/api/integrations/owner-book/v1/mcp",
+  "transport": "streamable-http",
+  "authentication": {
+    "type": "api_key",
+    "headerScheme": "bearer",
+    "headerName": "Authorization",
+    "secretIncluded": false,
+    "privateAuthenticationFieldAndServerStorageVerified": false
+  },
+  "firstConnection": {
+    "scopes": ["note.read"],
+    "keyLifetimeDays": 1,
+    "testTool": "read_notes",
+    "fictionalNoteTitle": "TEST-CONNECTION-NOTE"
+  },
+  "tools": ["read_notes", "read_book_entries", "read_activity"],
+  "writeTools": [],
+  "instructions": "Verify private secret storage and actual deployment before issuing a key. Never include the key in this description, plugin package, browser code, model messages or logs. Listing tools does not grant their scopes."
+}
