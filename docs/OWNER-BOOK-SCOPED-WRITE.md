@@ -98,3 +98,11 @@ or background reminder service is claimed.
 
 Until that sequence passes, integration status remains **NOT LIVE VERIFIED**.
 Nightly n8n workflows were not changed, imported or activated.
+
+The updater line `APPEND CONFIGURED; REAL OWNER CONSENT/IMPORT NOT VERIFIED`
+appears after its acceptance command returns successfully. It still does not
+prove the currently running SHA or a real ChatGPT save. Read the persisted file
+`/opt/shadowbridge/.local/r1-owner-release-14cc8796cf718cc15e1ca1cc63154ed078685c6d/state.json`
+and current HTTPS `/health` without rerunning the installer. The acceptance fields
+are `phase`, `release`, `purpose`, `ownerInteractiveAcceptance`. The original final
+status JSON was terminal output, not a separate automatically saved final.json.
