@@ -100,3 +100,11 @@ grant external agents a broad OWNER/DBA token. The confirmed historical document
 contains project tasks and the formal brand email, not an identified structured
 contact batch; no contacts were invented from it. The actual live destination,
 records and access still require an authorized production check.
+
+If the installed plugin has a read-only instruction, keep read-only as its default
+and update that **existing** configuration to allow only the explicit temporary
+flow above on OWNER request. Discover advertised tools; never guess tool names or
+mark create tools read-only. Respect the ChatGPT host's action confirmations.
+No second connector/server or disabled authentication is a workaround. This
+repository cannot itself attach the connection to a conversation or prove the
+live ChatGPT client's scope-upgrade behavior without an actual owner connection.

@@ -1,6 +1,6 @@
 {
   "kind": "shadowbridge-private-mcp-connection-description-v1",
-  "status": "OAUTH_PREPARED_NOT_DEPLOYED_NOT_CONNECTED",
+  "status": "TEMPORARY_APPEND_PREPARED_NOT_DEPLOYED_NOT_CONNECTED",
   "notAnInstallablePluginManifest": true,
   "url": "https://shadow-bridge.eu/api/integrations/owner-book/v1/mcp",
   "transport": "streamable-http",
@@ -27,5 +27,32 @@
     "read_activity"
   ],
   "writeTools": [],
-  "instructions": "Connect using OAuth and existing OWNER + fresh MFA. Leave optional client credentials empty for dynamic registration. No write grants. Do not select no authentication or paste keys into chat. A deployment/401 does not prove an authenticated ChatGPT read."
+  "instructions": "Reuse this existing OAuth MCP connection. Start with note.read. Temporary append-only scopes require separate explicit OWNER + fresh MFA consent, exact preview approval and operator-authenticated backup before apply. Read back IDs and withdraw only create access. Never pass secrets in chat or claim production connection/import from code alone.",
+  "temporaryAppend": {
+    "enabledByDefault": false,
+    "separateOwnerMfaConsentRequired": true,
+    "scopes": [
+      "note.create",
+      "idea.create",
+      "task.create",
+      "event.create",
+      "decision.create"
+    ],
+    "matchingReadScopesRequired": true,
+    "maxNewRecords": 25,
+    "maxMinutes": 60,
+    "reviewApprovalAndPostApprovalVerifiedBackupRequired": true,
+    "updatesOrDeletes": false,
+    "crmPermissionIncluded": false,
+    "writeTools": [
+      "create_note",
+      "create_idea",
+      "create_task",
+      "create_event",
+      "create_decision",
+      "prepare_book_import",
+      "apply_book_import"
+    ],
+    "revocationPreservesRead": true
+  }
 }

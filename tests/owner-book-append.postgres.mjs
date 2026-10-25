@@ -1,5 +1,5 @@
 // Real PostgreSQL, new clone of a retained fictional 019 fixture. No production.
-import assert from'node:assert/strict';import{execFileSync}from'node:child_process';import{readFile,writeFile,mkdir}from'node:fs/promises';import{randomBytes,randomUUID,createHash}from'node:crypto';import{inspectSpace}from'../scripts/workspace-space.mjs';
+import assert from'node:assert/strict';import{execFileSync,spawn}from'node:child_process';import{readFile,writeFile,mkdir}from'node:fs/promises';import{randomBytes,randomUUID,createHash}from'node:crypto';import{inspectSpace}from'../scripts/workspace-space.mjs';
 assert.equal(process.env.SHADOWBRIDGE_TEST_OWNER_BOOK,'1');const root='/tmp/shadowbridge-r1-isolated';assert.equal((await inspectSpace({directory:root,dockerRoot:root+'/overlay-data'})).result,'PASS');
 const D=['exec','-i','shadowbridge-r1-isolated-daemon-20261024','docker','--host','unix://'+root+'/overlay.sock'];const docker=(args,opts={})=>execFileSync('docker',[...D,...args],{encoding:'utf8',stdio:['pipe','pipe','pipe'],maxBuffer:8*1024**2,...opts}).trim();
 const pg='shadowbridge-stageg-r1full-cd6f2078e0-postgres-1',source='oauth_native_fbbbf0db',tag=randomBytes(4).toString('hex'),db='append_test_'+tag,dir=new URL('../.local/append-postgres-'+tag+'/',import.meta.url);await mkdir(dir,{mode:0o700});
@@ -40,6 +40,7 @@ try{
  });
  await phase('cross-grant retries and changed command UUIDs skip duplicates; changed sources and equal titles require review',async()=>{
   const g=grant(),records=JSON.parse(sql(db,'SELECT items FROM owner_book.append_reviews WHERE id='+lit(preview.reviewId))),r=prepare(g,records);assert.equal(r.status,200);assert.equal(r.data.diff.missing.length,0);assert.equal(r.data.diff.duplicates.length,5);
+  const crossKind=prepare(g,[{...records[0],kind:'task'}]);assert.equal(crossKind.data.diff.conflicts[0].reason,'SOURCE_KIND_CONFLICT_NO_FOREIGN_IDS');assert.ok(!crossKind.data.diff.conflicts[0].currentIds);
   const changed=prepare(g,[{...records[0],body:'A changed historical assertion must not overwrite OWNER work'}]);assert.equal(changed.status,200);assert.equal(changed.data.diff.conflicts.length,1);assert.equal(approve(changed.data).status,403);
   const title=prepare(g,[{...records[0],source_ref:'fictional-different-source:'+tag,body:'Different context; not automatically the same record'}]);assert.equal(title.data.diff.conflicts.length,1);
   const update=prepare(g,[{...entry(),id:results.createdFictionalIds[0]}]);assert.equal(update.status,403);
@@ -55,6 +56,11 @@ try{
   assert.equal(browser('oauth_owner','revoke_create',{id:full.id}).status,200);assert.equal(prepare(full,[entry()]).status,403);assert.equal(read(full).status,200);assert.equal(read(ro).status,200);
   sql(db,"UPDATE owner_book.oauth_create_grants SET create_until=now()-interval '1 second' WHERE grant_id="+lit(g.id));assert.equal(prepare(g,[entry()]).status,403);assert.equal(read(g).status,200);
   assert.equal(security(db),before);assert.equal(security(source),original);
+ });
+ await phase('two concurrently applied approved previews create one source record; the competing stale snapshot stops safely',async()=>{
+  const g=grant(),record=entry('note','parallel-'+tag),a=prepare(g,[record]),b=prepare(g,[record]);assert.equal(a.status,200);assert.equal(b.status,200);assert.equal(approve(a.data).status,200);assert.equal(approve(b.data).status,200);certify(a.data);certify(b.data);
+  const parallel=reviewId=>new Promise((resolve,reject)=>{const q='SET SESSION AUTHORIZATION shadowbridge_sessions;SELECT owner_book.append_rpc(\'apply\','+lit(JSON.stringify({reviewId,token_hash:hash(g.access)}))+'::jsonb,'+lit(clientHash)+','+lit(randomUUID())+'::uuid);';const child=spawn('docker',[...D,'exec','-i',pg,'psql','-XqAt','-v','ON_ERROR_STOP=1','-U','postgres','-d',db],{stdio:['pipe','pipe','pipe']});let out='',err='';child.stdout.on('data',x=>out+=x);child.stderr.on('data',x=>err+=x);child.on('error',reject);child.on('close',code=>{if(code!==0)return reject(Error('Parallel fictional SQL failed: '+err));try{resolve(JSON.parse(out.trim()));}catch(e){reject(e);}});child.stdin.end(q);});
+  const applied=await Promise.all([parallel(a.data.reviewId),parallel(b.data.reviewId)]);assert.deepEqual(applied.map(r=>r.status).sort(),[200,409]);assert.equal(sql(db,'SELECT count(*) FROM owner_book.entries WHERE source_ref='+lit(record.source_ref)),'1');
  });
  await phase('existing central CRM preview/import preserves contacts, deduplicates by actual identity keys and separates equal names across countries',async()=>{
   const call=(fn,p,key=randomUUID(),user=owner)=>JSON.parse(sql(db,'SET SESSION AUTHORIZATION shadowbridge_api;BEGIN;SET LOCAL "request.jwt.claim.sub"='+lit(user)+';SET LOCAL "request.jwt.claim.aal"=\'aal2\';SET LOCAL "request.jwt.claim.mfa_verified_at"='+lit(String(Math.floor(Date.now()/1000)))+';SELECT '+(fn==='preview_intake'?'owner_vault.preview_intake('+lit(JSON.stringify(p))+'::jsonb)':'to_jsonb(owner_vault.owner_intake('+lit(JSON.stringify(p))+'::jsonb,'+lit(key)+'::uuid))')+';COMMIT;'));

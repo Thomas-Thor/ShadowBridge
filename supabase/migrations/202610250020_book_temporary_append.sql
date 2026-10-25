@@ -51,10 +51,12 @@ DECLARE p jsonb;fp text;refs uuid[];matches uuid[];titles uuid[];missing jsonb:=
  FOR p IN SELECT value FROM jsonb_array_elements(items) LOOP
   IF p ? 'id' OR p ? 'version' OR coalesce(length(btrim(p->>'source_ref')),0) NOT BETWEEN 1 AND 500 OR (p->>'source_ref')=ANY(seen) THEN RAISE EXCEPTION 'Distinct stable source required; no updates' USING ERRCODE='22023';END IF;
   PERFORM owner_book.validate_record(p);fp=owner_book.append_fingerprint(p);
-  SELECT coalesce(array_agg(id),'{}') INTO refs FROM owner_book.entries WHERE owner_id=subject AND source_ref=p->>'source_ref';
+  SELECT coalesce(array_agg(id),'{}') INTO refs FROM owner_book.entries WHERE owner_id=subject AND kind=p->>'kind' AND source_ref=p->>'source_ref';
   SELECT coalesce(array_agg(e.id),'{}') INTO matches FROM owner_book.entries e WHERE owner_id=subject AND kind=p->>'kind' AND owner_book.append_normal(title)=owner_book.append_normal(p->>'title') AND owner_book.append_fingerprint(owner_book.dto(e))=fp;
   SELECT coalesce(array_agg(id),'{}') INTO titles FROM owner_book.entries WHERE owner_id=subject AND kind=p->>'kind' AND lower(owner_book.append_normal(title))=lower(owner_book.append_normal(p->>'title'));
-  IF cardinality(refs)>0 THEN
+  IF EXISTS(SELECT FROM owner_book.entries WHERE owner_id=subject AND kind<>p->>'kind' AND source_ref=p->>'source_ref') THEN
+   conflicts=conflicts||jsonb_build_array(jsonb_build_object('sourceRef',p->>'source_ref','reason','SOURCE_KIND_CONFLICT_NO_FOREIGN_IDS'));
+  ELSIF cardinality(refs)>0 THEN
    IF cardinality(refs)=1 AND refs[1]=ANY(matches) THEN duplicates=duplicates||jsonb_build_array(jsonb_build_object('sourceRef',p->>'source_ref','currentId',refs[1],'preserveCurrent',true));
    ELSE conflicts=conflicts||jsonb_build_array(jsonb_build_object('sourceRef',p->>'source_ref','currentIds',refs,'reason','EXISTING_SOURCE_EDITED_OR_AMBIGUOUS_KEEP_CURRENT'));END IF;
   ELSIF cardinality(matches)=1 THEN duplicates=duplicates||jsonb_build_array(jsonb_build_object('sourceRef',p->>'source_ref','currentId',matches[1],'preserveCurrent',true));
