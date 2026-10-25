@@ -1,5 +1,8 @@
 # Nightly Global Acquisition: pakiet do przeglądu OWNER
 
+Po odbiorze produkcji 236e04b: [aktualny checkpoint canary](CANARY-CHECKPOINT-2026-10-25.md).
+Do samej kontroli służy `owner-readiness-only.mjs --read-only`; nie ponawia wdrożenia.
+
 Aktualny krok operacyjny (25.10): [jeden launcher OWNER: API Book i odczyt n8n](OWNER-NEXT-STEP.md).
 Nie wdrażać tej gałęzi pozyskiwania zamiast nowszego R1. Launcher używa osobnego,
 przypiętego instalatora R1 i nie uruchamia źródeł ani harmonogramów.
