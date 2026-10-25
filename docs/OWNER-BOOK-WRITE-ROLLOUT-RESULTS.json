@@ -1,0 +1,48 @@
+{
+  "kind": "native-app-book-write-backup-rollback",
+  "sourceSha": "4ade2361789420f7c7305ec9d447e70ce8718f0d",
+  "images": {
+    "runtime": "sha256:ae2883842051d927a637d6f49481664e9d1993d13ba336e751e45707f5395bf9",
+    "migrator": "sha256:4b000619905ba5053d5c2e2c6e84567bdeb72ef20b22a4e2c82544d5d9311ec7"
+  },
+  "productionChanges": false,
+  "chatgptTested": false,
+  "interactiveGoTrueTested": false,
+  "fixtureExecutorRoleSubstitution": true,
+  "cases": [
+    {
+      "name": "authenticated encrypted backup restores to a new isolated database with every original table unchanged",
+      "result": "PASS"
+    },
+    {
+      "name": "only missing 021 runs; old rows survive, the complete ledger validates and a second pass has nothing pending",
+      "result": "PASS"
+    },
+    {
+      "name": "native non-root app keeps writes disabled by default and preserves existing REST and OAuth reads",
+      "result": "PASS"
+    },
+    {
+      "name": "actual built app uses restricted TLS DB roles to create, read, edit and read back a task and note",
+      "result": "PASS"
+    },
+    {
+      "name": "write withdrawal survives real OAuth refresh and app restart; reads and REST still work",
+      "result": "PASS"
+    },
+    {
+      "name": "actual prior runtime matching 14cc879 works after 021 and retains new data, accounts, sessions and MFA",
+      "result": "PASS"
+    }
+  ],
+  "rollbackRuntimeImage": "sha256:3ea879c691f6df4794f46c25f43849dd16132dcddb3af9707a313e65be268345",
+  "rollbackRuntimeMatches14cc879": true,
+  "fixtureUnchanged": true,
+  "result": "PASS",
+  "rolloutTestsPassed": 22,
+  "productionDeployed": false,
+  "ownerReportedAcceptedBase": "14cc8796cf718cc15e1ca1cc63154ed078685c6d",
+  "ownerReportedLiveHealthRelease": "14cc8796cf718cc15e1ca1cc63154ed078685c6d",
+  "publicHttpsStatusReported": 200,
+  "actualContaboPreflightRun": false
+}

@@ -49,5 +49,7 @@
   "productionDeployed": false,
   "chatgptWriteAcceptance": false,
   "oldMigrationsChanged": false,
-  "testedCodeCommit": "b9df48f950bffe251fa1269aca6bdf63f0a4737c"
+  "testedCodeCommit": "b9df48f950bffe251fa1269aca6bdf63f0a4737c",
+  "historicalCheckpoint": true,
+  "subsequentNativeAndRolloutResults": "OWNER-BOOK-WRITE-ROLLOUT-RESULTS.json"
 }

@@ -47,17 +47,19 @@ Runtime API/session roles cannot directly select or mutate the new tables, or
 execute the previous internal consent wrapper. Saves use the existing Book engine.
 
 `OWNER_BOOK_MCP_WRITE_ENABLED` defaults to **false**. Existing read operation and
-the separately approved temporary import remain intact. The existing deployment
-coordinator intentionally rejects an unreviewed 21-migration checkout in its
-old `--book-create` mode. **Do not run that installer against this branch.**
+the separately approved temporary import remain intact. The coordinator now has
+an explicit **`--book-write`** mode requiring accepted 14cc879. Its old
+`--book-create` mode still rejects a 21-migration checkout. Do not confuse modes.
 
 Before a later approved rollout: read the actual accepted 14cc879 checkpoint and
 running image, prepare the next explicitly pinned update base, verify encrypted
 DB/config/certificate backups and offsite copy, apply missing 021 once, deploy
 the matching image and enable the separate flag only with OWNER approval.
 Rollback is application-only; leave 021 and new Book records in place. The new
-flag can be disabled without deleting data. Native image build, production
-upgrade packaging and old-image compatibility after 021 remain untested here.
+flag can be disabled without deleting data. Native image build, rollout packaging
+and previous-runtime compatibility have now passed in isolation; real Contabo
+preflight/deployment and ChatGPT acceptance remain pending. See
+[the exact approval/rollout plan](OWNER-BOOK-WRITE-DEPLOYMENT.md).
 
 ## Actual tests
 
