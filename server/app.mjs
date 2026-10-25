@@ -432,7 +432,7 @@ export function createApp({ config = loadConfig(), db = createDatabase({ connect
         const clientHash=createHmac('sha256',config.sessionEncryptionKey).update('owner-book:'+clientAddress(req,config)).digest('hex');
         if(url.pathname===mcpPath){
           if(!config.ownerBookMcpEnabled)throw new ApiError(503,'BOOK_MCP_DISABLED','The MCP connector has not been activated.');
-          const result=await routeBookMcp({req,url,sessionPool:db.sessionPool,body,clientHash,oauthEnabled:config.ownerBookOAuthEnabled});
+          const result=await routeBookMcp({req,url,sessionPool:db.sessionPool,body,clientHash,oauthEnabled:config.ownerBookOAuthEnabled,createEnabled:config.ownerBookMcpCreateEnabled});
           for(const [name,value] of Object.entries(result.headers||{}))res.setHeader(name,value);
           if(result.status===202){res.writeHead(202);return res.end();}
           return json(res,result.status,result.data);

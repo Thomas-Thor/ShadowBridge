@@ -8,7 +8,7 @@ import {hostname} from 'node:os';
 import {createReadStream} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {diagnose,ownerBookR1,ownerBookApiR1,ownerBookMcpR1} from './international-r1-diagnose.mjs';
+import {diagnose,ownerBookR1,ownerBookApiR1,ownerBookMcpR1,ownerBookOAuthR1} from './international-r1-diagnose.mjs';
 import {checkProduction} from './production-config.mjs';
 import {repositoryRoot} from './staging-prepare.mjs';
 import {publicCompose,databaseFingerprints,assertPreserved,verifyBackupArchive} from './production-ops.mjs';
@@ -61,9 +61,9 @@ function verifyProtected(state){
 export async function assertNoOtherReleaseLock(root,ownFolder){
  for(const name of await readdir(root)){if(!/^r1-owner-release-[a-f0-9]{40}$/.test(name))continue;const dir=path.join(root,name);if(dir===ownFolder)continue;try{await lstat(path.join(dir,'operation.lock'));}catch(e){if(e.code==='ENOENT')continue;throw e;}throw Error('Another release checkpoint is locked; do not interrupt or delete its lock.');}
 }
-export async function runRelease({phase,release,bookApi=false,bookMcp=false,bookOAuth=false}){
- must([bookApi,bookMcp,bookOAuth].every(v=>typeof v==='boolean')&&[bookApi,bookMcp,bookOAuth].filter(Boolean).length<=1,'Invalid release purpose.');
- const purpose=bookOAuth?'book-oauth':bookMcp?'book-mcp':bookApi?'book-api':'foundation',runtimeBase=bookOAuth?ownerBookMcpR1:bookMcp?ownerBookApiR1:bookApi?ownerBookR1:undefined;bookApi=bookApi||bookMcp||bookOAuth;
+export async function runRelease({phase,release,bookApi=false,bookMcp=false,bookOAuth=false,bookCreate=false}){
+ must([bookApi,bookMcp,bookOAuth,bookCreate].every(v=>typeof v==='boolean')&&[bookApi,bookMcp,bookOAuth,bookCreate].filter(Boolean).length<=1,'Invalid release purpose.');
+ const purpose=bookCreate?'book-create':bookOAuth?'book-oauth':bookMcp?'book-mcp':bookApi?'book-api':'foundation',runtimeBase=bookCreate?ownerBookOAuthR1:bookOAuth?ownerBookMcpR1:bookMcp?ownerBookApiR1:bookApi?ownerBookR1:undefined;bookApi=bookApi||bookMcp||bookOAuth||bookCreate;
  must(['prepare','apply','accept','rollback','cancel','off','resume','verify'].includes(phase)&&/^[a-f0-9]{40}$/.test(release||''),'Nieprawidłowy etap lub pełny SHA.');
  must(process.geteuid?.()===0&&hostname()==='vmi3682957'&&repositoryRoot==='/opt/shadowbridge'&&process.env.SUDO_USER==='shadowadmin','Uruchom wyłącznie przez sudo jako shadowadmin na vmi3682957.');
  must(process.env.NODE_TLS_REJECT_UNAUTHORIZED!=='0','Weryfikacja TLS nie może być wyłączona.');
@@ -71,7 +71,7 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
  process.env.GIT_CONFIG_COUNT='1';process.env.GIT_CONFIG_KEY_0='safe.directory';process.env.GIT_CONFIG_VALUE_0=repositoryRoot;
  must(git(['branch','--show-current'])==='release/shadowbridge-international-r1'&&git(['rev-parse','HEAD'])===release&&!git(['status','--porcelain']),'Niezgodny lub nieczysty checkout R1. Niczego nie nadpisano.');
  for(const a of releaseAncestors)git(['merge-base','--is-ancestor',a,'HEAD']);
- const sources=await migrationSources();must(sources.length===(bookOAuth?19:18),'Użyj zatwierdzonego wydania i jego jawnego trybu migracji. OAuth wymaga 001–019.');
+ const sources=await migrationSources();must(sources.length===(bookCreate?20:bookOAuth?19:18),'Użyj zatwierdzonego wydania i jego jawnego trybu migracji. OAuth wymaga 001–019.');
  const folder=path.join(repositoryRoot,'.local','r1-owner-release-'+release);await mkdir(folder,{mode:0o700,recursive:true});
  const info=await lstat(folder);must(info.isDirectory()&&!info.isSymbolicLink()&&(info.mode&0o777)===0o700,'Niebezpieczny katalog wydania.');
  const lock=path.join(folder,'operation.lock'),handle=await open(lock,'wx',0o600);await handle.write(String(process.pid));await handle.close();
@@ -88,7 +88,7 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
 
  const currentImage=()=>{const id=publicCompose(profile,['ps','-q','app']);must(/^[a-f0-9]{64}$/.test(id),'Brak jednego działającego app.');return JSON.parse(docker(['inspect',id]))[0];};
  const checkPaused=()=>{const r=publicCompose(profile,['ps','--services','--status','running']).split('\n');must(r.includes('postgres')&&!r.includes('app')&&!r.includes('auth'),'Aplikacja/Auth muszą pozostać wstrzymane do końca kopii/migracji.');};
- const checkPlan=async()=>{const p=await checkApplicationPlan({profile,directory:state.planDirectory});must(p.ownerBookApi===bookApi&&(!(bookMcp||bookOAuth)||p.ownerBookMcp===true)&&(!bookOAuth||p.ownerBookOAuth===true),'Nieprawidłowy zatwierdzony stan API Book.');checkMergedApplication(profile,state.planDirectory,p);return p;};
+ const checkPlan=async()=>{const p=await checkApplicationPlan({profile,directory:state.planDirectory});must(p.ownerBookApi===bookApi&&(!(bookMcp||bookOAuth||bookCreate)||p.ownerBookMcp===true)&&(!(bookOAuth||bookCreate)||p.ownerBookOAuth===true)&&(!bookCreate||p.ownerBookMcpCreate===true),'Nieprawidłowy zatwierdzony stan API Book.');checkMergedApplication(profile,state.planDirectory,p);return p;};
  const verifyBackups=async()=>{
   await verifyBackupArchive({directory:profile.sourceDirectory,...state.backups.database});
   const plan=await checkPlan();
@@ -101,15 +101,17 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
  };
  const verify=async()=>{
   await checkPlan();const c=currentImage();must(c.Image===state.image&&c.Config.Env.includes('RELEASE_SHA='+release)&&c.Config.Env.includes('OWNER_BOOK_API_ENABLED='+String(bookApi)),'Nie uruchomiono dokładnego obrazu lub wyłączonego API.');
-  if(bookMcp||bookOAuth)must(c.Config.Env.includes('OWNER_BOOK_MCP_ENABLED=true'),'MCP flag mismatch.');
-  validateApplied(sources,ledger());must(ledger().length===(bookOAuth?19:18),'Niekompletny ledger po migracji.');
+  if(bookMcp||bookOAuth||bookCreate)must(c.Config.Env.includes('OWNER_BOOK_MCP_ENABLED=true'),'MCP flag mismatch.');
+  validateApplied(sources,ledger());must(ledger().length===(bookCreate?20:bookOAuth?19:18),'Niekompletny ledger po migracji.');
   await verifyR1Http(release,{readOnly:true});verifyProtected(state);
-  if(bookMcp||bookOAuth)await verifyMcpGate(true);
-  if(bookOAuth){must(c.Config.Env.includes('OWNER_BOOK_OAUTH_ENABLED=true'),'OAuth flag mismatch.');await verifyOAuthGate(true);}
+  if(bookMcp||bookOAuth||bookCreate)await verifyMcpGate(true);
+  if(bookOAuth||bookCreate){must(c.Config.Env.includes('OWNER_BOOK_OAUTH_ENABLED=true'),'OAuth flag mismatch.');await verifyOAuthGate(true);}
+  if(bookCreate){must(c.Config.Env.includes('OWNER_BOOK_MCP_CREATE_ENABLED=true'),'Append flag mismatch.');await verifyCreateGate(true);}
   const r=await fetch('https://shadow-bridge.eu/api/integrations/owner-book/v1/entries?kind=task',{headers:{Accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(10000)});must(bookApi?r.status===401&&(await r.json()).code==='BOOK_API_DENIED':r.status===503&&(await r.json()).code==='BOOK_API_DISABLED','Nieprawidłowa bramka API: dostęp bez klucza musi być odrzucony.');
  };
  const verifyMcpGate=async enabled=>{const r=await fetch('https://shadow-bridge.eu/api/integrations/owner-book/v1/mcp',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'}),redirect:'manual',signal:AbortSignal.timeout(10000)});const d=await r.json();must(enabled?r.status===401&&d.code==='BOOK_API_DENIED':r.status===503&&d.code==='BOOK_MCP_DISABLED','MCP anonymous gate mismatch.');};
  const verifyOAuthGate=async enabled=>{const r=await fetch('https://shadow-bridge.eu/.well-known/oauth-authorization-server',{headers:{Accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(10000)});const d=await r.json();must(enabled?r.status===200&&d.issuer==='https://shadow-bridge.eu'&&d.code_challenge_methods_supported?.includes('S256'):r.status===503&&d.code==='BOOK_OAUTH_DISABLED','OAuth discovery mismatch.');if(enabled){const x=await fetch('https://shadow-bridge.eu/api/integrations/owner-book/v1/mcp',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'}),redirect:'manual',signal:AbortSignal.timeout(10000)});must(x.status===401&&x.headers.get('www-authenticate')?.includes('resource_metadata='),'OAuth challenge missing.');}};
+ const verifyCreateGate=async enabled=>{const r=await fetch('https://shadow-bridge.eu/.well-known/oauth-authorization-server',{headers:{Accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(10000)});const data=await r.json();must(r.status===200&&data.scopes_supported?.includes('note.create')===enabled&&data.scopes_supported?.includes('note.read'),'Append metadata gate mismatch.');};
  const rollback=async()=>{
   // Never restart an old app while a migration container is still running.
   if(state.migratorName){const ids=docker(['ps','-q','--filter','name=^/'+state.migratorName+'$']);must(!ids,'Migrator nadal pracuje; nie wykonano automatycznego rollbacku.');}
@@ -123,15 +125,15 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
   try{state=JSON.parse(await readFile(stateFile,'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
   if(phase==='prepare'&&!state){
    let previousAcceptance;
-   if(bookMcp||bookOAuth){const previousStateFile=path.join(repositoryRoot,'.local','r1-owner-release-'+(bookOAuth?ownerBookMcpR1:ownerBookApiR1),'state.json');await privateRegular(previousStateFile);const old=JSON.parse(await readFile(previousStateFile,'utf8'));previousAcceptance=old;must(old.release===(bookOAuth?ownerBookMcpR1:ownerBookApiR1)&&old.purpose===(bookOAuth?'book-mcp':'book-api')&&old.phase==='DEPLOYED_AND_VERIFIED'&&old.ownerInteractiveAcceptance===true,'Accepted '+(bookOAuth?'35c41f7 MCP':'236e04b API')+' checkpoint required; do not rerun an earlier deployment.');}
+   if(bookMcp||bookOAuth||bookCreate){const previousStateFile=path.join(repositoryRoot,'.local','r1-owner-release-'+(bookCreate?ownerBookOAuthR1:bookOAuth?ownerBookMcpR1:ownerBookApiR1),'state.json');await privateRegular(previousStateFile);const old=JSON.parse(await readFile(previousStateFile,'utf8'));previousAcceptance=old;must(old.release===(bookCreate?ownerBookOAuthR1:bookOAuth?ownerBookMcpR1:ownerBookApiR1)&&old.purpose===(bookCreate?'book-oauth':bookOAuth?'book-mcp':'book-api')&&old.phase==='DEPLOYED_AND_VERIFIED'&&old.ownerInteractiveAcceptance===true,'Accepted '+(bookCreate?'599fc33 OAuth':bookOAuth?'35c41f7 MCP':'236e04b API')+' checkpoint required; do not rerun an earlier deployment.');}
    const inventory=await diagnose({runtimeRelease:runtimeBase});must(inventory.status==='READY FOR PREFLIGHT','Preflight BLOCKED: '+inventory.blockers.join(', '));
    profile=await checkProduction({directory:inventory.installation.sourceDirectory});await preflightExistingR1(profile,{runtimeRelease:runtimeBase});
    must(Math.min(inventory.disk.configurationFreeBytes,inventory.disk.dockerFreeBytes)>=Math.max(8*1024**3,8*inventory.database.databaseBytes+4*1024**3),'Za mało miejsca na pełne kopie, weryfikację i nowe obrazy.');
    must(recentOwnerCount()>0,'OWNER musi teraz zalogować się w przeglądarce i potwierdzić dotychczasowe TOTP.');
    const previous=currentImage(),buildLog=await open(path.join(folder,'build.log'),'wx',0o600);
-   try{for(const target of bookApi&&!bookOAuth?['runtime']:['runtime','migrator'])exec('docker',['--context','default','build','--target',target,'--build-arg','SHADOWBRIDGE_RELEASE_SHA='+release,'-t',target==='runtime'?'shadowbridge-r1:'+release:profile.project+'-migrator','-f','deploy/staging/Dockerfile','.'],{stdio:['ignore',buildLog.fd,buildLog.fd],timeout:1200000});}finally{await buildLog.close();}
-   const image=JSON.parse(docker(['image','inspect','shadowbridge-r1:'+release]))[0],migrator=bookApi&&!bookOAuth?null:JSON.parse(docker(['image','inspect',profile.project+'-migrator']))[0];must([image,...(migrator?[migrator]:[])].every(i=>i.Config.Labels['org.opencontainers.image.revision']===release),'Niezgodny obraz aplikacji/migratora.');
-   const {directory}=await prepareApplicationPlan({profile,image:image.Id,releaseSha:release,previousImage:previous.Image,previousReleaseSha:inventory.application.release,ownerBookApi:bookApi,expectedPreviousReleaseSha:runtimeBase,previousAcceptance,ownerBookOAuth:bookOAuth?true:undefined,previousOwnerBookOAuth:bookOAuth?(previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_OAUTH_ENABLED='))?.split('=')[1]==='false'?false:undefined):undefined,ownerBookMcp:bookMcp||bookOAuth?true:undefined,previousOwnerBookMcp:bookOAuth?true:bookMcp?(previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_MCP_ENABLED='))?.split('=')[1]==='false'?false:undefined):undefined,previousOwnerBookApi:previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_API_ENABLED='))?.split('=')[1]==='true'?true:undefined});
+   try{for(const target of bookApi&&!bookOAuth&&!bookCreate?['runtime']:['runtime','migrator'])exec('docker',['--context','default','build','--target',target,'--build-arg','SHADOWBRIDGE_RELEASE_SHA='+release,'-t',target==='runtime'?'shadowbridge-r1:'+release:profile.project+'-migrator','-f','deploy/staging/Dockerfile','.'],{stdio:['ignore',buildLog.fd,buildLog.fd],timeout:1200000});}finally{await buildLog.close();}
+   const image=JSON.parse(docker(['image','inspect','shadowbridge-r1:'+release]))[0],migrator=bookApi&&!bookOAuth&&!bookCreate?null:JSON.parse(docker(['image','inspect',profile.project+'-migrator']))[0];must([image,...(migrator?[migrator]:[])].every(i=>i.Config.Labels['org.opencontainers.image.revision']===release),'Niezgodny obraz aplikacji/migratora.');
+   const {directory}=await prepareApplicationPlan({profile,image:image.Id,releaseSha:release,previousImage:previous.Image,previousReleaseSha:inventory.application.release,ownerBookApi:bookApi,expectedPreviousReleaseSha:runtimeBase,previousAcceptance,ownerBookMcpCreate:bookCreate?true:undefined,previousOwnerBookMcpCreate:bookCreate?(previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_MCP_CREATE_ENABLED='))?.split('=')[1]==='false'?false:undefined):undefined,ownerBookOAuth:bookOAuth||bookCreate?true:undefined,previousOwnerBookOAuth:bookCreate?true:bookOAuth?(previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_OAUTH_ENABLED='))?.split('=')[1]==='false'?false:undefined):undefined,ownerBookMcp:bookMcp||bookOAuth||bookCreate?true:undefined,previousOwnerBookMcp:bookOAuth||bookCreate?true:bookMcp?(previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_MCP_ENABLED='))?.split('=')[1]==='false'?false:undefined):undefined,previousOwnerBookApi:previous.Config.Env.find(x=>x.startsWith('OWNER_BOOK_API_ENABLED='))?.split('=')[1]==='true'?true:undefined});
    state={kind:'shadowbridge-r1-owner-release-v1',purpose,release,sourceDirectory:profile.sourceDirectory,planDirectory:directory,image:image.Id,migratorImage:migrator?.Id,previousRelease:inventory.application.release,previousImage:previous.Image,previousMigrationCount:inventory.database.migrationCount,protected:protectedServices(inventory),phase:'PLANNED'};await save();await checkPlan();
    paused=true;publicCompose(profile,['stop','app','auth']);
    const configuration=await backupApplicationConfiguration({profile,directory}),database=await backupInstallation(profile.sourceDirectory);
@@ -148,10 +150,10 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
    console.log(JSON.stringify({status:state.phase,release,publicApplicationPaused:true,backupAuthenticated:true,backupRestoredOnProduction:false}));return;
   }
   must(state?.release===release&&(state.purpose??'foundation')===purpose,'Nie znaleziono przygotowanego wydania o tym przeznaczeniu.');profile=await checkProduction({directory:state.sourceDirectory});await checkPlan();
-  if(phase==='verify'){must(bookOAuth&&state.phase==='DEPLOYED_AND_VERIFIED','Brak odebranego wydania OAuth.');await verify();console.log(JSON.stringify({status:'OAUTH_ENABLED_CHATGPT_NOT_CONNECTED',release,resumedWithoutDeployment:true,chatgptConnected:false}));return;}
+  if(phase==='verify'){must((bookOAuth||bookCreate)&&state.phase==='DEPLOYED_AND_VERIFIED','Brak odebranego wydania OAuth.');await verify();console.log(JSON.stringify({status:bookCreate?'CREATE_CONFIGURED_OWNER_CONSENT_AND_IMPORT_NOT_VERIFIED':'OAUTH_ENABLED_CHATGPT_NOT_CONNECTED',release,resumedWithoutDeployment:true,chatgptConnected:false}));return;}
   if(phase==='resume'){
-   must(bookOAuth&&['MIGRATING','SCHEMA_VERIFIED','APP_STARTING'].includes(state.phase),'Nieznany etap wznowienia; STOP.');
-   await verifyBackups();await verifyOffsite();validateApplied(sources,ledger());must(ledger().length===19,'Migracja nie jest potwierdzona; niczego nie powtórzono.');
+   must((bookOAuth||bookCreate)&&['MIGRATING','SCHEMA_VERIFIED','APP_STARTING'].includes(state.phase),'Nieznany etap wznowienia; STOP.');
+   await verifyBackups();await verifyOffsite();validateApplied(sources,ledger());must(ledger().length===(bookCreate?20:19),'Migracja nie jest potwierdzona; niczego nie powtórzono.');
    if(state.phase==='MIGRATING'){
     checkPaused();must(state.migratorName===profile.project+'-r1-'+release.slice(0,12),'Nieznany migrator.');
     const m=JSON.parse(docker(['inspect',state.migratorName]))[0];must(!m.State.Running&&m.State.ExitCode===0&&m.Image===state.migratorImage,'Migrator nadal działa albo nie zakończył się poprawnie.');
@@ -168,9 +170,10 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
   }
   if(phase==='prepare'){must(state.phase==='BACKUPS_VERIFIED_WAITING_OFFSITE','Istniejący checkpoint wymaga kontroli operatora; nie powtórzono operacji.');checkPaused();console.log(JSON.stringify({status:state.phase,release,resumed:true}));return;}
   if(phase==='off'){
-   must(bookApi&&['DEPLOYED_PENDING_OWNER_ACCEPTANCE','DEPLOYED_AND_VERIFIED','API_DISABLED','MCP_DISABLED','OAUTH_DISABLED'].includes(state.phase),'Nie ma aktywnej generacji API do wyłączenia.');
+   must(bookApi&&['DEPLOYED_PENDING_OWNER_ACCEPTANCE','DEPLOYED_AND_VERIFIED','API_DISABLED','MCP_DISABLED','OAUTH_DISABLED','CREATE_DISABLED'].includes(state.phase),'Nie ma aktywnej generacji API do wyłączenia.');
    const c=currentImage();must(c.Image===state.image&&c.Config.Env.includes('RELEASE_SHA='+release),'Nie zmieniono nieznanej aplikacji.');
-   docker(disabledApplicationArguments(profile,state.planDirectory,{mcpOnly:bookMcp,oauthOnly:bookOAuth}));
+   docker(disabledApplicationArguments(profile,state.planDirectory,{mcpOnly:bookMcp,oauthOnly:bookOAuth,createOnly:bookCreate}));
+   if(bookCreate){await verifyCreateGate(false);state.phase='CREATE_DISABLED';await save();console.log(JSON.stringify({status:state.phase,release,restAndReadOAuthPreserved:true,accountsChanged:false}));return;}
    if(bookOAuth){await verifyOAuthGate(false);state.phase='OAUTH_DISABLED';await save();console.log(JSON.stringify({status:state.phase,release,restApiPreserved:true,mcpPreserved:true,accountsChanged:false}));return;}
    if(bookMcp){await verifyMcpGate(false);state.phase='MCP_DISABLED';await save();console.log(JSON.stringify({status:state.phase,release,restApiPreserved:true,accountsChanged:false}));return;}
    const r=await fetch('https://shadow-bridge.eu/api/integrations/owner-book/v1/entries?kind=task',{redirect:'manual',signal:AbortSignal.timeout(10000)});must(r.status===503&&(await r.json()).code==='BOOK_API_DISABLED','Nie potwierdzono wyłączenia API.');
@@ -184,19 +187,19 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
   if(phase==='apply'){
    must(state.phase==='BACKUPS_VERIFIED_WAITING_OFFSITE','Nieprawidłowy checkpoint aktualizacji.');
    await controlledApply({check:async()=>{checkPaused();await checkPlan();},verifyBackups,verifyOffsite,preservedBefore:async()=>assertPreserved(state.before,await databaseFingerprints(profile.sourceDirectory)),migrate:async()=>{
-    if(bookApi&&!bookOAuth){state.phase='REPLACING_APP_NO_MIGRATIONS';state.schemaChanged=false;await save();return;}
+    if(bookApi&&!bookOAuth&&!bookCreate){state.phase='REPLACING_APP_NO_MIGRATIONS';state.schemaChanged=false;await save();return;}
     state.migratorName=profile.project+'-r1-'+release.slice(0,12);must(!docker(['ps','-aq','--filter','name=^/'+state.migratorName+'$']),'Zachowany kontener migratora wymaga przeglądu, bez ponawiania.');
     must(JSON.parse(docker(['image','inspect',profile.project+'-migrator']))[0].Id===state.migratorImage,'Niezgodny niezmienny obraz migratora.');state.phase='MIGRATING';await save();migrationAttempted=true;publicCompose(profile,['run','--name',state.migratorName,'--no-deps','--pull','never','migrator']);state.migrated=true;state.schemaChanged=true;await save();
-   },preservedAfter:async()=>{command('preserved');state.migrationPreserved=true;if(bookOAuth)state.phase='SCHEMA_VERIFIED';await save();},start:async()=>{if(bookOAuth){state.phase='APP_STARTING';await save();}publicCompose(profile,['start','auth']);exec('sh',[path.join(state.planDirectory,'apply-application.sh'),'--after-reviewed-backup-and-migrations']);},verify,rollback:async()=>{
+   },preservedAfter:async()=>{command('preserved');state.migrationPreserved=true;if(bookOAuth||bookCreate)state.phase='SCHEMA_VERIFIED';await save();},start:async()=>{if(bookOAuth||bookCreate){state.phase='APP_STARTING';await save();}publicCompose(profile,['start','auth']);exec('sh',[path.join(state.planDirectory,'apply-application.sh'),'--after-reviewed-backup-and-migrations']);},verify,rollback:async()=>{
     // Stop only the new app/Auth so protected-data comparison has a stable view.
     publicCompose(profile,['stop','app','auth']);await rollback();
    }});
-   state.phase='DEPLOYED_PENDING_OWNER_ACCEPTANCE';state.appliedAt=new Date().toISOString();await save();console.log(JSON.stringify({status:state.phase,release,remoteBookApiEnabled:bookApi,remoteBookMcpEnabled:bookMcp||bookOAuth,remoteBookOAuthEnabled:bookOAuth,mcpAuthenticatedReadVerified:false,chatgptConnected:false,accountsPreserved:true}));return;
+   state.phase='DEPLOYED_PENDING_OWNER_ACCEPTANCE';state.appliedAt=new Date().toISOString();await save();console.log(JSON.stringify({status:state.phase,release,remoteBookApiEnabled:bookApi,remoteBookMcpEnabled:bookMcp||bookOAuth||bookCreate,remoteBookOAuthEnabled:bookOAuth||bookCreate,temporaryCreateConfigured:bookCreate,mcpAuthenticatedReadVerified:false,chatgptConnected:false,accountsPreserved:true}));return;
   }
   if(phase==='rollback'){must(['DEPLOYED_PENDING_OWNER_ACCEPTANCE','DEPLOYED_AND_VERIFIED'].includes(state.phase),'Nieprawidłowy etap rollbacku.');publicCompose(profile,['stop','app','auth']);await rollback();console.log(JSON.stringify({status:state.phase,release:state.previousRelease,databaseRestored:false}));return;}
   must(state.phase==='DEPLOYED_PENDING_OWNER_ACCEPTANCE','Odbiór nie jest dostępny dla tego checkpointu.');
   await verify();must(recentOwnerCount(state.appliedAt)>0,'Brak potwierdzenia istniejącego OWNER + MFA po aktualizacji.');
-  state.phase='DEPLOYED_AND_VERIFIED';state.ownerInteractiveAcceptance=true;await save();console.log(JSON.stringify({status:bookOAuth?'OAUTH_ENABLED_CHATGPT_NOT_CONNECTED':bookMcp?'MCP_ENABLED_CHATGPT_NOT_CONNECTED':bookApi?'API_ENABLED_CHATGPT_NOT_CONNECTED':state.phase,release,ownerInteractiveAcceptance:true,remoteBookApiEnabled:bookApi,remoteBookMcpEnabled:bookMcp||bookOAuth,remoteBookOAuthEnabled:bookOAuth,mcpAuthenticatedReadVerified:false,chatgptConnected:false}));
+  state.phase='DEPLOYED_AND_VERIFIED';state.ownerInteractiveAcceptance=true;await save();console.log(JSON.stringify({status:bookCreate?'CREATE_CONFIGURED_OWNER_CONSENT_AND_IMPORT_NOT_VERIFIED':bookOAuth?'OAUTH_ENABLED_CHATGPT_NOT_CONNECTED':bookMcp?'MCP_ENABLED_CHATGPT_NOT_CONNECTED':bookApi?'API_ENABLED_CHATGPT_NOT_CONNECTED':state.phase,release,ownerInteractiveAcceptance:true,remoteBookApiEnabled:bookApi,remoteBookMcpEnabled:bookMcp||bookOAuth||bookCreate,remoteBookOAuthEnabled:bookOAuth||bookCreate,temporaryCreateConfigured:bookCreate,mcpAuthenticatedReadVerified:false,chatgptConnected:false}));
  }catch(e){
   // A pre-migration preparation error must resume existing services. A recorded
   // successful backup intentionally holds them paused for offsite transfer.
@@ -205,6 +208,6 @@ export async function runRelease({phase,release,bookApi=false,bookMcp=false,book
  }finally{await unlink(lock);}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const [phase,...args]=process.argv.slice(2);must(args.length>=1&&args.length<=2&&args[0].startsWith('--release=')&&(args.length===1||['--book-api','--book-mcp','--book-oauth'].includes(args[1])),'Use prepare|apply|accept|rollback|cancel|off|resume|verify --release=FULL_SHA [--book-api|--book-mcp|--book-oauth]');
- runRelease({phase,release:args[0].slice(10),bookApi:args.includes('--book-api'),bookMcp:args.includes('--book-mcp'),bookOAuth:args.includes('--book-oauth')}).catch(e=>{console.error(JSON.stringify({status:'BLOCKED',reason:e.message,deploymentNotClaimed:true}));process.exitCode=1;});
+ const [phase,...args]=process.argv.slice(2);must(args.length>=1&&args.length<=2&&args[0].startsWith('--release=')&&(args.length===1||['--book-api','--book-mcp','--book-oauth','--book-create'].includes(args[1])),'Use prepare|apply|accept|rollback|cancel|off|resume|verify --release=FULL_SHA [--book-api|--book-mcp|--book-oauth]');
+ runRelease({phase,release:args[0].slice(10),bookApi:args.includes('--book-api'),bookMcp:args.includes('--book-mcp'),bookOAuth:args.includes('--book-oauth'),bookCreate:args.includes('--book-create')}).catch(e=>{console.error(JSON.stringify({status:'BLOCKED',reason:e.message,deploymentNotClaimed:true}));process.exitCode=1;});
 }

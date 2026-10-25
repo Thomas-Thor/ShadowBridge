@@ -5,8 +5,8 @@ import{createAuthService}from'../auth.mjs';import{routeBookMcp,mcpPath}from'../o
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const clientId='sboc_11111111-1111-4111-8111-111111111111',redirect='https://chatgpt.com/connector_platform_oauth_redirect';
 const verifier=randomBytes(32).toString('base64url'),parameters=()=>new URLSearchParams({response_type:'code',client_id:clientId,redirect_uri:redirect,scope:'note.read',state:randomBytes(24).toString('base64url'),resource:oauthResource,code_challenge:hash(verifier).slice(0,43),code_challenge_method:'S256'});
-async function setup(t,{enabled=true,owner=true}={}){
- const key=randomBytes(32),config={appUrl:'http://localhost',sessionEncryptionKey:key,sessionLifetimeSeconds:3600,ownerBookApiEnabled:true,ownerBookMcpEnabled:true,ownerBookOAuthEnabled:enabled,secureCookies:false};
+async function setup(t,{enabled=true,owner=true,create=false}={}){
+ const key=randomBytes(32),config={appUrl:'http://localhost',sessionEncryptionKey:key,sessionLifetimeSeconds:3600,ownerBookApiEnabled:true,ownerBookMcpEnabled:true,ownerBookOAuthEnabled:enabled,ownerBookMcpCreateEnabled:create,secureCookies:false};
  const calls=[];let issued=false;
  const db={sessionPool:{query:async(q,a)=>{calls.push({q,a});assert.ok(q.includes('owner_book.oauth_machine'));const p=JSON.parse(a[1]);return{rows:[{result:a[0]==='client'?{status:200,data:{name:'FICTIONAL <client>',redirects:[redirect]}}:a[0]==='read'?{status:200,data:{items:[{id:'FICTIONAL',kind:'note',title:'TEST-CONNECTION-NOTE',body:'FICTIONAL',owner_id:'HIDDEN'}],page:1,limit:25,total:1}}:{status:200,data:{scope:'note.read',expires_in:600}}}]};}},asUser:async(identity,opt,fn)=>fn({query:async(q,a)=>{calls.push({q,a});assert.ok(q.includes('oauth_owner'));return{rows:[{result:owner?{status:200,data:a[0]==='connections'?{items:[]}:a[0]==='authorize'?{authorized:!issued&&(issued=true)}:{eligible:true}}:{status:403,data:{code:'OWNER_MFA_REQUIRED'}}}]};}})};
  const real=createAuthService({config,db}),auth={...real,authenticate:async()=>owner?{id:'fictional-owner',aal:'aal2',emailVerified:true,recoveryOnly:false}:null};
@@ -53,4 +53,11 @@ test('real form token requests require PKCE, resource, registered callback and c
 });
 test('OAuth bearer is accepted only on scoped MCP reads; projection hides identity and metadata advertises no write tool',async t=>{
  const f=await setup(t),r=await fetch(f.base+mcpPath,{method:'POST',headers:{Authorization:'Bearer sboa_'+randomBytes(32).toString('base64url'),'Content-Type':'application/json',Accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'read_notes',arguments:{}}})});assert.equal(r.status,200);const d=await r.json();assert.equal(d.result.structuredContent.items[0].title,'TEST-CONNECTION-NOTE');assert.ok(!JSON.stringify(d).includes('HIDDEN'));assert.equal(f.calls[0].a[0],'read');
+});
+
+test('temporary OAuth additions require a separate unchecked consent and server-side boolean after existing OWNER/MFA and CSRF',async t=>{
+ const f=await setup(t,{create:true}),p=parameters();p.set('scope','note.read note.create');const r=await fetch(f.base+oauthPrefix+'/authorize?'+p),page=await r.text();assert.equal(r.status,200);assert.ok(page.includes('id="oauth-create-consent"'));assert.ok(!page.includes('id="oauth-create-consent" type="checkbox" checked'));
+ const ticket=page.match(/id="oauth-ticket" type="hidden" value="([^"]+)/)[1],cookie=r.headers.get('set-cookie').split(';')[0],context=await fetch(f.base+oauthPrefix+'/context'),csrfCookie=context.headers.get('set-cookie').split(';')[0],d=await context.json(),headers={Origin:'http://localhost',Cookie:cookie+'; '+csrfCookie,'X-CSRF-Token':d.csrfToken,'X-Session-Token':d.csrfToken};
+ assert.equal((await f.post('/consent',{ticket,approve:true},headers)).status,403);assert.ok(!f.calls.some(c=>c.a[0]==='authorize'));
+ assert.equal((await f.post('/consent',{ticket,approve:true,temporaryCreateConsent:true},headers)).status,200);assert.equal(JSON.parse(f.calls.find(c=>c.a[0]==='authorize').a[1]).temporaryCreateConsent,true);
 });

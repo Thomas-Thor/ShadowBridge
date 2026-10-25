@@ -110,6 +110,10 @@ export async function routeOwnerVault({ req, url, tx, body }) {
     // A missing detail is still an audited successful lookup of zero records.
     return result(200, data);
   }
+  if (method === 'POST' && route === '/api/owner/vault/contacts/preview') {
+    const input = object(await body(req), ['record'], ['record']);
+    return result(200, (await tx.query('SELECT owner_vault.preview_intake($1::jsonb) AS data', [JSON.stringify(vaultIntake(input.record))])).rows[0].data);
+  }
   if (method === 'POST' && route === '/api/owner/vault/contacts') {
     const input = object(await body(req), ['record', 'requestKey'], ['record', 'requestKey']);
     const id = (await tx.query('SELECT owner_vault.owner_intake($1::jsonb,$2::uuid) AS id', [JSON.stringify(vaultIntake(input.record)), identifier(input.requestKey)])).rows[0].id;
