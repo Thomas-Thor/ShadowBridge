@@ -71,5 +71,6 @@
   "historicalDiscoveryRegression": {
     "pass": 40,
     "rerun": false
-  }
+  },
+  "installerGitCommit": "53cc1ae500f55f2386d913731e3e73679b856069"
 }

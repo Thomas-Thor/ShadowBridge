@@ -4,9 +4,10 @@
 
 - Required accepted production base: `80f4a0d333d31a6d57ada714b0df17bc0584a07b`.
 - Application target: `e871f2e09c25dc79f5222fa738ac446a103f1edc`.
-- Installer/operator Git SHA is separate from the application SHA. The verified
-  launcher and its exact download command are in the adjacent operator command
-  document once the package commit has been recorded.
+- Installer/operator Git SHA is separate from the application SHA:
+  `53cc1ae500f55f2386d913731e3e73679b856069`.
+  [The exact checksum-pinned Pop!_OS command](OWNER-BOOK-OAUTH-APP-ONLY-COMMAND.md)
+  runs that immutable package, not a moving branch tip.
 - Existing branch: `feature/owner-book-mcp-scoped-write`. Main is not changed.
 
 ## What executes
