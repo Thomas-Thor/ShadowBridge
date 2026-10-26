@@ -53,8 +53,9 @@ sudo are ordinarily root-owned; source-profile ownership must be interpreted
 against the established installation, not changed recursively.
 
 Download the reader by the immutable diagnostic package SHA and verify its
-SHA-256, then run only `node <verified-reader> --ssh`. The adjacent diagnostic
-command document records exact values after the package commit is saved.
+SHA-256, then run only `node <verified-reader> --ssh`.
+[The exact read-only command](OWNER-BOOK-OAUTH-PERMISSIONS-DIAG-COMMAND.md) pins
+`b1a9e44c16a6996fcb86ee1fd0afd7074c99737c` and its diagnostic checksum.
 SSH/sudo credentials remain in their normal terminal prompt, never in chat.
 The reader does not invoke prepare/apply, fetch/checkout, chmod/chown, migrations
 or any updater. `resumeAuthorized` is always false.
