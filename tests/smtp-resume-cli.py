@@ -1,7 +1,7 @@
 """Fictional SSH only. Checks interactive diagnostics and fail-closed resume."""
 import os,pty,select,time,tempfile,pathlib,json
 source='cbca6a0c4ef9559081aaac7347370a774331b8ea'
-for mode,phase,expected in [('--diagnose-existing','PREPARED','PREPARED'),('--resume-existing','SIGNUP_REQUEST_IN_PROGRESS','CHECKPOINT_PHASE_REQUIRES_REPAIR_NO_AUTOMATIC_REPLAY'),('--resume-existing','PREPARED','PRIVATE_COMMAND_SOURCE_NOT_FOUND'),('--resume-existing --preflight-only','PREPARED','PREPARED'),('--start-missing','ABSENT','PRIVATE_COMMAND_SOURCE_NOT_FOUND'),('--start-missing --preflight-only','ABSENT','shadowbridge-existing-smtp-checkpoint'),('--start-missing','PREPARED','EXISTING_SMTP_ARTIFACTS_USE_RESUME_NOT_START')]:
+for mode,phase,expected in [('--diagnose-existing','PREPARED','PREPARED'),('--resume-existing','SIGNUP_REQUEST_IN_PROGRESS','CHECKPOINT_PHASE_REQUIRES_REPAIR_NO_AUTOMATIC_REPLAY'),('--resume-existing','PREPARED','PRIVATE_COMMAND_SOURCE_NOT_FOUND'),('--resume-existing --preflight-only','PREPARED','PREPARED'),('--start-missing','ABSENT','PRIVATE_COMMAND_SOURCE_NOT_FOUND'),('--start-missing --preflight-only','ABSENT','shadowbridge-existing-smtp-checkpoint'),('--start-missing','PREPARED','EXISTING_SMTP_ARTIFACTS_USE_RESUME_NOT_START'),('--reconcile-confirmation','SIGNUP_MAIL_SENT','PRIVATE_COMMAND_SOURCE_NOT_FOUND'),('--reconcile-confirmation','PREPARED','SMTP_CONFIRMATION_RESUME_PHASE_REQUIRED')]:
  root=pathlib.Path(tempfile.mkdtemp(prefix='smtp-resume-cli-',dir='/tmp/shadowbridge-r1-isolated'));calls=root/'calls.jsonl';ssh=root/'ssh'
  report={'kind':'shadowbridge-existing-smtp-checkpoint','readOnly':True,'changesMade':False,'lock':{'exists':False},'candidates':[{'sourceRelease':source,'phase':phase,'reviewed':True,'checkoutMatches':True,'credentialSaved':True,'sealedProfileValid':True}]}
  if phase=='ABSENT':
@@ -32,11 +32,12 @@ else:
   if not sent and b'Fixture sudo prompt: ' in output:os.write(fd,b'\n');sent=True
  os.close(fd);_,status=os.waitpid(pid,0);count=len(calls.read_text().splitlines())
  assert expected.encode() in output
- assert count==(2 if (mode=='--resume-existing' and phase=='PREPARED') or (mode=='--start-missing' and phase=='ABSENT') else 1)
+ assert count==(2 if (mode=='--resume-existing' and phase=='PREPARED') or (mode=='--start-missing' and phase=='ABSENT') or (mode=='--reconcile-confirmation' and phase=='SIGNUP_MAIL_SENT') else 1)
  assert os.waitstatus_to_exitcode(status)==(0 if mode=='--diagnose-existing' or '--preflight-only' in mode else 1)
  if phase=='PREPARED' and mode=='--resume-existing':
   assert b'operator.resume-preparation' in output and b'recovery.compose-validation' in output
  if phase=='ABSENT' and mode=='--start-missing':
   assert b'operator.capture-missing-profile' in output
+ if phase=='SIGNUP_MAIL_SENT' and mode=='--reconcile-confirmation':assert b'operator.reconcile-confirmation' in output
  assert b'Has\xc5\x82o aplikacji Gmail' not in output
  print('PASS '+mode+' / '+phase+'; correct stage, no repeated prepare, no production accessed')
