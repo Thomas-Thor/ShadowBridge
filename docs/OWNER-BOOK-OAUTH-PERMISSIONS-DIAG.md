@@ -1,6 +1,12 @@
 # APP-ONLY permission stop: read-only diagnosis first
 
-Status: **SERVER DIAGNOSIS PENDING / NO DEPLOYMENT OR PERMISSION REPAIR**.
+Status: **OWNER READ-ONLY EVIDENCE RECEIVED / NO DEPLOYMENT OR PERMISSION REPAIR**.
+
+OWNER's returned evidence confirmed a correct public CA mode 0644, original
+PLANNED state, existing target image matching its overlay, accepted 80f4a0d
+running over HTTPS and unchanged ledger-21 hashes. The image was not deployed.
+The controlled [recovery package](OWNER-BOOK-OAUTH-RECOVERY.md) preserves the
+original and uses a separate progress file; do not rerun the historical updater.
 
 Reported operator commit: `53cc1ae500f55f2386d913731e3e73679b856069`.
 Target application: `e871f2e09c25dc79f5222fa738ac446a103f1edc`.
@@ -18,11 +24,11 @@ source-configuration loop, including that CA. This is a defect in the newly
 prepared installer. Changing a valid CA to 0600 would contradict the established
 profile and may break app TLS. **Do not chmod that certificate to fit the bug.**
 
-The exact reported server path, mode/owner, checkpoint phase and active image
-are not yet known. This session has no authorized SSH connection or production
-log reader. A generic error alone cannot establish which `privatePath` call
-failed or whether a later attempt changed anything. No live-production result
-has been inferred from local fixtures or Git fast-forward.
+The original generic error alone did not identify the server path or phase.
+The subsequent OWNER-supplied sanitized read-only result established the facts
+above. This session still has no authorized SSH/production-log connection and
+has not independently changed or deployed anything on Contabo. Production
+identities and private configuration are not copied into this public document.
 
 ## Metadata-only reader
 

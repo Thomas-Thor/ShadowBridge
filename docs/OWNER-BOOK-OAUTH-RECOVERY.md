@@ -2,6 +2,9 @@
 
 **PREPARED / TESTED IN ISOLATION / NOT DEPLOYED. Separate OWNER approval required.**
 
+Package: `d71ca2eaf6179b0f089a02ff32c83a80d9e38310`.
+[Exact checksum-pinned Pop!_OS command](OWNER-BOOK-OAUTH-RECOVERY-COMMAND.md).
+
 This package resumes only the diagnosed original operator
 `53cc1ae500f55f2386d913731e3e73679b856069`, accepted runtime
 `80f4a0d333d31a6d57ada714b0df17bc0584a07b` and already-built target
