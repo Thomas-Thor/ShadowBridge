@@ -1,0 +1,66 @@
+{
+  "kind": "book-oauth-PLANNED-recovery-native",
+  "buildsExecuted": 0,
+  "migrationsExecuted": 0,
+  "productionChanges": false,
+  "productionGuardBypassed": false,
+  "interactiveGoTrueTested": false,
+  "chatgptTested": false,
+  "actualOffsiteHostTested": false,
+  "images": {
+    "80f4a0d333d31a6d57ada714b0df17bc0584a07b": "sha256:84f3d1c58805ccd7bb98698399e379547095c0cc92216a875c7071ccaa22c523",
+    "e871f2e09c25dc79f5222fa738ac446a103f1edc": "sha256:d569d6727978c63e4fce8439335a6e326fab8ec80f4cceba9f48f840702a5933"
+  },
+  "cases": [
+    {
+      "name": "clone only the retained fictional 21-migration fixture, without applying any migration",
+      "result": "PASS"
+    },
+    {
+      "name": "PLANNED recovery keeps original bytes, reuses existing image/overlays and resumes three encrypted backups without a second DB dump; isolated restore preserves protected tables",
+      "result": "PASS"
+    },
+    {
+      "name": "real Compose APP-ONLY swap reaches e871f2e, separates authenticated discovery and preserves PostgreSQL/MFA/ledger",
+      "result": "PASS"
+    },
+    {
+      "name": "actual MCP write is persisted after backup and survives an app-only rollback to the real 80f4a0d image",
+      "result": "PASS"
+    },
+    {
+      "name": "forced new-image health failure triggers the actual previous-image Compose rollback, without restoring the DB",
+      "result": "PASS"
+    },
+    {
+      "name": "interrupted checkpoint with target already running resumes verification without another image replacement; OWNER acceptance is separate",
+      "result": "PASS"
+    },
+    {
+      "name": "GCM corruption fails before swap; original fixture and all initial users, sessions, factors and migration hashes remain unchanged",
+      "result": "PASS"
+    }
+  ],
+  "result": "PASS",
+  "originalCheckpointAndOverlaysUnchanged": true,
+  "databaseDumps": 1,
+  "adoptions": 1,
+  "threeBackupPairsAuthenticated": true,
+  "date": "2026-10-26",
+  "status": "PREPARED_NOT_DEPLOYED",
+  "originalOperator": "53cc1ae500f55f2386d913731e3e73679b856069",
+  "acceptedBase": "80f4a0d333d31a6d57ada714b0df17bc0584a07b",
+  "targetApplication": "e871f2e09c25dc79f5222fa738ac446a103f1edc",
+  "targetedTests": {
+    "pass": 32,
+    "fail": 0
+  },
+  "launcherSha256": "fdddd7c6a1c2f4dd5d45fa1280fc2560131aab51a2a48757d1c1d2cc4d6b9071",
+  "verificationContainerStarted": false,
+  "offsiteTransferTest": "local checksum simulation only; real SSH transfer is performed on OWNER Pop OS after approval",
+  "fixtureNotes": [
+    "Fictional ledger-21 clone; historical executor-role fixture alias; no new migration.",
+    "Explicit fictional SQL OWNER/MFA claims, not actual interactive GoTrue/ChatGPT.",
+    "Isolated test wrapper adapts only newly copied certificate scratch ownership."
+  ]
+}

@@ -8,6 +8,7 @@ import {hostname} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {isDeepStrictEqual} from 'node:util';
+import {originalOperator,validatePlannedOriginal,validateBuiltArtifacts,recoverPlannedFlow,checkpointedPair} from './book-oauth-recovery-flow.mjs';
 import {repositoryRoot} from './staging-prepare.mjs';
 import {checkProduction} from './production-config.mjs';
 import {applicationArguments,applicationBackupFiles,assertApplicationOnly,checkApplicationPlan,checkMergedApplication,verifyR1Http} from './international-r1.mjs';
@@ -96,6 +97,18 @@ export function runtimePaths(names){return names.filter(f=>{
  const p=f.split('/');return ['package.json','index.html','robots.txt','sitemap.xml','member-sign-in/index.html','legal/index.html','cartel/index.html'].includes(f)||['apply/','portal/','assets/fonts/'].some(x=>f.startsWith(x))||p.length===2&&(p[0]==='server'&&f.endsWith('.mjs')||p[0]==='assets'&&/\.(js|css|svg|png)$/.test(f));
 });}
 export function composeSwapArguments(baseArgs,override){return[...baseArgs,'-f',override,'up','-d','--no-build','--no-deps','--pull','never','--wait','--wait-timeout','120','app'];}
+export function imageFingerprintArguments(image,files){must(imagePattern.test(image)&&files.every(f=>!f.startsWith('/')&&!f.split('/').includes('..')),'Invalid image fingerprint request.');return['create','--label','shadowbridge.operator-purpose=oauth-recovery-image-read','--pull','never','--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges:true','--pids-limit','32','--memory','64m','--entrypoint','sha256sum',image,...files.map(f=>'/app/'+f)];}
+export async function verifyStoredImage(image,pins,directory){
+ const files=Object.keys(pins),id=docker(imageFingerprintArguments(image,files));must(/^[a-f0-9]{64}$/.test(id),'One new stopped image-reader container required.');
+ const scratch=path.join(directory,'image-read-'+randomUUID()+'.tar');let written=false;
+ const owned=()=>{const c=JSON.parse(docker(['inspect',id]))[0];must(c.Image===image&&!c.State.Running&&c.Config.Labels?.['shadowbridge.operator-purpose']==='oauth-recovery-image-read','Image-reader ownership/state changed; no cleanup of an unknown container.');};
+ try{
+  owned();const file=await open(scratch,'wx',0o600);written=true;
+  try{exec('docker',['--context','default','cp',id+':/app','-'],{stdio:['ignore',file.fd,'pipe']});}finally{await file.close();}
+  for(const [name,sum]of Object.entries(pins)){const value=execFileSync('tar',['-xOf',scratch,'--','app/'+name],{stdio:['ignore','pipe','pipe'],maxBuffer:8*1024**2});must(hash(value)===sum,'Existing built image does not match immutable e871f2e bytes.');}
+  return{filesVerified:files.length,applicationStarted:false};
+ }finally{owned();docker(['rm',id]);if(written)await unlink(scratch);}
+}
 export const canonicalMounts=mounts=>[...mounts].sort((a,b)=>(a.Destination||a.Target).localeCompare(b.Destination||b.Target));
 export function appContinuity(c){return{appEnvironmentHash:stableEnvironment(c),appHost:c.HostConfig,appMounts:canonicalMounts(c.Mounts),appNetworks:Object.keys(c.NetworkSettings.Networks).sort()};}
 export function assertAppContinuity(c,s){
@@ -105,8 +118,8 @@ export function assertAppContinuity(c,s){
 function serviceIdentity(c){return{id:c.Id,image:c.Image,environment:hash(JSON.stringify([...c.Config.Env].sort())),networks:Object.keys(c.NetworkSettings.Networks).sort(),mounts:canonicalMounts(c.Mounts),ports:c.HostConfig.PortBindings};}
 function assertIdentity(c,previous){must(c.State.Running&&same(serviceIdentity(c),previous),'Protected container/configuration changed; STOP.');}
 
-export async function runAppOnly({phase,installerRelease}){
- must(['prepare','apply','resume','accept','verify','rollback'].includes(phase),'Unknown app-only phase.');
+export async function runAppOnly({phase,installerRelease,recovery=false}){
+ must((recovery?['recover-plan','apply','resume','accept','verify','rollback']:['prepare','apply','resume','accept','verify','rollback']).includes(phase),'Unknown app-only phase.');
  must(process.geteuid?.()===0&&hostname()==='vmi3682957'&&repositoryRoot==='/opt/shadowbridge'&&process.env.SUDO_USER==='shadowadmin','Use sudo as shadowadmin only on the existing Contabo installation.');
  must(process.env.NODE_TLS_REJECT_UNAUTHORIZED!=='0','TLS verification cannot be disabled.');
  must(/^[a-f0-9]{40}$/.test(installerRelease||''),'Full installer SHA required.');
@@ -121,6 +134,7 @@ export async function runAppOnly({phase,installerRelease}){
  for(const f of [...runtime,'package-lock.json','deploy/staging/Dockerfile','.dockerignore'])must(hash(await readFile(path.join(repositoryRoot,f)))===hash(execFileSync('git',['-c','safe.directory='+repositoryRoot,'show',targetRelease+':'+f],{stdio:['ignore','pipe','pipe'],maxBuffer:8*1024**2})),'Checkout differs from the pinned e871f2e runtime/build inputs.');
  const context=JSON.parse(docker(['context','inspect','default','--format','{{json .Endpoints.docker}}']));must(['unix:///var/run/docker.sock','unix:///run/docker.sock'].includes(context.Host),'Remote Docker context refused.');
  const folder=path.join(repositoryRoot,'.local','r1-owner-release-'+targetRelease);await mkdir(folder,{mode:0o700,recursive:true});await privatePath(folder,true);
+ if(recovery)must((await lstat(folder)).uid===0,'Recovery checkpoint folder must retain root ownership.');
  const lock=path.join(folder,'operation.lock'),handle=await open(lock,'wx',0o600);await handle.write(String(process.pid));await handle.close();
  try{
  await assertNoOtherReleaseLock(path.join(repositoryRoot,'.local'),folder);
@@ -142,7 +156,7 @@ export async function runAppOnly({phase,installerRelease}){
   must(count>0,'Fresh existing OWNER MFA required. No account/MFA reset performed.');
  };
  const merged=override=>JSON.parse(docker([...baseArgs,...(override?['-f',override]:[]),'config','--format','json'],{env}));
- const original=merged(),stateFile=path.join(folder,'state.json');
+ const original=merged(),originalStateFile=path.join(folder,'state.json'),stateFile=path.join(folder,recovery?'recovery-state.json':'state.json'),recoveryFolder=path.join(folder,'recovery');
  async function checkSources(){await checkProduction({directory:profile.sourceDirectory});await checkApplicationPlan({profile,directory:accepted.planDirectory});checkMergedApplication(profile,accepted.planDirectory,prior);validateLedger(sources,ledger());}
  function verifyRuntime(c,release,image,expectedEnvHash,expectedHost,expectedMounts,expectedNetworks){
   must(c.State.Running&&c.Image===image&&c.Config.User==='node','Unexpected app identity/user/state.');
@@ -156,6 +170,7 @@ export async function runAppOnly({phase,installerRelease}){
  const inspectImage=image=>JSON.parse(docker(['image','inspect',image]))[0];
  async function check(s){
   await checkSources();must(hash(await readFile(baseFile))===s.acceptanceHash&&s.installerRelease===installerRelease&&s.release===targetRelease&&s.previousRelease===acceptedBase&&s.previousImage===accepted.image&&s.sourceDirectory===profile.sourceDirectory,'Checkpoint/acceptance changed.');
+  if(recovery)await checkOrigin(s);
   for(const [file,sum]of Object.entries(s.configHashes)){await privatePath(file,false,expectedSourceMode(file,profile.sourceDirectory));must(await fileHash(file)===sum,'Configuration/plan fingerprint changed.');}
   for(const v of s.protected)assertIdentity(inspect(v.id),v);
   const c=app();assertAppContinuity(c,s);
@@ -176,8 +191,66 @@ export async function runAppOnly({phase,installerRelease}){
   const r=await fetch('https://shadow-bridge.eu/api/integrations/owner-book/v1/mcp',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'}),redirect:'manual',signal:AbortSignal.timeout(15000)});
   must(r.status===401&&(await r.json()).code==='BOOK_API_DENIED'&&r.headers.get('www-authenticate')?.includes('resource_metadata='),'Anonymous MCP must remain denied.');
  }
+ async function collectConfiguration(s){
+  s.configHashes=Object.fromEntries(Object.entries(await applicationBackupFiles(profile,accepted.planDirectory,prior)).map(([f,h])=>[path.join(profile.sourceDirectory,f),h]));
+  for(const f of ['compose.env','postgres.env','auth.env','app.env','migration.env','tester-password','Caddyfile','manifest.json',...['internal-ca.crt','internal-ca.key','postgres.crt','postgres.key','auth-proxy.crt','auth-proxy.key','public.crt','public.key'].map(n=>'certs/'+n)]){const file=path.join(profile.sourceDirectory,f);await privatePath(file,false,expectedSourceMode(file,profile.sourceDirectory));s.configHashes[file]=await fileHash(file);}
+  for(const name of ['application.json','rollback.json'])s.configHashes[path.join(folder,name)]=await fileHash(path.join(folder,name));
+ }
+ async function readOriginal(){
+  await privatePath(originalStateFile);const info=await lstat(originalStateFile);must(info.uid===0,'Original checkpoint must retain its recorded root ownership.');
+  const bytes=await readFile(originalStateFile),state=JSON.parse(bytes);
+  must(state.installerRelease===originalOperator&&state.phase==='PLANNED'&&state.schemaChanged===false&&state.release===targetRelease,'Only the diagnosed original PLANNED state may be recovered.');
+  return{state,sha256:hash(bytes)};
+ }
+ async function checkOrigin(s){
+  const old=await readOriginal();
+  must(s.recoveryOrigin?.originalCheckpointSha256===old.sha256&&s.recoveryOrigin.originalOperator===originalOperator,'Original checkpoint changed; no recovery continuation.');
+  const file=path.join(recoveryFolder,'origin.json');await privatePath(file);must((await lstat(file)).uid===0&&await fileHash(file)===s.recoveryOrigin.receiptSha256,'Recovery origin receipt changed.');
+  const receipt=await readPrivate(file);must(receipt.originalCheckpointSha256===old.sha256&&receipt.recoveryOperator===installerRelease&&receipt.image===s.image&&receipt.previousImage===s.previousImage,'Recovery receipt identity mismatch.');
+  for(const [name,sum]of Object.entries(receipt.overlayHashes))must(await fileHash(path.join(folder,name))===sum,'Original overlays changed; no recovery continuation.');
+ }
+ async function adoptOriginal(old,fresh){
+  validatePlannedOriginal(old.state,fresh,{base:acceptedBase,target:targetRelease});
+  for(const name of ['database.sbb','database.key','database.private.dump','configuration.sbb','configuration.key','configuration.private.tar','certificates.sbb','certificates.key'])must(!await exists(path.join(folder,name)),'Unexpected original backup artifacts; STOP without overwriting.');
+  const overlayHashes={};for(const name of ['application.json','rollback.json']){const file=path.join(folder,name);await privatePath(file);must((await lstat(file)).uid===0,'Original overlays must retain root ownership.');overlayHashes[name]=await fileHash(file);}
+  const appOverlay=await readPrivate(path.join(folder,'application.json')),rollbackOverlay=await readPrivate(path.join(folder,'rollback.json')),image=appOverlay.services?.app?.image;
+  validateBuiltArtifacts(appOverlay,rollbackOverlay,{image,previousImage:fresh.previousImage,target:targetRelease,base:acceptedBase});
+  const built=inspectImage(image),previous=inspectImage(fresh.previousImage);
+  must(built.Id===image&&built.Config.Labels['org.opencontainers.image.revision']===targetRelease&&built.Config.User==='node'&&same(built.Config.Env,previous.Config.Env)&&same(built.Config.Cmd,previous.Config.Cmd)&&same(built.Config.Entrypoint,previous.Config.Entrypoint),'Existing target image configuration differs from the approved runtime.');
+  const rollbackTag='shadowbridge-oauth-rollback:'+targetRelease;must(inspectImage(rollbackTag).Id===fresh.previousImage,'Existing rollback image tag is missing or changed.');
+  await mkdir(recoveryFolder,{mode:0o700,recursive:true});await privatePath(recoveryFolder,true);
+  must((await lstat(recoveryFolder)).uid===0,'Recovery evidence directory must be root-owned.');
+  must(!built.Config.Volumes||Object.keys(built.Config.Volumes).length===0,'Verification must not create anonymous image volumes.');await verifyStoredImage(image,targetPins,recoveryFolder);
+  const receipt={kind:'shadowbridge-app-only-recovery-origin-v1',originalOperator,recoveryOperator:installerRelease,originalCheckpointSha256:old.sha256,overlayHashes,image,previousImage:fresh.previousImage,acceptanceHash:fresh.acceptanceHash};
+  const file=path.join(recoveryFolder,'origin.json');
+  if(await exists(file))must(same(await readPrivate(file),receipt),'Existing recovery origin differs; nothing overwritten.');else await writeFile(file,JSON.stringify(receipt,null,2)+'\n',{mode:0o600,flag:'wx'});
+  const s={...fresh,image,rollbackTag,recoveryOrigin:{originalOperator,originalCheckpointSha256:old.sha256,receiptSha256:await fileHash(file)}};
+  await collectConfiguration(s);s.configHashes[originalStateFile]=old.sha256;s.configHashes[file]=await fileHash(file);
+  await check(s);return s;
+ }
+ async function recoveryBackups(s){
+  await check(s);await privatePath(recoveryFolder,true);
+  const postgres=compose(['ps','-q','postgres']);must(/^[a-f0-9]{64}$/.test(postgres),'One running PostgreSQL required.');
+  const pairOps={save:operations.save,completePair:async p=>{for(const file of [p.backupFile,p.keyFile]){if(!await exists(file))return false;await privatePath(file);}return true;},anyArtifacts:async p=>{const prefix=p.backupFile.slice(0,-4);for(const file of [p.backupFile,p.keyFile,prefix+'.private.dump',prefix+'.private.tar'])if(await exists(file))return true;return(await readdir(recoveryFolder)).some(n=>n.startsWith(path.basename(prefix)+'.scratch-'));}};
+  const expected=name=>({backupFile:path.join(recoveryFolder,name+'.sbb'),keyFile:path.join(recoveryFolder,name+'.key')});
+  await checkpointedPair(pairOps,s,'database',expected('database'),{create:()=>backupOnlineDatabase(postgres,path.join(recoveryFolder,'database')),verify:p=>verifyOnlineDatabase(postgres,p)});
+  s.configurationFiles=Object.fromEntries(Object.entries(s.configHashes).map(([f,h])=>[path.relative(repositoryRoot,f),h]));await operations.save(s);
+  await checkpointedPair(pairOps,s,'configuration',expected('configuration'),{create:()=>encryptedTar(path.join(recoveryFolder,'configuration'),repositoryRoot,Object.keys(s.configurationFiles)),verify:p=>verifiedTar(p,{files:s.configurationFiles})});
+  const gateway=s.protected.map(c=>inspect(c.id)).find(c=>c.Config.Labels?.['com.docker.compose.service']==='gateway'&&c.Config.Labels['com.docker.compose.project']===profile.project);
+  await checkpointedPair(pairOps,s,'certificates',expected('certificates'),{create:async()=>{const b=await backupLiveCertificates(gateway.Id,path.join(recoveryFolder,'certificates'),async files=>{s.certificateFiles=files;await operations.save(s);});return b.pair;},verify:p=>{must(s.certificateFiles,'Certificate hash inventory was not checkpointed.');return verifiedTar(p,{files:s.certificateFiles});}});
+  s.bundle='/home/shadowadmin/.shadowbridge-oauth-recovery-'+targetRelease;s.bundleNonce??=randomUUID();await operations.save(s);
+  if(!await exists(s.bundle)){await mkdir(s.bundle,{mode:0o700});await chown(s.bundle,Number(exec('id',['-u','shadowadmin'])),Number(exec('id',['-g','shadowadmin'])));}
+  const uid=Number(exec('id',['-u','shadowadmin'])),gid=Number(exec('id',['-g','shadowadmin'])),info=await lstat(s.bundle);must(info.isDirectory()&&!info.isSymbolicLink()&&(info.mode&0o777)===0o700&&info.uid===uid,'Unsafe/incomplete recovery transfer-folder ownership; preserve files for review.');
+  const manifest={kind:'shadowbridge-r1-offsite-bundle-v1',release:targetRelease,nonce:s.bundleNonce,files:[]};
+  for(const name of ['database','configuration','certificates'])for(const [key,ext]of [['backupFile','sbb'],['keyFile','key']]){const source=s.backups[name][key],filename=name+'.'+ext,target=path.join(s.bundle,filename),sum=await fileHash(source),bytes=(await lstat(source)).size;
+   if(await exists(target)){const i=await lstat(target);must(i.isFile()&&!i.isSymbolicLink()&&(i.mode&0o777)===0o600&&i.uid===uid&&i.size===bytes&&await fileHash(target)===sum,'Existing recovery transfer file differs; nothing overwritten.');}else{await copyFile(source,target,1);await chown(target,uid,gid);}manifest.files.push({name:filename,sha256:sum,bytes});
+  }
+  const bytes=JSON.stringify(manifest)+'\n',target=path.join(s.bundle,'manifest.json');
+  if(await exists(target)){const i=await lstat(target);must(i.isFile()&&!i.isSymbolicLink()&&(i.mode&0o777)===0o600&&i.uid===uid&&await fileHash(target)===hash(bytes),'Existing recovery manifest differs or ownership setup is incomplete.');}else{await writeFile(target,bytes,{mode:0o600,flag:'wx'});await chown(target,uid,gid);}
+  s.bundleManifestSha=hash(bytes);await operations.save(s);
+ }
  const operations={
-  load:async()=>{try{const s=await readPrivate(stateFile);must(s.kind==='shadowbridge-book-oauth-app-only-v1'&&s.installerRelease===installerRelease&&s.release===targetRelease,'Different installer/checkpoint; STOP.');return s;}catch(e){if(e.code==='ENOENT')return null;throw e;}},
+  load:async()=>{if(!await exists(stateFile))return null;const s=await readPrivate(stateFile);must(s.kind==='shadowbridge-book-oauth-app-only-v1'&&s.installerRelease===installerRelease&&s.release===targetRelease,'Different installer/checkpoint; STOP.');if(recovery){must((await lstat(stateFile)).uid===0,'Recovery state must be root-owned.');await checkOrigin(s);}return s;},
   save:s=>savePrivate(stateFile,s),
   preflight:async()=>{
    await checkSources();await ownerMfa();
@@ -207,12 +280,11 @@ export async function runAppOnly({phase,installerRelease}){
    const i=inspectImage('shadowbridge-oauth-fix:'+targetRelease);must(i.Config.Labels['org.opencontainers.image.revision']===targetRelease&&i.Config.User==='node','New image label/user mismatch.');s.image=i.Id;
    s.rollbackTag='shadowbridge-oauth-rollback:'+targetRelease;docker(['image','tag',s.previousImage,s.rollbackTag]);
    for(const [name,image,release]of [['application.json',s.image,targetRelease],['rollback.json',s.previousImage,acceptedBase]])await writeFile(path.join(folder,name),JSON.stringify({services:{app:{image,environment:{RELEASE_SHA:release}}}})+'\n',{mode:0o600,flag:'wx'});
-   s.configHashes=Object.fromEntries(Object.entries(await applicationBackupFiles(profile,accepted.planDirectory,prior)).map(([f,h])=>[path.join(profile.sourceDirectory,f),h]));
-   for(const f of ['compose.env','postgres.env','auth.env','app.env','migration.env','tester-password','Caddyfile','manifest.json',...['internal-ca.crt','internal-ca.key','postgres.crt','postgres.key','auth-proxy.crt','auth-proxy.key','public.crt','public.key'].map(n=>'certs/'+n)]){const file=path.join(profile.sourceDirectory,f);await privatePath(file,false,expectedSourceMode(file,profile.sourceDirectory));s.configHashes[file]=await fileHash(file);}
-   for(const name of ['application.json','rollback.json'])s.configHashes[path.join(folder,name)]=hash(await readFile(path.join(folder,name)));
+   await collectConfiguration(s);
    await savePrivate(stateFile,s);await check(s);
   },
   backup:async s=>{
+   if(recovery)return recoveryBackups(s);
    s.backups={};const postgres=compose(['ps','-q','postgres']);must(/^[a-f0-9]{64}$/.test(postgres),'One running PostgreSQL required.');
    s.backups.database=await backupOnlineDatabase(postgres,path.join(folder,'database'));
    s.configurationFiles=Object.fromEntries(Object.entries(s.configHashes).map(([f,h])=>[path.relative(repositoryRoot,f),h]));
@@ -235,8 +307,9 @@ export async function runAppOnly({phase,installerRelease}){
   replace:async s=>{await check(s);docker(composeSwapArguments(baseArgs,path.join(folder,'application.json')),{env});},
   rollback:async s=>{await check(s);docker(composeSwapArguments(baseArgs,path.join(folder,'rollback.json')),{env});}
  };
- const s=await appOnlyFlow(operations,phase);
- console.log(JSON.stringify({phase:s.phase,release:targetRelease,installerRelease,migrationsExecuted:0,schemaChanged:false,otherServicesReplaced:false,chatgptWriteVerified:false,ownerInteractiveAcceptance:s.ownerInteractiveAcceptance===true}));
+ if(recovery){operations.original=readOriginal;operations.adopt=adoptOriginal;}
+ const s=recovery&&phase==='recover-plan'?await recoverPlannedFlow(operations):await appOnlyFlow(operations,phase);
+ console.log(JSON.stringify({phase:s.phase,release:targetRelease,installerRelease,recovery,originalCheckpointRetained:recovery,migrationsExecuted:0,schemaChanged:false,otherServicesReplaced:false,chatgptWriteVerified:false,ownerInteractiveAcceptance:s.ownerInteractiveAcceptance===true}));
  }finally{await unlink(lock);}
 }
 
@@ -263,7 +336,7 @@ export async function encryptedTar(prefix,base,files){
  try{exec('tar',['--format=ustar','-cf',archive,'-C',base,'--',...files]);}finally{process.umask(old);}
  const pair=await encryptArchive({archiveFile:archive,backupFile:prefix+'.sbb',keyFile:prefix+'.key'});await unlink(archive);return pair;
 }
-export async function backupLiveCertificates(id,prefix){
+export async function backupLiveCertificates(id,prefix,onInventory=async()=>{}){
  must(/^[a-f0-9]{64}$/.test(id),'Invalid gateway identity.');
  const gateway=JSON.parse(docker(['inspect',id]))[0];
  must(gateway.State.Running&&['/data','/config'].every(p=>gateway.Mounts.some(m=>m.Destination===p&&m.Type==='volume')),'Running gateway/persistent certificate volumes required.');
@@ -271,6 +344,7 @@ export async function backupLiveCertificates(id,prefix){
  const before=hashes(),scratch=prefix+'.scratch-'+randomUUID();await mkdir(scratch,{mode:0o700});
  for(const dir of ['data','config']){await mkdir(path.join(scratch,dir),{mode:0o700});docker(['cp',id+':/'+dir+'/.',path.join(scratch,dir)]);}
  const files=await directoryHashes(scratch);must(same(before,files)&&same(before,hashes()),'Certificate state changed during online backup; STOP, no service was stopped.');
+ await onInventory(files);
  const pair=await encryptedTar(prefix,scratch,['data','config']);await rm(scratch,{recursive:true});return{pair,files};
 }
 export function parseCertificateHashes(text){
@@ -280,7 +354,8 @@ export function parseCertificateHashes(text){
 async function directoryHashes(root){
  const values={};async function walk(dir){for(const name of await readdir(dir)){const file=path.join(dir,name),s=await lstat(file);must(!s.isSymbolicLink(),'Certificate copy contains a symlink.');if(s.isDirectory())await walk(file);else{must(s.isFile(),'Nonregular certificate file.');values[path.relative(root,file)]=hash(await readFile(file));}}}await walk(root);return Object.fromEntries(Object.entries(values).sort());
 }
+async function exists(file){try{await lstat(file);return true;}catch(e){if(e.code==='ENOENT')return false;throw e;}}
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const [phase,arg,...extra]=process.argv.slice(2);must(!extra.length&&arg?.startsWith('--installer-release='),'Use phase --installer-release=FULL_SHA.');
- runAppOnly({phase,installerRelease:arg.slice(20)}).catch(e=>{console.error(JSON.stringify({status:'BLOCKED',reason:e.safeReason||'PRIVATE_OPERATOR_FAILURE; retain checkpoint and private build log',category:e.category,fileMetadata:e.fileMetadata,checkpointRetained:true,productionSuccessNotClaimed:true}));process.exitCode=1;});
+ const [phase,arg,...extra]=process.argv.slice(2);must(extra.length<=1&&extra.every(a=>a==='--recovery')&&arg?.startsWith('--installer-release='),'Use phase --installer-release=FULL_SHA [--recovery].');
+ runAppOnly({phase,installerRelease:arg.slice(20),recovery:extra.includes('--recovery')}).catch(e=>{console.error(JSON.stringify({status:'BLOCKED',reason:e.safeReason||'PRIVATE_OPERATOR_FAILURE; retain checkpoint and private build log',category:e.category,fileMetadata:e.fileMetadata,checkpointRetained:true,productionSuccessNotClaimed:true}));process.exitCode=1;});
 }
