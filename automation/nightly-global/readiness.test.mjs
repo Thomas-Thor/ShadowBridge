@@ -23,3 +23,16 @@ test('standalone collector refuses the non-Contabo workspace without changing se
  const out=spawnSync(process.execPath,[new URL('./collect-readiness.mjs',import.meta.url).pathname],{encoding:'utf8'});
  assert.equal(out.status,2);const r=JSON.parse(out.stdout);assert.equal(r.status,'BLOCKED');assert.equal(r.changesMade,false);
 });
+test('Google Sheets bindings are summarized without document IDs, credential IDs or source records',()=>{
+ const setup=`globalThis.fetch=async url=>({status:200,text:async()=>JSON.stringify(url.includes('/workflows')?{data:[{active:true,nodes:[{name:'Apollo existing search',type:'n8n-nodes-base.httpRequest',credentials:{httpHeaderAuth:{id:'PRIVATE_CREDENTIAL'}},parameters:{url:'https://api.apollo.io/api/v1/mixed_people/api_search',secret:'PRIVATE_SECRET'}},{name:'PRIVATE_SHEET_NAME',type:'n8n-nodes-base.googleSheets',credentials:{googleSheetsOAuth2Api:{id:'PRIVATE_CREDENTIAL'}},parameters:{operation:'appendOrUpdate',documentId:{value:'PRIVATE_DOCUMENT_ID'}}}]}]}:{data:[]})});`;
+ const out=execFileSync(process.execPath,['--input-type=module','-e',setup+inspectApi],{input:'{"key":"PRIVATE_API_KEY"}',encoding:'utf8'}),r=JSON.parse(out);
+ for(const s of ['PRIVATE_CREDENTIAL','PRIVATE_SECRET','PRIVATE_SHEET_NAME','PRIVATE_DOCUMENT_ID','PRIVATE_API_KEY'])assert.ok(!out.includes(s));
+ assert.equal(r.workflowListingComplete,true);assert.equal(r.workflowFamilies.apollo.active,1);assert.equal(r.workflowFamilies.apollo.boundCredentialNodes,1);
+ assert.equal(r.googleSheets.nodeReferences,1);assert.equal(r.googleSheets.writeNodeReferences,1);assert.equal(r.googleSheets.sourceAndSheetSameWorkflow.apollo,1);
+ assert.equal(r.googleSheets.staticDocumentFingerprints.length,1);assert.match(r.googleSheets.staticDocumentFingerprints[0],/^[a-f0-9]{64}$/);assert.equal(r.googleSheets.writeReadVerified,false);
+});
+test('partial pagination and dynamic sheet bindings stay explicitly unverified and never activate a workflow',()=>{
+ const setup=`globalThis.fetch=async(url,o)=>{if(o.method&&o.method!=='GET')throw Error('mutation');return{status:200,text:async()=>JSON.stringify(url.includes('/workflows')?{nextCursor:'PRIVATE_CURSOR',data:[{active:false,nodes:[{name:'Clay',type:'n8n-nodes-base.httpRequest',credentials:{httpHeaderAuth:{id:'OWNER_SELECT_EXISTING_CLAY'}}},{type:'n8n-nodes-base.googleSheets',parameters:{documentId:{value:'={{ $json.privateSheet }}'}}}]}]}:{data:[]})}};`;
+ const out=execFileSync(process.execPath,['--input-type=module','-e',setup+inspectApi],{input:'{"key":"FICTIONAL_SECRET"}',encoding:'utf8'}),r=JSON.parse(out);
+ assert.equal(r.workflowListingComplete,false);assert.equal(r.workflowFamilies.clay.active,0);assert.equal(r.workflowFamilies.clay.boundCredentialNodes,0);assert.equal(r.googleSheets.dynamicDocumentNodes,5);assert.equal(r.googleSheets.staticDocumentFingerprints.length,0);assert.ok(!out.includes('PRIVATE_CURSOR'));assert.ok(!out.includes('privateSheet'));
+});

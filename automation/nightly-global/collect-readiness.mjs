@@ -5,12 +5,12 @@ import {realpath} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {availableParallelism,totalmem,freemem} from 'node:os';
 import https from 'node:https';
-const execute=(args,input)=>execFileSync('docker',['--context','default',...args],{input,encoding:'utf8',stdio:['pipe','pipe','pipe'],timeout:20000,maxBuffer:1024**2}).trim();
+const execute=(args,input)=>execFileSync('docker',['--context','default',...args],{input,encoding:'utf8',stdio:['pipe','pipe','pipe'],timeout:120000,maxBuffer:1024**2}).trim();
 const field=(c,k)=>(c.Config.Env||[]).find(v=>v.startsWith(k+'='))?.slice(k.length+1)||null;
-async function optionalKey(){
+export async function optionalKey(){
  if(!process.stdin.isTTY)return null;
  process.stdout.write('Istniejacy klucz API n8n do odczytu (ukryty, Enter = brak; nie tworz nowego): ');process.stdin.setRawMode(true);process.stdin.resume();let value='';
- try{return await new Promise((resolve,reject)=>{const read=buf=>{for(const c of buf.toString()){if(c==='\u0003'){process.stdin.off('data',read);reject(new Error('CANCELLED'));return;}if(c==='\r'||c==='\n'){process.stdin.off('data',read);resolve(value||null);return;}if(c==='\u007f')value=value.slice(0,-1);else if(c>=' '&&value.length<8192)value+=c;}};process.stdin.on('data',read);});}
+ try{return await new Promise((resolve,reject)=>{const read=buf=>{for(const c of buf.toString()){if(c==='\u0003'){process.stdin.off('data',read);reject(new Error('CANCELLED'));return;}if(c==='\r'||c==='\n'){process.stdin.off('data',read);let key=value.trim();if(key.startsWith('\x1b[200~')&&key.endsWith('\x1b[201~'))key=key.slice(6,-6).trim();if(/[\x00-\x1f\x7f-\x9f]/.test(key)){reject(new Error('INVALID_HIDDEN_API_KEY'));return;}resolve(key||null);return;}if(c==='\u007f')value=value.slice(0,-1);else if(c>=' '||c==='\x1b'){if(value.length>=8192){process.stdin.off('data',read);reject(new Error('API_KEY_INPUT_TOO_LONG'));return;}value+=c;}}};process.stdin.on('data',read);});}
  finally{process.stdin.setRawMode(false);process.stdin.pause();process.stdout.write('\n');}
 }
 const publicHealth=()=>new Promise(resolve=>{
@@ -18,9 +18,27 @@ const publicHealth=()=>new Promise(resolve=>{
 });
 // Only selected aggregates leave the container. Raw workflow bodies/credentials
 // and execution data never appear on stdout or in the returned report.
-export const inspectApi=`let raw='';for await(const b of process.stdin){raw+=b;if(raw.length>12000)process.exit(1);}const p=JSON.parse(raw);const headers=p.key?{'X-N8N-API-KEY':p.key}:{};const read=async path=>{const r=await fetch('http://127.0.0.1:5678'+path,{headers,redirect:'error',signal:AbortSignal.timeout(10000)});const text=await r.text();let data={};if(text.length<5000000)try{data=JSON.parse(text)}catch(e){}return{status:r.status,data};};
-const health=await read('/healthz');const settings=await read('/rest/settings');const out={healthOk:health.status===200&&health.data.status==='ok',version:settings.data?.data?.versionCli||null,publicApi:{keySupplied:!!p.key,workflowReadStatus:null,executionReadStatus:null,importPermissionVerified:false},providerReferences:{apollo:0,clay:0,relevance:0},workflowCountInspected:0,existingFourScoutsVerified:false,providerCreditsVerified:false,crmMachineSinkVerified:false};
-if(p.key){let cursor=null;for(let i=0;i<5;i++){const w=await read('/api/v1/workflows?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''));out.publicApi.workflowReadStatus=w.status;if(w.status!==200||!Array.isArray(w.data.data))break;for(const f of w.data.data){out.workflowCountInspected++;for(const n of f.nodes||[]){const candidate=JSON.stringify({type:n.type,name:n.name,url:n.parameters?.url,credentials:Object.keys(n.credentials||{})}).toLowerCase();for(const provider of Object.keys(out.providerReferences))if(candidate.includes(provider))out.providerReferences[provider]++;}}cursor=w.data.nextCursor;if(!cursor)break;}const e=await read('/api/v1/executions?limit=20&includeData=false');out.publicApi.executionReadStatus=e.status;if(e.status===200&&Array.isArray(e.data.data)){out.recentExecutionStatuses={};for(const r of e.data.data)out.recentExecutionStatuses[r.status||'unknown']=(out.recentExecutionStatuses[r.status||'unknown']||0)+1;}}
+export const inspectApi=`const {createHash}=await import('node:crypto');const digest=v=>createHash('sha256').update(v).digest('hex');let raw='';for await(const b of process.stdin){raw+=b;if(raw.length>12000)process.exit(1);}const p=JSON.parse(raw);const headers=p.key?{'X-N8N-API-KEY':p.key}:{};const read=async path=>{const r=await fetch('http://127.0.0.1:5678'+path,{headers,redirect:'error',signal:AbortSignal.timeout(10000)});const text=await r.text();let data={};if(text.length<5000000)try{data=JSON.parse(text)}catch(e){}return{status:r.status,data};};
+const health=await read('/healthz');const settings=await read('/rest/settings');const out={healthOk:health.status===200&&health.data.status==='ok',version:settings.data?.data?.versionCli||null,publicApi:{keySupplied:!!p.key,workflowReadStatus:null,executionReadStatus:null,importPermissionVerified:false},providerReferences:{apollo:0,clay:0,relevance:0},workflowCountInspected:0,workflowListingComplete:false,workflowFamilies:{apollo:{workflows:0,active:0,boundCredentialNodes:0},clay:{workflows:0,active:0,boundCredentialNodes:0}},googleSheets:{nodeReferences:0,boundCredentialNodes:0,staticDocumentFingerprints:[],dynamicDocumentNodes:0,operations:{},writeNodeReferences:0,sourceAndSheetSameWorkflow:{apollo:0,clay:0},schemaVerified:false,writeReadVerified:false},existingFourScoutsVerified:false,providerCreditsVerified:false,crmMachineSinkVerified:false};
+if(p.key){let cursor=null;for(let i=0;i<5;i++){
+ const w=await read('/api/v1/workflows?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''));out.publicApi.workflowReadStatus=w.status;if(w.status!==200||!Array.isArray(w.data.data))break;
+ for(const f of w.data.data){out.workflowCountInspected++;const sources=new Set();let sheetInWorkflow=false;
+  for(const n of f.nodes||[]){
+   const candidate=JSON.stringify({type:n.type,name:n.name,url:n.parameters?.url,credentials:Object.keys(n.credentials||{})}).toLowerCase();
+   const bound=Object.values(n.credentials||{}).some(v=>typeof v?.id==='string'&&v.id&&!v.id.startsWith('OWNER_SELECT_'));
+   for(const provider of Object.keys(out.providerReferences))if(candidate.includes(provider)){out.providerReferences[provider]++;sources.add(provider);if(out.workflowFamilies[provider]&&bound)out.workflowFamilies[provider].boundCredentialNodes++;}
+   if(n.type==='n8n-nodes-base.googleSheets'){
+    sheetInWorkflow=true;out.googleSheets.nodeReferences++;if(bound)out.googleSheets.boundCredentialNodes++;
+    const operation=n.parameters?.operation;const op=typeof operation==='string'&&/^[a-zA-Z]{1,40}$/.test(operation)?operation:'UNSPECIFIED_OR_DYNAMIC';out.googleSheets.operations[op]=(out.googleSheets.operations[op]||0)+1;
+    if(['append','appendOrUpdate','update','appendOrUpdateRow'].includes(op))out.googleSheets.writeNodeReferences++;
+    const doc=typeof n.parameters?.documentId==='string'?n.parameters.documentId:n.parameters?.documentId?.value;
+    if(typeof doc==='string'&&doc&&!doc.includes('{{')){const h=digest(doc);if(!out.googleSheets.staticDocumentFingerprints.includes(h))out.googleSheets.staticDocumentFingerprints.push(h);}else out.googleSheets.dynamicDocumentNodes++;
+   }
+  }
+  for(const provider of sources)if(out.workflowFamilies[provider]){out.workflowFamilies[provider].workflows++;if(f.active===true)out.workflowFamilies[provider].active++;if(sheetInWorkflow)out.googleSheets.sourceAndSheetSameWorkflow[provider]++;}
+ }
+ cursor=w.data.nextCursor;if(!cursor){out.workflowListingComplete=true;break;}
+}const e=await read('/api/v1/executions?limit=20&includeData=false');out.publicApi.executionReadStatus=e.status;if(e.status===200&&Array.isArray(e.data.data)){out.recentExecutionStatuses={};for(const r of e.data.data)out.recentExecutionStatuses[r.status||'unknown']=(out.recentExecutionStatuses[r.status||'unknown']||0)+1;}}
 process.stdout.write(JSON.stringify(out));`;
 if(process.argv[1]===fileURLToPath(import.meta.url))try{
  if(await realpath('/opt/shadowbridge')!=='/opt/shadowbridge')throw new Error('WRONG_HOST');
