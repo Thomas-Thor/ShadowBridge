@@ -1,0 +1,22 @@
+{
+  "kind": "shadowbridge-coordinated-onboarding-release-v1",
+  "runtimeRelease": "80f4a0d333d31a6d57ada714b0df17bc0584a07b",
+  "mail": {
+    "enabledByInteractiveOwnerGoOnly": true,
+    "mode": "allowlist",
+    "publicSignup": false
+  },
+  "acquisition": {
+    "mode": "DRY_RUN",
+    "enabled": false,
+    "schedulesActive": false,
+    "sourceCode": "d3e10071906e85911e9d5c5b74c4b7168027fba2",
+    "maxCredits": 0,
+    "maxRecordsPerDryRun": 50,
+    "realLeadWrites": false,
+    "crm": "existing OWNER VAULT; machine intake/readback requires approved V3 contract",
+    "approvedSourceAccountsAndBalancesVerified": false
+  },
+  "mcpWrite": "PARKED",
+  "paidServicesCreated": false
+}
