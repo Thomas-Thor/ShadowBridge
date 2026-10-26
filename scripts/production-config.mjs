@@ -33,6 +33,13 @@ function gmailPassword(value) {
   return compact;
 }
 
+// Shared Gmail settings; credentials are supplied locally only at sealing time.
+export function gmailAuthSettings(value, { requirePassword = true } = {}) {
+  const credential = value === undefined && !requirePassword ? {} : { GOTRUE_SMTP_PASS: gmailPassword(value) };
+  return { GOTRUE_SMTP_HOST: 'smtp.gmail.com', GOTRUE_SMTP_PORT: '465', GOTRUE_SMTP_USER: sender, ...credential,
+    GOTRUE_SMTP_ADMIN_EMAIL: sender, GOTRUE_SMTP_SENDER_NAME: 'ShadowBridge', GOTRUE_SMTP_MAX_FREQUENCY: '60s', GOTRUE_RATE_LIMIT_EMAIL_SENT: '30' };
+}
+
 async function exists(file) {
   try { await lstat(file); return true; } catch (error) { if (error.code === 'ENOENT') return false; throw error; }
 }
@@ -91,8 +98,7 @@ export async function prepareProduction({ directory, smtpPassword, releaseSha, m
   const app = { ...originalApp, APP_URL: productionOrigin, MAIL_DELIVERY_MODE: mailMode, TRANSACTIONAL_MAIL_ENABLED: mailMode === 'smtp' ? 'true' : 'false', PROXY_AUTH_TOKEN: token, RELEASE_SHA: releaseSha };
   const auth = { ...originalAuth, API_EXTERNAL_URL: productionOrigin, GOTRUE_SITE_URL: productionOrigin,
     GOTRUE_URI_ALLOW_LIST: `${productionOrigin}/auth/confirm,${productionOrigin}/auth/recover` };
-  if (mailMode === 'smtp') Object.assign(auth, { GOTRUE_SMTP_HOST: 'smtp.gmail.com', GOTRUE_SMTP_PORT: '465', GOTRUE_SMTP_USER: sender, GOTRUE_SMTP_PASS: password,
-    GOTRUE_SMTP_ADMIN_EMAIL: sender, GOTRUE_SMTP_SENDER_NAME: 'ShadowBridge', GOTRUE_SMTP_MAX_FREQUENCY: '60s', GOTRUE_RATE_LIMIT_EMAIL_SENT: '30' });
+  if (mailMode === 'smtp') Object.assign(auth, gmailAuthSettings(password));
   else {
     Object.assign(auth, { GOTRUE_DISABLE_SIGNUP: 'true', GOTRUE_SMTP_HOST: '127.0.0.1', GOTRUE_SMTP_PORT: '1' });
     delete auth.GOTRUE_SMTP_USER; delete auth.GOTRUE_SMTP_PASS;
