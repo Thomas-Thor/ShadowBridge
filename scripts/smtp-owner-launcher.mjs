@@ -34,8 +34,8 @@ function mailChannelProbeCode(recipient){
     const prefix=process.env.DB_TABLE_PREFIX||'';if(!/^[a-zA-Z0-9_]{0,64}$/.test(prefix))throw Error();
     const database=path.resolve(process.env.N8N_USER_FOLDER||'/home/node','.n8n',process.env.DB_SQLITE_DATABASE||'database.sqlite');
     const db=new DatabaseSync(database,{readOnly:true});
-    try {const rows=db.prepare('SELECT type,count(*) AS count FROM "'+prefix+'credentials_entity" WHERE type IN (?,?) GROUP BY type').all('gmailOAuth2','smtp');
-    console.log(JSON.stringify({status:'METADATA_READ_ONLY',authorizationVerified:false,gmailOAuthCandidates:Number(rows.find(r=>r.type==='gmailOAuth2')?.count||0),smtpCandidates:Number(rows.find(r=>r.type==='smtp')?.count||0)}));}
+    try {const rows=db.prepare('SELECT type,count(*) AS count FROM "'+prefix+'credentials_entity" WHERE type IN (?,?,?) GROUP BY type').all('gmailOAuth2','smtp','googleOAuth2Api');
+    console.log(JSON.stringify({status:'METADATA_READ_ONLY',authorizationVerified:false,gmailOAuthCandidates:Number(rows.find(r=>r.type==='gmailOAuth2')?.count||0),smtpCandidates:Number(rows.find(r=>r.type==='smtp')?.count||0),googleOAuthCandidates:Number(rows.find(r=>r.type==='googleOAuth2Api')?.count||0)}));}
     finally{db.close();}
    }
   } catch {console.log(JSON.stringify({status:'METADATA_NOT_VERIFIED',authorizationVerified:false}));}`;
@@ -57,7 +57,7 @@ try{
  else report.n8n={status:'NOT_RUNNING',authorizationVerified:false};
  const old='/opt/shadowbridge-operators/smtp-cbca6a0c4ef9559081aaac7347370a774331b8ea/.local/smtp-package-cbca6a0c4ef9559081aaac7347370a774331b8ea';
  report.previousAttempt={};for(const [key,file]of Object.entries({checkpoint:old+'/operator-state.json',lock:'/opt/shadowbridge/.local/smtp-operator-lock/operation.lock',credential:old+'/smtp-credential.env'})){try{const s=await lstat(file);report.previousAttempt[key]={exists:true,regular:s.isFile()&&!s.isSymbolicLink(),mode:(s.mode&511).toString(8)};}catch(e){report.previousAttempt[key]={exists:e.code==='ENOENT'?false:null};}}
- const candidate=report.auth.externalSmtpConfigured||(report.n8n.gmailOAuthCandidates||0)>0||(report.n8n.smtpCandidates||0)>0;
+ const candidate=report.auth.externalSmtpConfigured||(report.n8n.gmailOAuthCandidates||0)>0||(report.n8n.smtpCandidates||0)>0||(report.n8n.googleOAuthCandidates||0)>0;
  report.status='BLOCKED';report.reason=candidate?'EXISTING_MAIL_CANDIDATE_REQUIRES_AUTHORIZED_SEND_TEST':report.n8n.status==='METADATA_READ_ONLY'?'NO_AUTHORIZED_MAIL_CHANNEL_FOUND':'NO_AUTHORIZED_MAIL_CHANNEL_PROVEN_N8N_UNVERIFIED';
  report.missingDependency=candidate?'Validate existing SMTP/OAuth authorization server-side before any message.':'One-time outbound authorization for an existing sender. Inbox access and recipient address do not authorize sending.';
 }catch(e){report.status='BLOCKED';report.reason=/^[A-Z_]{4,100}$/.test(e.message||'')?e.message:'READ_ONLY_MAIL_DISCOVERY_FAILED';}
