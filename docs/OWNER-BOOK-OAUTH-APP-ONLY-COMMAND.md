@@ -1,5 +1,10 @@
 # Pop!_OS operator command — run only after separate OWNER approval
 
+**SUSPENDED: do not rerun this historical 53cc1ae command after the reported
+permission stop.** First use the [metadata-only diagnostic](OWNER-BOOK-OAUTH-PERMISSIONS-DIAG.md).
+The public CA 0644 policy mismatch is confirmed in this coordinator; the actual
+server checkpoint/artifacts still require read-only evidence before recovery.
+
 Installer/operator commit:
 `53cc1ae500f55f2386d913731e3e73679b856069`
 

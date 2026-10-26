@@ -28,10 +28,15 @@ const stableEnvironment=c=>hash(JSON.stringify(Object.entries(environment(c)).fi
 const exec=(bin,args,options={})=>runOperatorCommand(bin,args,options);
 const git=args=>exec('git',['-c','safe.directory='+repositoryRoot,...args]);
 const docker=(args,options={})=>exec('docker',['--context','default',...args],options);
-async function privatePath(file,directory=false,mode=directory?0o700:0o600){
+export function expectedSourceMode(file,sourceDirectory){return file===path.join(sourceDirectory,'certs','internal-ca.crt')?0o644:file.endsWith('.sh')?0o700:0o600;}
+export async function privatePath(file,directory=false,mode=directory?0o700:0o600){
  must(file.startsWith(repositoryRoot+'/.local/'),'Private paths must stay under this installation .local.');
  let p=file;while(p!==repositoryRoot){const s=await lstat(p);must(!s.isSymbolicLink(),'Private path contains a symlink.');p=path.dirname(p);}
- const s=await lstat(file);must((directory?s.isDirectory():s.isFile())&&(s.mode&0o777)===mode,'Private file/directory permissions mismatch.');
+ const s=await lstat(file);
+ if(!(directory?s.isDirectory():s.isFile())||(s.mode&0o777)!==mode){
+  const error=stop('Private file/directory permissions mismatch.');
+  error.fileMetadata={path:file,expectedType:directory?'directory':'file',expectedMode:mode.toString(8).padStart(4,'0'),actualType:s.isDirectory()?'directory':s.isFile()?'file':'other',actualMode:(s.mode&0o7777).toString(8).padStart(4,'0'),uid:s.uid,gid:s.gid};throw error;
+ }
 }
 async function fileHash(file){const h=createHash('sha256');for await(const part of createReadStream(file))h.update(part);return h.digest('hex');}
 async function readPrivate(file){await privatePath(file);return JSON.parse(await readFile(file,'utf8'));}
@@ -151,7 +156,7 @@ export async function runAppOnly({phase,installerRelease}){
  const inspectImage=image=>JSON.parse(docker(['image','inspect',image]))[0];
  async function check(s){
   await checkSources();must(hash(await readFile(baseFile))===s.acceptanceHash&&s.installerRelease===installerRelease&&s.release===targetRelease&&s.previousRelease===acceptedBase&&s.previousImage===accepted.image&&s.sourceDirectory===profile.sourceDirectory,'Checkpoint/acceptance changed.');
-  for(const [file,sum]of Object.entries(s.configHashes)){await privatePath(file,false,file.endsWith('.sh')?0o700:0o600);must(await fileHash(file)===sum,'Configuration/plan fingerprint changed.');}
+  for(const [file,sum]of Object.entries(s.configHashes)){await privatePath(file,false,expectedSourceMode(file,profile.sourceDirectory));must(await fileHash(file)===sum,'Configuration/plan fingerprint changed.');}
   for(const v of s.protected)assertIdentity(inspect(v.id),v);
   const c=app();assertAppContinuity(c,s);
   for(const [file,image,release]of [['application.json',s.image,targetRelease],['rollback.json',s.previousImage,acceptedBase]]){
@@ -203,7 +208,7 @@ export async function runAppOnly({phase,installerRelease}){
    s.rollbackTag='shadowbridge-oauth-rollback:'+targetRelease;docker(['image','tag',s.previousImage,s.rollbackTag]);
    for(const [name,image,release]of [['application.json',s.image,targetRelease],['rollback.json',s.previousImage,acceptedBase]])await writeFile(path.join(folder,name),JSON.stringify({services:{app:{image,environment:{RELEASE_SHA:release}}}})+'\n',{mode:0o600,flag:'wx'});
    s.configHashes=Object.fromEntries(Object.entries(await applicationBackupFiles(profile,accepted.planDirectory,prior)).map(([f,h])=>[path.join(profile.sourceDirectory,f),h]));
-   for(const f of ['compose.env','postgres.env','auth.env','app.env','migration.env','tester-password','Caddyfile','manifest.json',...['internal-ca.crt','internal-ca.key','postgres.crt','postgres.key','auth-proxy.crt','auth-proxy.key','public.crt','public.key'].map(n=>'certs/'+n)]){const file=path.join(profile.sourceDirectory,f);await privatePath(file);s.configHashes[file]=await fileHash(file);}
+   for(const f of ['compose.env','postgres.env','auth.env','app.env','migration.env','tester-password','Caddyfile','manifest.json',...['internal-ca.crt','internal-ca.key','postgres.crt','postgres.key','auth-proxy.crt','auth-proxy.key','public.crt','public.key'].map(n=>'certs/'+n)]){const file=path.join(profile.sourceDirectory,f);await privatePath(file,false,expectedSourceMode(file,profile.sourceDirectory));s.configHashes[file]=await fileHash(file);}
    for(const name of ['application.json','rollback.json'])s.configHashes[path.join(folder,name)]=hash(await readFile(path.join(folder,name)));
    await savePrivate(stateFile,s);await check(s);
   },
@@ -277,5 +282,5 @@ async function directoryHashes(root){
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const [phase,arg,...extra]=process.argv.slice(2);must(!extra.length&&arg?.startsWith('--installer-release='),'Use phase --installer-release=FULL_SHA.');
- runAppOnly({phase,installerRelease:arg.slice(20)}).catch(e=>{console.error(JSON.stringify({status:'BLOCKED',reason:e.safeReason||'PRIVATE_OPERATOR_FAILURE; retain checkpoint and private build log',category:e.category,checkpointRetained:true,productionSuccessNotClaimed:true}));process.exitCode=1;});
+ runAppOnly({phase,installerRelease:arg.slice(20)}).catch(e=>{console.error(JSON.stringify({status:'BLOCKED',reason:e.safeReason||'PRIVATE_OPERATOR_FAILURE; retain checkpoint and private build log',category:e.category,fileMetadata:e.fileMetadata,checkpointRetained:true,productionSuccessNotClaimed:true}));process.exitCode=1;});
 }
