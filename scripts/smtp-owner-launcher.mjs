@@ -16,6 +16,51 @@ async function transitionAllowlist(ops,s){
  s.phase='ALLOWLIST_ACTIVE_PENDING_DELIVERY';await ops.save(s);return s;
 }
 
+// Runs inside the existing n8n container. Returns type/count only, never data,
+// names, tokens or connection values. No credential export/decryption or writes.
+async function readN8nMailMetadata({env=process.env,loadPg}={}){
+ let stage='configuration';const type=env.DB_TYPE||'sqlite';
+ const failure=()=>({status:'METADATA_NOT_VERIFIED',databaseType:type==='postgresdb'?'postgresdb':type==='sqlite'?'sqlite':'unsupported',failureStage:stage,authorizationVerified:false});
+ try{
+  const fs=await import('node:fs');const path=await import('node:path');
+  const secretFile=file=>{const s=fs.statSync(file);if(!s.isFile()||s.size>131072)throw Error();return fs.readFileSync(file,'utf8').trim();};
+  const value=(name,fallback='')=>{if(env[name]&&env[name+'_FILE'])throw Error();return env[name+'_FILE']?secretFile(env[name+'_FILE']):env[name]??fallback;};
+  const prefix=value('DB_TABLE_PREFIX'),schema=value('DB_POSTGRESDB_SCHEMA','public');
+  if(!/^[a-zA-Z0-9_]{0,64}$/.test(prefix)||! /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/.test(schema))throw Error();
+  const types=['gmailOAuth2','smtp','googleOAuth2Api'];let rows;
+  if(type==='sqlite'){
+   stage='sqlite_driver';const{DatabaseSync}=await import('node:sqlite');
+   const database=path.resolve(value('N8N_USER_FOLDER','/home/node'),'.n8n',value('DB_SQLITE_DATABASE','database.sqlite'));
+   stage='sqlite_metadata';const db=new DatabaseSync(database,{readOnly:true});
+   try{rows=db.prepare('SELECT type,count(*) AS count FROM "'+prefix+'credentials_entity" WHERE type IN (?,?,?) GROUP BY type').all(...types);}finally{db.close();}
+  }else if(type==='postgresdb'){
+   stage='postgres_driver';let pg;
+   if(loadPg)pg=await loadPg();else{
+    const{createRequire}=await import('node:module');const roots=[process.cwd(),'/usr/local/lib/node_modules/n8n','/opt/n8n/node_modules/n8n'];
+    try{roots.unshift(path.dirname(path.dirname(fs.realpathSync('/usr/local/bin/n8n'))));}catch{}
+    for(const root of roots){try{pg=createRequire(path.join(root,'package.json'))('pg');break;}catch{}}
+   }
+   if(typeof pg?.Client!=='function')throw Error();stage='postgres_configuration';
+   const host=value('DB_POSTGRESDB_HOST','localhost'),port=Number(value('DB_POSTGRESDB_PORT','5432'));
+   if(!host||!Number.isInteger(port)||port<1||port>65535||env.NODE_TLS_REJECT_UNAUTHORIZED==='0')throw Error();
+   const ca=value('DB_POSTGRESDB_SSL_CA'),cert=value('DB_POSTGRESDB_SSL_CERT'),key=value('DB_POSTGRESDB_SSL_KEY'),enabled=value('DB_POSTGRESDB_SSL_ENABLED','false');
+   if(!['true','false'].includes(enabled)||!['true','false'].includes(value('DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED','true')))throw Error();
+   const sslEnabled=enabled==='true'||!!ca||!!cert||!!key;
+   if(sslEnabled&&value('DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED','true')!=='true')throw Error();
+   const pem=v=>v.includes('-----BEGIN ')?v:secretFile(v);
+   const ssl=sslEnabled?{rejectUnauthorized:true,servername:host,...(ca?{ca:pem(ca)}:{}),...(cert?{cert:pem(cert)}:{}),...(key?{key:pem(key)}:{})}:false;
+   const client=new pg.Client({host,port,user:value('DB_POSTGRESDB_USER','postgres'),database:value('DB_POSTGRESDB_DATABASE','n8n'),password:value('DB_POSTGRESDB_PASSWORD'),ssl,application_name:'shadowbridge_mail_metadata_readonly',connectionTimeoutMillis:5000,query_timeout:6000,options:'-c default_transaction_read_only=on -c statement_timeout=5000 -c lock_timeout=1000'});
+   let connected=false;try{
+    stage='postgres_connection';await client.connect();connected=true;stage='postgres_metadata';await client.query('BEGIN READ ONLY');
+    if((await client.query('SHOW transaction_read_only')).rows[0]?.transaction_read_only!=='on')throw Error();
+    rows=(await client.query('SELECT type,count(*)::integer AS count FROM "'+schema+'"."'+prefix+'credentials_entity" WHERE type=ANY($1::text[]) GROUP BY type',[types])).rows;
+   }finally{if(connected){try{await client.query('ROLLBACK');}finally{await client.end();}}else await client.end().catch(()=>{});}
+  }else return{status:'METADATA_NOT_VERIFIED_UNSUPPORTED_DATABASE',authorizationVerified:false};
+  return{status:'METADATA_READ_ONLY',databaseType:type,authorizationVerified:false,gmailOAuthCandidates:Number(rows.find(r=>r.type==='gmailOAuth2')?.count||0),smtpCandidates:Number(rows.find(r=>r.type==='smtp')?.count||0),googleOAuthCandidates:Number(rows.find(r=>r.type==='googleOAuth2Api')?.count||0)};
+ }catch{return failure();}
+}
+function n8nMailMetadataCode(){return 'console.log(JSON.stringify(await ('+readN8nMailMetadata.toString()+')()));';}
+
 // Metadata-only channel discovery. No SMTP login, send, credential decryption,
 // bootstrap, configuration write or application restart.
 function validWizardEmail(value){
@@ -26,19 +71,7 @@ function validWizardEmail(value){
 }
 function mailChannelProbeCode(recipient){
  const email=validWizardEmail(recipient);
- const inventory=`
-  try {
-   if ((process.env.DB_TYPE||'sqlite')!=='sqlite') {console.log(JSON.stringify({status:'METADATA_NOT_VERIFIED_NON_SQLITE',authorizationVerified:false}));}
-   else {
-    const {DatabaseSync}=await import('node:sqlite');const path=await import('node:path');
-    const prefix=process.env.DB_TABLE_PREFIX||'';if(!/^[a-zA-Z0-9_]{0,64}$/.test(prefix))throw Error();
-    const database=path.resolve(process.env.N8N_USER_FOLDER||'/home/node','.n8n',process.env.DB_SQLITE_DATABASE||'database.sqlite');
-    const db=new DatabaseSync(database,{readOnly:true});
-    try {const rows=db.prepare('SELECT type,count(*) AS count FROM "'+prefix+'credentials_entity" WHERE type IN (?,?,?) GROUP BY type').all('gmailOAuth2','smtp','googleOAuth2Api');
-    console.log(JSON.stringify({status:'METADATA_READ_ONLY',authorizationVerified:false,gmailOAuthCandidates:Number(rows.find(r=>r.type==='gmailOAuth2')?.count||0),smtpCandidates:Number(rows.find(r=>r.type==='smtp')?.count||0),googleOAuthCandidates:Number(rows.find(r=>r.type==='googleOAuth2Api')?.count||0)}));}
-    finally{db.close();}
-   }
-  } catch {console.log(JSON.stringify({status:'METADATA_NOT_VERIFIED',authorizationVerified:false}));}`;
+ const inventory=n8nMailMetadataCode();
  return `import{execFileSync}from'node:child_process';import{lstat,readFile}from'node:fs/promises';import{hostname}from'node:os';
 const report={kind:'shadowbridge-existing-mail-channel',readOnly:true,changesMade:false,recipient:${JSON.stringify(email)},codeSent:false,deliveryVerified:false,publicSignup:false};
 const run=a=>execFileSync('docker',['--context','default',...a],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:15000,maxBuffer:16*1024**2});
@@ -64,6 +97,22 @@ try{
 console.log(JSON.stringify(report,null,2));`;
 }
 
+function n8nMailOnlyProbeCode(){
+ const inventory=n8nMailMetadataCode();
+ return `import{execFileSync}from'node:child_process';import{hostname}from'node:os';
+ const report={kind:'shadowbridge-n8n-mail-metadata',readOnly:true,changesMade:false,codeSent:false,deliveryVerified:false,authorizationVerified:false};
+ const run=a=>execFileSync('docker',['--context','default',...a],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:20000,maxBuffer:1048576});
+ try{
+ if(process.geteuid()!==0||process.env.SUDO_USER!=='shadowadmin'||hostname()!=='vmi3682957')throw Error('AUTHORIZED_READ_ONLY_OPERATOR_REQUIRED');
+ const endpoint=JSON.parse(run(['context','inspect','default','--format','{{json .Endpoints.docker}}']));if(!['unix:///var/run/docker.sock','unix:///run/docker.sock'].includes(endpoint.Host))throw Error('LOCAL_DOCKER_REQUIRED');
+ const [container]=JSON.parse(run(['inspect','shadowbridge-automation-n8n-1']));if(container.Name!=='/shadowbridge-automation-n8n-1'||!container.State.Running)throw Error('EXISTING_N8N_NOT_RUNNING');
+ report.n8n=JSON.parse(run(['exec',container.Id,'node','--input-type=module','-e',${JSON.stringify(inventory)}]));
+ report.status=report.n8n.status==='METADATA_READ_ONLY'?'INVENTORY_COMPLETE':'BLOCKED';
+ report.mailCandidateFound=(report.n8n.gmailOAuthCandidates||0)+(report.n8n.smtpCandidates||0)+(report.n8n.googleOAuthCandidates||0)>0;
+ }catch(e){report.status='BLOCKED';report.reason=/^[A-Z_]{4,100}$/.test(e.message||'')?e.message:'N8N_METADATA_COMMAND_FAILED';}
+ console.log(JSON.stringify(report,null,2));`;
+}
+
 // Bundled into smtp-owner-launcher.mjs; never deploys before remote interactive GO.
 import{spawnSync}from'node:child_process';import{mkdir,mkdtemp,chmod,readFile as localReadFile,writeFile as localWriteFile,lstat as localLstat,realpath as localRealpath,statfs as localStatfs}from'node:fs/promises';import{hostname,homedir,platform}from'node:os';import path from'node:path';import{fileURLToPath}from'node:url';import{createInterface as wizardReadline}from'node:readline/promises';
 const server='shadowadmin@169.58.232.69',quote=s=>"'"+s.replaceAll("'","'\\''")+"'";
@@ -75,7 +124,8 @@ const remote=command=>execute('ssh',['-tt','-o','StrictHostKeyChecking=yes','-o'
 const status=release=>{const p='/home/shadowadmin/.shadowbridge-smtp-'+release+'/status.json',code="import{readFile}from'node:fs/promises';try{console.log(await readFile("+JSON.stringify(p)+",'utf8'));}catch(e){if(e.code!=='ENOENT')process.exit(1);console.log(JSON.stringify({phase:'NONE'}));}";return JSON.parse(execute('ssh',['-T','-o','StrictHostKeyChecking=yes',server,'node --input-type=module -e '+quote(code)],{capture:true}));};
 async function verifyLocalOffsite({manifest,directory,release,hostHash}){verifyTransferManifest(manifest,release);must(hostHash!==manifest.serverHostHash,'OFFSITE_MUST_BE_DIFFERENT_MACHINE');for(const f of manifest.files){const file=directory+'/'+(f.name.endsWith('.key')?'keys/':'archives/')+f.name,bytes=await privateRead(file);must(hash(bytes)===f.sha256&&bytes.length===f.bytes,'OFFSITE_DOWNLOADED_BYTES_MISMATCH');}for(const name of ['database','configuration','certificates'])await authenticateArchiveOnly(directory+'/archives/'+name+'.sbb',directory+'/keys/'+name+'.key');const receipt={kind:'shadowbridge-smtp-offsite-receipt-v1',operatorRelease:release,nonce:manifest.nonce,manifestHash:hash(JSON.stringify(manifest)),verifierHostHash:hostHash,differentHost:true,authenticatedArchives:true,verifiedAt:new Date().toISOString(),files:manifest.files};verifyOffsiteReceipt(manifest,receipt,release);return receipt;}
 async function launch(args=process.argv.slice(2)){
- const release=args.find(a=>a.startsWith('--release='))?.slice(10);must(/^[a-f0-9]{40}$/.test(release||'')&&args.every(a=>a==='--rollback'||a==='--preflight-only'||a==='--mail-wizard'||a.startsWith('--release=')),'LAUNCHER_ARGUMENTS_INVALID');must(process.stdin.isTTY&&platform()==='linux'&&hostname()!=='vmi3682957','RUN_ON_OWNER_POP_OS_INTERACTIVELY');
+ const release=args.find(a=>a.startsWith('--release='))?.slice(10);must(/^[a-f0-9]{40}$/.test(release||'')&&args.every(a=>a==='--rollback'||a==='--preflight-only'||a==='--mail-wizard'||a==='--n8n-mail-check'||a.startsWith('--release=')),'LAUNCHER_ARGUMENTS_INVALID');must(process.stdin.isTTY&&platform()==='linux'&&hostname()!=='vmi3682957','RUN_ON_OWNER_POP_OS_INTERACTIVELY');
+ if(args.includes('--n8n-mail-check')){remote('sudo node --input-type=module -e '+quote(n8nMailOnlyProbeCode()));return;}
  if(args.includes('--mail-wizard')){const input=wizardReadline({input:process.stdin,output:process.stdout,terminal:true});let email;try{email=validWizardEmail(await input.question('Adres e-mail, który kontrolujesz [shadowbridge.trade@gmail.com]: ')||'shadowbridge.trade@gmail.com');}finally{input.close();process.stdin.pause();}remote('sudo node --input-type=module -e '+quote(mailChannelProbeCode(email)));return;}
  remote('sudo node --input-type=module -e '+quote(bootstrapCode(release)));
  if(args.includes('--rollback')){remote(remoteOperatorCommand(release,'rollback'));return;}

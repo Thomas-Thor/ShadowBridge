@@ -1,3 +1,4 @@
+import{n8nMailMetadataCode}from'./smtp-n8n-metadata.mjs';
 // Metadata-only channel discovery. No SMTP login, send, credential decryption,
 // bootstrap, configuration write or application restart.
 export function validWizardEmail(value){
@@ -8,19 +9,7 @@ export function validWizardEmail(value){
 }
 export function mailChannelProbeCode(recipient){
  const email=validWizardEmail(recipient);
- const inventory=`
-  try {
-   if ((process.env.DB_TYPE||'sqlite')!=='sqlite') {console.log(JSON.stringify({status:'METADATA_NOT_VERIFIED_NON_SQLITE',authorizationVerified:false}));}
-   else {
-    const {DatabaseSync}=await import('node:sqlite');const path=await import('node:path');
-    const prefix=process.env.DB_TABLE_PREFIX||'';if(!/^[a-zA-Z0-9_]{0,64}$/.test(prefix))throw Error();
-    const database=path.resolve(process.env.N8N_USER_FOLDER||'/home/node','.n8n',process.env.DB_SQLITE_DATABASE||'database.sqlite');
-    const db=new DatabaseSync(database,{readOnly:true});
-    try {const rows=db.prepare('SELECT type,count(*) AS count FROM "'+prefix+'credentials_entity" WHERE type IN (?,?,?) GROUP BY type').all('gmailOAuth2','smtp','googleOAuth2Api');
-    console.log(JSON.stringify({status:'METADATA_READ_ONLY',authorizationVerified:false,gmailOAuthCandidates:Number(rows.find(r=>r.type==='gmailOAuth2')?.count||0),smtpCandidates:Number(rows.find(r=>r.type==='smtp')?.count||0),googleOAuthCandidates:Number(rows.find(r=>r.type==='googleOAuth2Api')?.count||0)}));}
-    finally{db.close();}
-   }
-  } catch {console.log(JSON.stringify({status:'METADATA_NOT_VERIFIED',authorizationVerified:false}));}`;
+ const inventory=n8nMailMetadataCode();
  return `import{execFileSync}from'node:child_process';import{lstat,readFile}from'node:fs/promises';import{hostname}from'node:os';
 const report={kind:'shadowbridge-existing-mail-channel',readOnly:true,changesMade:false,recipient:${JSON.stringify(email)},codeSent:false,deliveryVerified:false,publicSignup:false};
 const run=a=>execFileSync('docker',['--context','default',...a],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:15000,maxBuffer:16*1024**2});
@@ -44,4 +33,20 @@ try{
  report.missingDependency=candidate?'Validate existing SMTP/OAuth authorization server-side before any message.':'One-time outbound authorization for an existing sender. Inbox access and recipient address do not authorize sending.';
 }catch(e){report.status='BLOCKED';report.reason=/^[A-Z_]{4,100}$/.test(e.message||'')?e.message:'READ_ONLY_MAIL_DISCOVERY_FAILED';}
 console.log(JSON.stringify(report,null,2));`;
+}
+
+export function n8nMailOnlyProbeCode(){
+ const inventory=n8nMailMetadataCode();
+ return `import{execFileSync}from'node:child_process';import{hostname}from'node:os';
+ const report={kind:'shadowbridge-n8n-mail-metadata',readOnly:true,changesMade:false,codeSent:false,deliveryVerified:false,authorizationVerified:false};
+ const run=a=>execFileSync('docker',['--context','default',...a],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:20000,maxBuffer:1048576});
+ try{
+ if(process.geteuid()!==0||process.env.SUDO_USER!=='shadowadmin'||hostname()!=='vmi3682957')throw Error('AUTHORIZED_READ_ONLY_OPERATOR_REQUIRED');
+ const endpoint=JSON.parse(run(['context','inspect','default','--format','{{json .Endpoints.docker}}']));if(!['unix:///var/run/docker.sock','unix:///run/docker.sock'].includes(endpoint.Host))throw Error('LOCAL_DOCKER_REQUIRED');
+ const [container]=JSON.parse(run(['inspect','shadowbridge-automation-n8n-1']));if(container.Name!=='/shadowbridge-automation-n8n-1'||!container.State.Running)throw Error('EXISTING_N8N_NOT_RUNNING');
+ report.n8n=JSON.parse(run(['exec',container.Id,'node','--input-type=module','-e',${JSON.stringify(inventory)}]));
+ report.status=report.n8n.status==='METADATA_READ_ONLY'?'INVENTORY_COMPLETE':'BLOCKED';
+ report.mailCandidateFound=(report.n8n.gmailOAuthCandidates||0)+(report.n8n.smtpCandidates||0)+(report.n8n.googleOAuthCandidates||0)>0;
+ }catch(e){report.status='BLOCKED';report.reason=/^[A-Z_]{4,100}$/.test(e.message||'')?e.message:'N8N_METADATA_COMMAND_FAILED';}
+ console.log(JSON.stringify(report,null,2));`;
 }
