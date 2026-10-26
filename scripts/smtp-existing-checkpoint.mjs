@@ -62,3 +62,17 @@ export function existingResumeSelection(report){
  const allowed=['WAITING_REAL_OFFSITE','OFFSITE_VERIFIED','ALLOWLIST_ACTIVE_PENDING_DELIVERY','SIGNUP_MAIL_SENT','CONFIRMED','RECOVERY_MAIL_SENT','RECOVERY_VERIFIED_WAITING_HEADERS','ALLOWLIST_DELIVERY_VERIFIED'];
  if(['NO_CHECKPOINT','PREPARED','BACKUPS_IN_PROGRESS','BACKUPS_VERIFIED_WAITING_TRANSFER'].includes(c.phase))return{...c,resumeAction:'preparation'};if(!allowed.includes(c.phase))stop('CHECKPOINT_PHASE_REQUIRES_REPAIR_NO_AUTOMATIC_REPLAY','checkpoint.'+c.phase.toLowerCase());return{...c,resumeAction:'continue'};
 }
+// Explicit fresh capture only after authoritative evidence that no earlier
+// package exists. Never turn an ordinary failed resume into a new preparation.
+export function missingSmtpStartSelection(report){
+ const stop=code=>{const e=Error(code);e.stage='checkpoint.missing-profile';throw e;};
+ if(report.discoveryFailed)stop('CHECKPOINT_DISCOVERY_FAILED');
+ if(report.lock?.exists!==false)stop('SMTP_OPERATION_LOCK_PRESENT_NO_REMOVAL');
+ if(report.candidates.length)stop('EXISTING_SMTP_ARTIFACTS_USE_RESUME_NOT_START');
+ const installs=report.operatorInstalls||[];
+ if(installs.length!==1)stop('UNIQUE_EMPTY_SMTP_OPERATOR_REQUIRED');
+ const c=installs[0];
+ if(!c.reviewed||!c.checkoutMatches||c.root?.uid!==0||c.root?.mode!=='700'||c.root?.type!=='directory'||c.local?.uid!==0||c.local?.mode!=='700'||c.local?.type!=='directory')stop('SAVED_OPERATOR_IDENTITY_NOT_PROVEN');
+ if([c.package,c.checkpoint,c.credentialFile,c.manifest].some(v=>v?.exists!==false))stop('EXISTING_SMTP_ARTIFACTS_USE_RESUME_NOT_START');
+ return{sourceRelease:c.sourceRelease,phase:'NO_CHECKPOINT',resumeAction:'preparation',initializeEmpty:true};
+}

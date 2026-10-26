@@ -2,9 +2,12 @@
 import os, pty, select, time, secrets, signal
 code = r"""import {question} from './scripts/smtp-production-operator.mjs';
 import {gmailCredentialInput} from './scripts/smtp-terminal-input.mjs';
+import {normalizeMissingSmtpCredential} from './scripts/smtp-preparation-resume.mjs';
 await question('VISIBLE: ');
 const value=await question('HIDDEN: ',true);
 let result='VALID';try{gmailCredentialInput(value)}catch(e){result=e.message}
+let missing='VALID';try{normalizeMissingSmtpCredential(value)}catch(e){missing=e.message}
+if(missing!==result)throw Error('NORMALIZATION_MISMATCH');
 console.log('RESULT:'+result);
 await question('AFTER: ');console.log('COMPLETE');"""
 cases = [('typed unavailable', 'BRAK', 'GMAIL_APP_PASSWORD_UNAVAILABLE'),
