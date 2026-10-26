@@ -1,0 +1,75 @@
+{
+  "kind": "shadowbridge-book-oauth-app-only-results-v1",
+  "date": "2026-10-26",
+  "status": "PREPARED_NOT_DEPLOYED",
+  "requiredAcceptedBase": "80f4a0d333d31a6d57ada714b0df17bc0584a07b",
+  "targetApplicationRelease": "e871f2e09c25dc79f5222fa738ac446a103f1edc",
+  "installerSha256": "7daf78fb3093b948553a62b8b01dafe7cbbd64e12d7ec71400ed9de79ebf2acd",
+  "dedicatedTests": {
+    "pass": 16,
+    "fail": 0
+  },
+  "existingFocusedComposeTests": {
+    "pass": 3,
+    "fail": 0
+  },
+  "nativeGroups": [
+    {
+      "name": "clone only the retained fictional 21-migration fixture, without applying any migration",
+      "result": "PASS"
+    },
+    {
+      "name": "same coordinator prepares an encrypted online pg_dump without stopping other containers; authenticated restore preserves all protected tables",
+      "result": "PASS"
+    },
+    {
+      "name": "real Compose APP-ONLY swap reaches e871f2e, separates authenticated discovery and preserves PostgreSQL/MFA/ledger",
+      "result": "PASS"
+    },
+    {
+      "name": "actual MCP write is persisted after backup and survives an app-only rollback to the real 80f4a0d image",
+      "result": "PASS"
+    },
+    {
+      "name": "forced new-image health failure triggers the actual previous-image Compose rollback, without restoring the DB",
+      "result": "PASS"
+    },
+    {
+      "name": "interrupted checkpoint with target already running resumes verification without another image replacement; OWNER acceptance is separate",
+      "result": "PASS"
+    },
+    {
+      "name": "GCM corruption fails before swap; original fixture and all initial users, sessions, factors and migration hashes remain unchanged",
+      "result": "PASS"
+    }
+  ],
+  "nativeImageBuilds": {
+    "80f4a0d333d31a6d57ada714b0df17bc0584a07b": "sha256:84f3d1c58805ccd7bb98698399e379547095c0cc92216a875c7071ccaa22c523",
+    "e871f2e09c25dc79f5222fa738ac446a103f1edc": "sha256:d569d6727978c63e4fce8439335a6e326fab8ec80f4cceba9f48f840702a5933"
+  },
+  "companionBackups": {
+    "result": "PASS",
+    "gatewayRestarted": false,
+    "configurationAndCertificateGcmVerified": true,
+    "mismatchDenied": true
+  },
+  "migrationsExecuted": 0,
+  "postBackupRecordSurvivesRollback": true,
+  "databaseRestoredOnlyToNewIsolatedTarget": true,
+  "productionChanges": false,
+  "productionPreflightExecuted": false,
+  "productionGuardBypassed": false,
+  "realInteractiveOwnerMfaTested": false,
+  "actualChatgptTested": false,
+  "actualOffsiteSshTransferTested": false,
+  "fixtureNotes": [
+    "Retained fictional ledger-21 fixture with historical executor-role fixture alias; no new migration applied.",
+    "SQL OWNER/MFA claims and actual PostgreSQL API/session roles; no real OWNER identity or credentials used.",
+    "Offsite checksum simulation uses local copy; actual second-host transfer must be performed by the OWNER launcher.",
+    "Test Docker wrapper adapts only newly copied scratch ownership for the runner, not source certificate volumes."
+  ],
+  "historicalDiscoveryRegression": {
+    "pass": 40,
+    "rerun": false
+  }
+}
