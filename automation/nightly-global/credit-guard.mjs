@@ -3,6 +3,9 @@
 import {createHash} from 'node:crypto';
 const stageKey=(key,stage)=>{const h=createHash('sha256').update(key+':'+stage).digest('hex');return h.slice(0,8)+'-'+h.slice(8,12)+'-5'+h.slice(13,16)+'-8'+h.slice(17,20)+'-'+h.slice(20,32);};
 export async function guardedPaidOperation({approved=false,crm,provider,record,companySourceId,requiredFields,requestKey,operation}){
+ // Current OWNER order: Clay is free sourcing only. An old approved flag or
+ // provider balance must not revive paid reveal/enrichment in this phase.
+ if(record?.source?.system==='clay'||provider?.provider==='clay')return {status:'CLAY_FREE_ONLY_PAID_OPERATION_BLOCKED',providerCalls:0};
  if(!approved||provider?.contractVerified!==true||typeof provider.call!=='function')return {status:'PAID_DISABLED',providerCalls:0};
  let r,missing;
  try{
