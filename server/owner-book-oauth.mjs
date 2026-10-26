@@ -32,7 +32,9 @@ export function authorizationParameters(search,{createEnabled=false,writeEnabled
  return {...p,scopes};
 }
 export function oauthMetadata(pathname,{createEnabled=false,writeEnabled=false}={}){
- const supported=[...oauthScopes,...(createEnabled?createScopes:[]),...(writeEnabled?writeScopes:[])];
+ // Discovery selects one consent class. Keep explicit legacy import requests
+ // valid, but never invite clients to combine .create with normal .write.
+ const supported=[...oauthScopes,...(writeEnabled?writeScopes:createEnabled?createScopes:[])];
  if(['/.well-known/oauth-protected-resource','/.well-known/oauth-protected-resource/api/integrations/owner-book/v1/mcp'].includes(pathname))return {resource:oauthResource,authorization_servers:[oauthIssuer],scopes_supported:supported,bearer_methods_supported:['header'],resource_name:writeEnabled?'ShadowBridge OWNER Book with scoped write consent':'ShadowBridge OWNER Book read-only'};
  if(pathname==='/.well-known/oauth-authorization-server')return {issuer:oauthIssuer,authorization_endpoint:oauthIssuer+oauthPrefix+'/authorize',token_endpoint:oauthIssuer+oauthPrefix+'/token',registration_endpoint:oauthIssuer+oauthPrefix+'/register',revocation_endpoint:oauthIssuer+oauthPrefix+'/revoke',response_types_supported:['code'],grant_types_supported:['authorization_code','refresh_token'],token_endpoint_auth_methods_supported:['none','client_secret_post','client_secret_basic'],code_challenge_methods_supported:['S256'],scopes_supported:supported,authorization_response_iss_parameter_supported:true};
  return null;

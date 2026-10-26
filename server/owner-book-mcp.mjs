@@ -63,7 +63,9 @@ export async function routeBookMcp({req,url,sessionPool,body,clientHash,oauthEna
  if(message.method==='tools/list'){
   if(p.cursor!==undefined)return rpcError(id,-32602,'No tool-list cursor is supported.');
   const reads=bookReadTools.map(t=>oauthEnabled?{...t,securitySchemes:[{type:'oauth2',scopes:t.name==='read_notes'?['note.read']:t.name==='read_activity'?['journal.read']:entryKinds.map(k=>k+'.read')}]}:t);
-  return ok({tools:reads.concat(createEnabled&&oauthEnabled?bookCreateTools.map(t=>({...t,securitySchemes:[{type:'oauth2',scopes:t.name.startsWith('create_')?[t.name.slice(7)+'.read',t.name.slice(7)+'.create']:['note.read','note.create','idea.read','idea.create','task.read','task.create','event.read','event.create','decision.read','decision.create']}]})):[],writeEnabled&&oauthEnabled?bookWriteTools.map(t=>({...t,securitySchemes:[{type:'oauth2',scopes:['note.read']}]})):[])});
+  // Match OAuth discovery: normal write mode must not advertise import scopes.
+  // Existing separate import grants/calls retain their unchanged server checks.
+  return ok({tools:reads.concat(createEnabled&&oauthEnabled&&!writeEnabled?bookCreateTools.map(t=>({...t,securitySchemes:[{type:'oauth2',scopes:t.name.startsWith('create_')?[t.name.slice(7)+'.read',t.name.slice(7)+'.create']:['note.read','note.create','idea.read','idea.create','task.read','task.create','event.read','event.create','decision.read','decision.create']}]})):[],writeEnabled&&oauthEnabled?bookWriteTools.map(t=>({...t,securitySchemes:[{type:'oauth2',scopes:['note.read']}]})):[])});
  }
  if(message.method==='tools/call'){
   if(writeEnabled&&oauthEnabled&&bookWriteTools.some(t=>t.name===p.name)){

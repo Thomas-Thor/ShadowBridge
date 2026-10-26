@@ -11,13 +11,39 @@ async function setup(t,{enabled=true,owner=true,create=false,write=false}={}){
  const db={sessionPool:{query:async(q,a)=>{calls.push({q,a});assert.ok(q.includes('owner_book.oauth_machine'));const p=JSON.parse(a[1]);return{rows:[{result:a[0]==='client'?{status:200,data:{name:'FICTIONAL <client>',redirects:[redirect]}}:a[0]==='read'?{status:200,data:{items:[{id:'FICTIONAL',kind:'note',title:'TEST-CONNECTION-NOTE',body:'FICTIONAL',owner_id:'HIDDEN'}],page:1,limit:25,total:1}}:{status:200,data:{scope:'note.read',expires_in:600}}}]};}},asUser:async(identity,opt,fn)=>fn({query:async(q,a)=>{calls.push({q,a});assert.ok(q.includes('oauth_owner'));return{rows:[{result:owner?{status:200,data:a[0]==='connections'?{items:[]}:a[0]==='authorize'?{authorized:!issued&&(issued=true)}:{eligible:true}}:{status:403,data:{code:'OWNER_MFA_REQUIRED'}}}]};}})};
  const real=createAuthService({config,db}),auth={...real,authenticate:async()=>owner?{id:'fictional-owner',aal:'aal2',emailVerified:true,recoveryOnly:false}:null};
  const body=async req=>{let value='';for await(const p of req)value+=p;return JSON.parse(value);};
- const server=http.createServer(async(req,res)=>{try{const url=new URL(req.url,config.appUrl);if(url.pathname===mcpPath){const r=await routeBookMcp({req,url,sessionPool:db.sessionPool,body,clientHash:'a'.repeat(64),oauthEnabled:true});res.writeHead(r.status,{...r.headers,'Content-Type':'application/json'});return res.end(JSON.stringify(r.data));}await routeOAuth({req,res,url,config,db,auth,body,clientHash:'a'.repeat(64),limit:()=>{}});}catch(e){res.writeHead(e.status||500,{'Content-Type':'application/json'});res.end(JSON.stringify({code:e.code||'PRIVATE_ERROR'}));}});
+ const server=http.createServer(async(req,res)=>{try{const url=new URL(req.url,config.appUrl);if(url.pathname===mcpPath){const r=await routeBookMcp({req,url,sessionPool:db.sessionPool,body,clientHash:'a'.repeat(64),oauthEnabled:true,createEnabled:create,writeEnabled:write});res.writeHead(r.status,{...r.headers,'Content-Type':'application/json'});return res.end(JSON.stringify(r.data));}await routeOAuth({req,res,url,config,db,auth,body,clientHash:'a'.repeat(64),limit:()=>{}});}catch(e){res.writeHead(e.status||500,{'Content-Type':'application/json'});res.end(JSON.stringify({code:e.code||'PRIVATE_ERROR'}));}});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)));
  const base='http://127.0.0.1:'+server.address().port;
  return{base,calls,key,auth,post:(path,p,headers={})=>fetch(base+oauthPrefix+path,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(p)})};
 }
 test('OAuth discovery advertises exact issuer/resource, S256 and registration; it does not advertise writes or implicit/password grants',()=>{
  const m=oauthMetadata('/.well-known/oauth-authorization-server');assert.equal(m.issuer,'https://shadow-bridge.eu');assert.deepEqual(m.code_challenge_methods_supported,['S256']);assert.deepEqual(m.grant_types_supported,['authorization_code','refresh_token']);assert.ok(m.scopes_supported.every(s=>s.endsWith('.read')));assert.equal(oauthMetadata('/.well-known/oauth-protected-resource').resource,oauthResource);assert.match(oauthChallenge,/resource_metadata=/);
+});
+test('real loopback HTTP discovery with both flags advertises one consent class and clients can authorize advertised scopes without mixed-scope rejection',async t=>{
+ const f=await setup(t,{create:true,write:true});
+ for(const path of ['/.well-known/oauth-authorization-server','/.well-known/oauth-protected-resource/api/integrations/owner-book/v1/mcp']){
+  const response=await fetch(f.base+path);assert.equal(response.status,200);const scopes=(await response.json()).scopes_supported;
+  assert.ok(scopes.includes('note.write')&&scopes.includes('task.write'));assert.ok(!scopes.some(s=>s.endsWith('.create')));
+  const p=parameters();p.set('scope',scopes.join(' '));const page=await fetch(f.base+oauthPrefix+'/authorize?'+p);
+  assert.equal(page.status,200);assert.match(await page.text(),/Create and edit Book entries/);
+ }
+ const response=await fetch(f.base+mcpPath,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json, text/event-stream',Authorization:'Bearer sboa_'+randomBytes(32).toString('base64url')},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})});
+ assert.equal(response.status,200);assert.deepEqual((await response.json()).result.tools.map(x=>x.name),['read_notes','read_book_entries','read_activity','create_book_entry','update_book_entry']);
+ const mixed=parameters();mixed.set('scope','note.read note.create note.write');
+ const denied=await fetch(f.base+oauthPrefix+'/authorize?'+mixed);assert.equal(denied.status,400);assert.equal((await denied.json()).code,'OAUTH_REQUEST_REJECTED');
+});
+test('exact note/task OAuth consent still needs fresh OWNER context, CSRF and separate explicit write approval and never adds import scopes',async t=>{
+ const f=await setup(t,{create:true,write:true}),p=parameters();p.set('scope','note.read note.write task.read task.write');
+ const r=await fetch(f.base+oauthPrefix+'/authorize?'+p),page=await r.text(),cookie=r.headers.get('set-cookie').split(';')[0],ticket=page.match(/id="oauth-ticket" type="hidden" value="([^"]+)/)[1];
+ assert.match(page,/Create and edit Book entries/);assert.match(page,/<input id="oauth-write-consent" type="checkbox">/);assert.ok(!page.includes('id="oauth-create-consent"'));
+ const context=await fetch(f.base+oauthPrefix+'/context'),csrfCookie=context.headers.get('set-cookie').split(';')[0],d=await context.json();
+ const headers={Origin:'http://localhost',Cookie:cookie+'; '+csrfCookie,'X-CSRF-Token':d.csrfToken,'X-Session-Token':d.csrfToken};
+ assert.equal((await f.post('/consent',{ticket,approve:true},headers)).status,403);
+ assert.equal((await f.post('/consent',{ticket,approve:true,explicitWriteConsent:true},{...headers,'X-CSRF-Token':'invalid'})).status,403);
+ assert.ok(!f.calls.some(c=>c.a[0]==='authorize'));
+ assert.equal((await f.post('/consent',{ticket,approve:true,explicitWriteConsent:true},headers)).status,200);
+ const granted=JSON.parse(f.calls.find(c=>c.a[0]==='authorize').a[1]);assert.deepEqual(granted.scopes,['note.read','note.write','task.read','task.write']);assert.equal(granted.explicitWriteConsent,true);assert.ok(!granted.temporaryCreateConsent);
+ const denied=await setup(t,{owner:false,create:true,write:true});assert.equal((await fetch(denied.base+oauthPrefix+'/context')).status,403);assert.equal(denied.calls.length,0);
 });
 test('authorization rejects arbitrary/partial callback matches, duplicate fields, wrong resource, plain PKCE, missing state and write scope',()=>{
  assert.deepEqual(authorizationParameters(parameters()).scopes,['note.read']);

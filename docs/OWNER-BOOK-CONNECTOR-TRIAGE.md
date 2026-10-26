@@ -1,5 +1,9 @@
 # OWNER Book: identify the active connector before reconnecting
 
+For the subsequent mixed `.create`/`.write` authorization rejection, see
+[the tested discovery fix](OWNER-BOOK-OAUTH-DISCOVERY-FIX.md). The source behavior
+below describes the original 80f4a0d incident base, not a deployed hotfix.
+
 ## Evidence and limits
 
 OWNER reports that release `80f4a0d333d31a6d57ada714b0df17bc0584a07b`
