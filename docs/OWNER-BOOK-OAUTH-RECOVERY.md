@@ -1,5 +1,11 @@
 # APP-ONLY recovery of the original PLANNED checkpoint
 
+> **PAUSED BY OWNER — 2026-10-26. Do not run this recovery command.**
+> The reported d71ca2e attempt stopped with PRIVATE_OPERATOR_FAILURE.
+> Preserve checkpoints, images, locks and backups. Use the
+> [READ ONLY closeout audit](OWNER-BOOK-OAUTH-CLOSEOUT-AUDIT.md) first.
+> Instructions below are historical and are not current deployment approval.
+
 **PREPARED / TESTED IN ISOLATION / NOT DEPLOYED. Separate OWNER approval required.**
 
 Package: `d71ca2eaf6179b0f089a02ff32c83a80d9e38310`.

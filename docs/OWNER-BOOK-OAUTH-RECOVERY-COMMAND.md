@@ -1,5 +1,11 @@
 # Pop!_OS: pinned PLANNED recovery command
 
+> **PAUSED BY OWNER — 2026-10-26. Do not run this recovery command.**
+> The reported d71ca2e attempt stopped with PRIVATE_OPERATOR_FAILURE.
+> Preserve checkpoints, images, locks and backups. Use the
+> [READ ONLY closeout audit](OWNER-BOOK-OAUTH-CLOSEOUT-AUDIT.md) first.
+> Instructions below are historical and are not current deployment approval.
+
 **Prepared, not deployed. Run only after separate OWNER approval.** This command
 will perform production recovery after its interactive confirmations; it is not
 the earlier read-only diagnostic.
