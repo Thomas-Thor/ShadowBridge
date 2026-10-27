@@ -4,10 +4,10 @@ import {createAcquisitionGateway,loadAcquisitionGateway,assertRestrictedAcquisit
 import {guardedPaidOperation} from './credit-guard.mjs';
 const record={company:{name:'FICTIONAL business',country:'NO',registrationNumber:'FICTIONAL',website:'https://example.invalid'},contact:{fullName:'FICTIONAL Person',title:'FICTIONAL buyer',workEmail:'',emailKind:'unknown'},source:{system:'apollo',recordId:'fictional-1'}};
 const input={record,companySourceId:'fictional-co',requiredFields:['workEmail'],requestKey:randomUUID(),operation:'email_reveal'};
-test('Clay free-only order blocks paid reveal/enrichment even with stale approval and a verified provider contract',async()=>{
+test('generic legacy route cannot perform Clay paid work without a dedicated company-level Trial email controller',async()=>{
  for(const operation of ['email_reveal','enrichment'])for(const sourceHint of ['record','provider']){let crmCalls=0,providerCalls=0;
   const r=await guardedPaidOperation({...input,operation,approved:true,record:sourceHint==='record'?{...record,source:{...record.source,system:'clay'}}:record,crm:{call:async()=>{crmCalls++;throw Error('MUST_NOT_RUN');}},provider:{provider:sourceHint==='provider'?'clay':'apollo',contractVerified:true,call:async()=>{providerCalls++;}}});
-  assert.equal(r.status,'CLAY_FREE_ONLY_PAID_OPERATION_BLOCKED');assert.equal(r.providerCalls,0);assert.equal(crmCalls,0);assert.equal(providerCalls,0);
+  assert.equal(r.status,'CLAY_DEDICATED_EMAIL_ROUTE_REQUIRED');assert.equal(r.providerCalls,0);assert.equal(crmCalls,0);assert.equal(providerCalls,0);
  }
 });
 test('gateway startup refuses DBA, BYPASSRLS, operational roles and a mismatched source binding',()=>{

@@ -31,6 +31,13 @@ test('sheet selection is explicit, bounded and quoted; no guessing Sheet1 or cha
  const metadata={statusCode:200,body:{sheets:[{properties:{title:"Owner's CRM",sheetType:'GRID',gridProperties:{rowCount:1000,columnCount:26}}}]}};
  assert.equal(step('sheet',{response:metadata}).range,"'Owner''s CRM'!A1:CV20000");metadata.body.sheets.push(structuredClone(metadata.body.sheets[0]));assert.throws(()=>step('sheet',{response:metadata}),/TAB_SELECTION/);metadata.body.sheets.pop();metadata.body.sheets[0].properties.gridProperties.rowCount=100000;assert.throws(()=>step('sheet',{response:metadata}),/TOO_LARGE/);
 });
+test('inspection reads existing CRM without accepting input contacts, write plans or exposing stored records',()=>{
+ const r=request([],'inspect');assert.equal(r.rows.length,0);assert.throws(()=>request([fixture()],'inspect'),/INSPECT_NO_RECORDS/);
+ const privateRow=['id1','FICTIONAL PRIVATE COMPANY','NO','Machinery','FICTIONAL PRIVATE PERSON','','','','','VALID','private@example.invalid'];
+ const p=step('plan',{request:r,response:response([headers,privateRow])});const out=step('preview',{plan:p});assert.equal(out.status,'CRM_READ_CONFIRMED');assert.equal(out.existingRows,1);assert.equal(out.canWrite,false);assert.equal(out.crmWrites,0);assert.equal(out.emailColumnPresent,true);assert.equal(out.emailWritingSupported,false);assert.ok(!p.appendBody);assert.ok(!JSON.stringify(out).includes('PRIVATE'));assert.ok(!JSON.stringify(out).includes('private@example.invalid'));
+ const bad=step('plan',{request:r,response:response([['Company'],['FICTIONAL LEGACY']])});assert.equal(bad.canarySchemaReady,false);assert.equal(bad.legacyRows,1);assert.ok(bad.missingFields.includes('sbKey'));assert.equal(step('preview',{plan:bad}).status,'CRM_READ_CONFIRMED');
+ const repeated=step('plan',{request:r,response:response([headers,privateRow,privateRow])});assert.equal(repeated.duplicateIds,1);assert.equal(repeated.canarySchemaReady,false);
+});
 test('readback failure or duplicates never claim success; verification-only mode cannot authorize append',()=>{
  const r=request(),p=step('plan',{request:r,response:response([headers])});assert.throws(()=>step('verify',{plan:p,response:response([headers])}),/NOT_CONFIRMED_NO_AUTOMATIC_RETRY/);assert.throws(()=>step('verify',{plan:p,response:response([headers,...p.appendBody.values,...p.appendBody.values])}),/DUPLICATE_ID_AFTER_WRITE/);
  assert.equal(step('plan',{request:request([fixture()],'verify'),response:response([headers])}).canWrite,false);assert.throws(()=>step('appendAck',{plan:p,response:{statusCode:403,body:{}}}),/ACK_NOT_CONFIRMED/);

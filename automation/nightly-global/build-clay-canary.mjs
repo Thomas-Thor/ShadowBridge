@@ -17,7 +17,7 @@ export function buildClayCanary({spreadsheetId,sheetTitle='',googleCredentialId=
  code('Choose existing tab','sheet','{response:$input.first().json,sheetTitle:'+JSON.stringify(sheetTitle)+'}');
  http('Read current CRM rows',rangeUrl);
  code('Dedupe and plan append','plan','{response:$input.first().json,request:$("Validate maximum five rows").first().json}');
- branch('Preview only','={{ $json.mode === "preview" }}');
+ branch('Preview only','={{ $json.mode === "preview" || $json.mode === "inspect" }}');
  code('Private preview counts','preview','{plan:$input.first().json}');
  branch('Append is needed','={{ $json.canWrite === true }}');
  http('Append only missing rows',rangeUrl.slice(0,-3)+' + ":append?valueInputOption=RAW&insertDataOption=INSERT_ROWS" }}','POST','={{ $("Dedupe and plan append").first().json.appendBody }}');
