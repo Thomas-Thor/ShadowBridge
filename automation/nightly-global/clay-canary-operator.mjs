@@ -1,6 +1,7 @@
 // OWNER computer only. Installs one bounded receiver, not a night schedule.
 // Clay is never called. Google tokens remain in n8n. Private files are not Git.
 import {readFile,writeFile,mkdir,lstat,realpath,rename,open,unlink} from 'node:fs/promises';import {homedir,hostname} from 'node:os';import path from 'node:path';import {createHash,randomBytes,randomUUID} from 'node:crypto';import {execFileSync} from 'node:child_process';import {createInterface} from 'node:readline/promises';import {fileURLToPath} from 'node:url';
+import {openContaboTransport,diagnoseN8nAccess,remoteJson} from './n8n-contabo-transport.mjs';
 const origin='https://automation.shadow-bridge.eu',name='ShadowBridge Global B2B Sourcing V1',must=(v,c)=>{if(!v)throw Error(c);},hash=v=>createHash('sha256').update(v).digest('hex');
 const sorted=v=>Array.isArray(v)?v.map(sorted):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,sorted(v[k])])):v;
 const stableHash=v=>hash(JSON.stringify(sorted(v)));
@@ -15,11 +16,15 @@ export async function installCanary({api,template,googleCredentialId,projectId,p
  must(!state.projectId||state.projectId===projectId,'CANARY_PROJECT_CHANGED');state.projectId=projectId;await save(state);
  // Official n8n 2.44.6 credentials LIST returns metadata only. Never use a
  // decrypted export, credential test, OAuth callback or editor-session cookie.
- const credentials=[];let credentialCursor;
- for(let i=0;i<20;i++){const r=await api('GET','/credentials?limit=100'+(credentialCursor?'&cursor='+encodeURIComponent(credentialCursor):''));must(Array.isArray(r.data),'CANARY_CREDENTIAL_METADATA_INVALID');must(r.data.every(c=>!Object.hasOwn(c,'data')),'CANARY_UNEXPECTED_CREDENTIAL_DATA');credentials.push(...r.data);credentialCursor=r.nextCursor;if(!credentialCursor)break;}
+ const credentials=[];let credentialCursor,targetedOnly=false;
+ try{for(let i=0;i<20;i++){const r=await api('GET','/credentials?limit=100'+(credentialCursor?'&cursor='+encodeURIComponent(credentialCursor):''));must(Array.isArray(r.data),'CANARY_CREDENTIAL_METADATA_INVALID');must(r.data.every(c=>!Object.hasOwn(c,'data')),'CANARY_UNEXPECTED_CREDENTIAL_DATA');credentials.push(...r.data);credentialCursor=r.nextCursor;if(!credentialCursor)break;}}
+ catch(e){if(e.httpStatus!==403)throw e;targetedOnly=true;credentials.length=0;credentialCursor=null;const c=await api('GET','/credentials/'+googleCredentialId);must(c&&!Object.hasOwn(c,'data'),'CANARY_UNEXPECTED_CREDENTIAL_DATA');credentials.push(c);}
  must(!credentialCursor,'CANARY_CREDENTIAL_LIST_INCOMPLETE');const google=credentials.filter(c=>c.id===googleCredentialId);must(google.length===1&&google[0].type==='googleSheetsOAuth2Api','GOOGLE_CREDENTIAL_METADATA_NOT_CONFIRMED');
  // CredentialListSharedItem uses `id` for the project (unlike workflow shares).
- must(google[0].shared?.some(s=>s.id===projectId),'GOOGLE_CREDENTIAL_NOT_IN_TARGET_PROJECT');
+ if(!targetedOnly)must(google[0].shared?.some(s=>s.id===projectId),'GOOGLE_CREDENTIAL_NOT_IN_TARGET_PROJECT');
+ // The targeted endpoint enforces credential:read. Creation enforces native
+ // project permissions and resolves bindings. Verify EVERY binding in GET below
+ // before publishing; never reattach credentials removed by n8n validation.
  const all=[];let cursor;for(let i=0;i<20;i++){const r=await api('GET','/workflows?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''));must(Array.isArray(r.data),'CANARY_WORKFLOW_LIST_INVALID');all.push(...r.data);cursor=r.nextCursor;if(!cursor)break;}must(!cursor,'CANARY_WORKFLOW_LIST_INCOMPLETE');const matches=all.filter(w=>w.name===name);must(matches.length<=1,'CANARY_DUPLICATE_WORKFLOW_NAME');must(!matches.length||state.workflowId===matches[0].id,'EXISTING_WORKFLOW_REQUIRES_REVIEW_NO_OVERWRITE');
  const postOnce=async(key,route,payload)=>{if(state[key]?.id)return state[key].id;must(!state[key],'CANARY_PREVIOUS_POST_UNCERTAIN_NO_RETRY');state[key]={sending:true};await save(state);const r=await api('POST',route,payload);must(typeof r.id==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(r.id),'CANARY_POST_RECEIPT_REQUIRED');state[key]={id:r.id};await save(state);return r.id;};
  await api('GET','/credentials/schema/httpHeaderAuth');
@@ -34,7 +39,7 @@ export async function installCanary({api,template,googleCredentialId,projectId,p
  must(current.shared?.some(s=>s.projectId===projectId&&s.role==='workflow:owner'),'CANARY_WORKFLOW_PROJECT_NOT_CONFIRMED');
  if(current.active!==true){must(!state.activationPending,'CANARY_ACTIVATION_OUTCOME_UNCERTAIN');state.activationPending=true;await save(state);await api('POST','/workflows/'+workflowId+'/activate');}
  const live=await api('GET','/workflows/'+workflowId);must(live.active===true,'CANARY_RECEIVER_ACTIVATION_NOT_PROVEN');state.activationPending=false;state.receiverActive=true;await save(state);
- return{status:'CANARY_RECEIVER_ACTIVE_NOT_SOURCING_VERIFIED',workflowName:name,workflowId,workflowUrl:origin+'/workflow/'+workflowId,projectId,maximumRowsPerRequest:5,sourceApiCalls:0,sourcingScheduled:false,crmWrites:0,googleCredentialMetadataVerified:true,googleCredentialName:google[0].name,googleCredentialPermissionVerified:false,clayCredentialCandidates:credentials.filter(c=>/clay/i.test(c.name+' '+c.type)).length,clayAuthorizationVerified:false};
+ return{status:'CANARY_RECEIVER_ACTIVE_NOT_SOURCING_VERIFIED',workflowName:name,workflowId,workflowUrl:origin+'/workflow/'+workflowId,projectId,maximumRowsPerRequest:5,sourceApiCalls:0,sourcingScheduled:false,crmWrites:0,googleCredentialMetadataVerified:true,googleCredentialName:google[0].name,googleMetadataReadMode:targetedOnly?'TARGET_ID_WITH_NATIVE_PROJECT_AND_GRAPH_CHECK':'GLOBAL_METADATA_LIST',googleCredentialPermissionVerified:false,clayCredentialCandidates:targetedOnly?null:credentials.filter(c=>/clay/i.test(c.name+' '+c.type)).length,clayAuthorizationVerified:false};
 }
 export async function inspectCanary({call,batchId}){
  must(/^[A-Za-z0-9_-]{16,80}$/.test(batchId||''),'CANARY_BATCH_ID_REQUIRED');
@@ -60,26 +65,36 @@ export async function main(args=process.argv.slice(2)){
  must(hostname()!=='vmi3682957'&&process.env.NODE_TLS_REJECT_UNAUTHORIZED!=='0','OWNER_COMPUTER_AND_TLS_REQUIRED');const mode=args[0];must(['--install','--send','--inspect'].includes(mode),'USE_INSTALL_SEND_OR_INSPECT');
  const dir=path.join(homedir(),'.local/state/shadowbridge-sourcing-v1/clay-canary');await mkdir(dir,{recursive:true,mode:0o700});const st=await lstat(dir);must(st.isDirectory()&&!st.isSymbolicLink()&&(st.mode&511)===448&&st.uid===process.getuid()&&await realpath(dir)===dir,'PRIVATE_OWNER_DIRECTORY_REQUIRED');
  const lockFile=dir+'/operation.lock',nonce=randomUUID(),lock=await open(lockFile,'wx',0o600);await lock.writeFile(JSON.stringify({pid:process.pid,nonce}));await lock.close();
+ let transport;
  try{
   const file=mode==='--install'?dir+'/install.json':mode==='--inspect'?dir+'/inspect.json':dir+'/send-'+(args.find(a=>a.startsWith('--batch='))?.slice(8)||'invalid')+'.json';must(mode!=='--send'||/^send-[A-Za-z0-9_-]{16,80}\.json$/.test(path.basename(file)),'CANARY_BATCH_ID_REQUIRED');let last=null,state={};try{last=await privateRead(file);state=JSON.parse(last);}catch(e){if(e.code!=='ENOENT')throw e;}
   const save=async s=>{if(last!==null)must(await privateRead(file)===last,'CANARY_CHECKPOINT_CHANGED');else try{await lstat(file);throw Error('CANARY_CHECKPOINT_CHANGED');}catch(e){if(e.code!=='ENOENT')throw e;}const text=JSON.stringify(s,null,2)+'\n',temp=file+'.'+nonce;await writeFile(temp,text,{mode:0o600,flag:'wx'});await rename(temp,file);last=text;};
   const profileFile=dir+'/connection.json';let profile;try{profile=JSON.parse(await privateRead(profileFile));}catch(e){if(e.code!=='ENOENT'||mode!=='--install')throw e;profile={headerValue:'Bearer '+randomBytes(32).toString('base64url'),webhookUrl:origin+'/webhook/shadowbridge-global-b2b-sourcing-v1-canary'};await writeFile(profileFile,JSON.stringify(profile)+'\n',{mode:0o600,flag:'wx'});}
   must(/^Bearer [A-Za-z0-9_-]{43}$/.test(profile.headerValue)&&profile.webhookUrl===origin+'/webhook/shadowbridge-global-b2b-sourcing-v1-canary','PRIVATE_CANARY_PROFILE_INVALID');
+  const sshTarget=args.find(a=>a.startsWith('--ssh='))?.slice(6);
+  if(sshTarget)transport=await atStage('operator.ssh',()=>openContaboTransport(sshTarget));
+  const webhook=body=>transport?remoteJson(transport.request,'/webhook/shadowbridge-global-b2b-sourcing-v1-canary',{method:'POST',headers:{Authorization:profile.headerValue},body}):jsonRequest(profile.webhookUrl,{method:'POST',headers:{Authorization:profile.headerValue},body});
   let result;
   if(mode==='--install'){
    const source=args.find(a=>a.startsWith('--workflow='))?.slice(11),digest=args.find(a=>a.startsWith('--sha256='))?.slice(9),projectId=args.find(a=>a.startsWith('--project='))?.slice(10);must(source&&/^[a-f0-9]{64}$/.test(digest||''),'PINNED_PRIVATE_WORKFLOW_REQUIRED');must(/^[A-Za-z0-9_-]{1,100}$/.test(projectId||''),'CANARY_EXISTING_PROJECT_REQUIRED');const bytes=await readFile(source);must(bytes.length<=1048576&&hash(bytes)===digest,'PRIVATE_WORKFLOW_HASH_MISMATCH');const template=JSON.parse(bytes),key=await input('Istniejący klucz n8n API (ukryty): ',true),ids=[...new Set(template.nodes.flatMap(n=>n.credentials?.googleSheetsOAuth2Api?[n.credentials.googleSheetsOAuth2Api.id]:[]))];
    must(ids.length===1&&ids[0]!=='OWNER_SELECT_GOOGLE_SHEETS','PINNED_GOOGLE_BINDING_REQUIRED');const googleId=ids[0];
    must(!state.templateSha||state.templateSha===digest,'CANARY_TEMPLATE_CHANGED');must(!state.googleCredentialId||state.googleCredentialId===googleId,'CANARY_GOOGLE_BINDING_CHANGED');state.templateSha=digest;state.googleCredentialId=googleId;await save(state);
-   result=await installCanary({api:(method,route,body)=>atStage(route.startsWith('/credentials?')?'credential.metadata.read':route.startsWith('/credentials/schema/')?'credential.schema.read':route==='/credentials'?'ingest.credential.create':route==='/workflows'?'workflow.create':route.endsWith('/activate')?'receiver.activate':'workflow.read',()=>jsonRequest(origin+'/api/v1'+route,{method,headers:{'X-N8N-API-KEY':key},body})),template,googleCredentialId:googleId,projectId,profile,state,save});
-   const inspection=await atStage('crm.read.only',()=>inspectCanary({call:body=>jsonRequest(profile.webhookUrl,{method:'POST',headers:{Authorization:profile.headerValue},body}),batchId:randomUUID()}));state.latestInspection=inspection;await save(state);result={...result,crmInspection:inspection,googleCredentialPermissionVerified:true};
+   if(transport){
+    const diagnostic=await atStage('access.diagnostic',()=>diagnoseN8nAccess({request:transport.request,key,projectId,googleId}));
+    diagnostic.checkpoint={retained:true,templateShaMatches:state.templateSha===digest,projectMatches:!state.projectId||state.projectId===projectId,googleBindingMatches:state.googleCredentialId===googleId,ingressCreationStarted:!!state.ingestCredential,workflowCreationStarted:!!state.createdWorkflow,receiverPreviouslyActive:state.receiverActive===true};
+    const diagnosticFile=dir+'/access-'+nonce+'.json';await writeFile(diagnosticFile,JSON.stringify(diagnostic,null,2)+'\n',{mode:0o600,flag:'wx'});console.log(JSON.stringify({...diagnostic,privateDiagnostic:diagnosticFile}));
+    if(!diagnostic.canResumeImport){const e=Error('N8N_ACCESS_DIAGNOSTIC_BLOCKED');e.stage='access.diagnostic';throw e;}
+   }
+   result=await installCanary({api:(method,route,body)=>atStage(route.startsWith('/credentials?')?'credential.metadata.read':route.startsWith('/credentials/schema/')?'credential.schema.read':route.startsWith('/credentials/')?'credential.target.read':route==='/credentials'?'ingest.credential.create':route==='/workflows'?'workflow.create':route.endsWith('/activate')?'receiver.activate':'workflow.read',()=>transport?remoteJson(transport.request,'/api/v1'+route,{method,headers:{'X-N8N-API-KEY':key},body}):jsonRequest(origin+'/api/v1'+route,{method,headers:{'X-N8N-API-KEY':key},body})),template,googleCredentialId:googleId,projectId,profile,state,save});
+   const inspection=await atStage('crm.read.only',()=>inspectCanary({call:webhook,batchId:randomUUID()}));state.latestInspection=inspection;await save(state);result={...result,crmInspection:inspection,googleCredentialPermissionVerified:true,operatorTransport:transport?'SSH_AUTHENTICATED_CONTABO_LOOPBACK':'PUBLIC_HTTPS'};
   }else if(mode==='--inspect'){
-   result=await inspectCanary({call:body=>jsonRequest(profile.webhookUrl,{method:'POST',headers:{Authorization:profile.headerValue},body}),batchId:randomUUID()});state.latestInspection=result;await save(state);
+   result=await inspectCanary({call:webhook,batchId:randomUUID()});state.latestInspection=result;await save(state);
   }else{
-   const source=args.find(a=>a.startsWith('--payload='))?.slice(10);must(source,'PRIVATE_CANARY_PAYLOAD_REQUIRED');const payload=JSON.parse(await privateRead(source));must(path.basename(file)==='send-'+payload.batchId+'.json','CANARY_BATCH_MISMATCH');result=await sendCanary({call:body=>jsonRequest(profile.webhookUrl,{method:'POST',headers:{Authorization:profile.headerValue},body}),payload,state,save});
+   const source=args.find(a=>a.startsWith('--payload='))?.slice(10);must(source,'PRIVATE_CANARY_PAYLOAD_REQUIRED');const payload=JSON.parse(await privateRead(source));must(path.basename(file)==='send-'+payload.batchId+'.json','CANARY_BATCH_MISMATCH');result=await sendCanary({call:webhook,payload,state,save});
   }
   console.log(JSON.stringify({...result,privateCheckpoint:file}));
  }catch(e){try{const checkpoint=JSON.parse(await privateRead(dir+'/install.json'));if(checkpoint.workflowId)e.workflowId=checkpoint.workflowId;}catch{}throw e;
- }finally{const current=JSON.parse(await readFile(lockFile,'utf8'));must(current.nonce===nonce&&current.pid===process.pid,'CANARY_LOCK_CHANGED_PRESERVE');await unlink(lockFile);}
+ }finally{await transport?.close();const current=JSON.parse(await readFile(lockFile,'utf8'));must(current.nonce===nonce&&current.pid===process.pid,'CANARY_LOCK_CHANGED_PRESERVE');await unlink(lockFile);}
 }
 export {reportFailure};
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(e=>{console.error(JSON.stringify(reportFailure(e)));process.exitCode=1;});

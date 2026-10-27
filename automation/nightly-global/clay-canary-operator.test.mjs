@@ -15,6 +15,17 @@ test('wrong workflow project blocks publication and an existing project binding 
  const f=installFixture(),real=f.api;f.api=async(m,p,b)=>{const r=await real(m,p,b);if(p==='/workflows/workflow1')r.shared[0].projectId='other';return r;};await assert.rejects(installCanary(f),/PROJECT_NOT_CONFIRMED/);assert.ok(!f.calls.some(c=>c.route.endsWith('/activate')));
  f.projectId='other';await assert.rejects(installCanary(f),/PROJECT_CHANGED/);
 });
+test('a denied global list may use the authorized target metadata endpoint without new permissions or credentials',async()=>{
+ const f=installFixture(),real=f.api;
+ f.api=async(m,p,b)=>{if(p.startsWith('/credentials?'))throw Object.assign(Error('FORBIDDEN'),{httpStatus:403});if(p==='/credentials/google1')return{id:'google1',name:'Fictional Sheets account',type:'googleSheetsOAuth2Api'};return real(m,p,b);};
+ const r=await installCanary(f);assert.equal(r.googleMetadataReadMode,'TARGET_ID_WITH_NATIVE_PROJECT_AND_GRAPH_CHECK');assert.equal(r.clayCredentialCandidates,null);assert.equal(f.current().shared[0].projectId,'project1');assert.equal(f.calls.filter(c=>c.method==='POST'&&c.route==='/credentials').length,1);
+ const v=installFixture(),before=v.api;v.api=async(m,p,b)=>{if(p.startsWith('/credentials'))throw Object.assign(Error('FORBIDDEN'),{httpStatus:403});return before(m,p,b);};await assert.rejects(installCanary(v));assert.equal(v.calls.filter(c=>c.method==='POST').length,0);
+});
+test('target-only metadata never permits publishing a graph whose Google binding was stripped by native validation',async()=>{
+ const f=installFixture(),real=f.api;
+ f.api=async(m,p,b)=>{if(p.startsWith('/credentials?'))throw Object.assign(Error('FORBIDDEN'),{httpStatus:403});if(p==='/credentials/google1')return{id:'google1',name:'Fictional Sheets',type:'googleSheetsOAuth2Api'};const r=await real(m,p,b);if(p==='/workflows/workflow1')delete r.nodes.find(n=>n.credentials?.googleSheetsOAuth2Api).credentials;return r;};
+ await assert.rejects(installCanary(f),/GRAPH_DRIFT/);assert.ok(!f.calls.some(c=>c.route.endsWith('/activate')));
+});
 test('read-only inspection returns aggregates and rejects spending, leaked fields, impossible counts and forged schema-ready',async()=>{
  const batchId='fixture-read-only-0001',good={status:'CRM_READ_CONFIRMED',batchId,crmWrites:0,clayApiCalls:0,dataCreditsUsedByBridge:0,emailWritingSupported:false,sourcingScheduled:false,existingRows:3,legacyRows:0,duplicateIds:0,missingFields:[],ambiguousFields:[],canarySchemaReady:true,emailColumnPresent:true};
  const sent=[],r=await inspectCanary({batchId,call:async body=>{sent.push(body);return{...good,privateData:'FICTIONAL_NOT_RETURNED'};}});assert.deepEqual(sent,[{mode:'inspect',batchId,rows:[]}]);assert.equal(r.liveReadPerformed,true);assert.ok(!JSON.stringify(r).includes('FICTIONAL_NOT_RETURNED'));

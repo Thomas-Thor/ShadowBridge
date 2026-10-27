@@ -10,7 +10,8 @@ const sha=v=>createHash('sha256').update(v).digest('hex');
 export const assets=Object.freeze({
  'clay-sheets-canary.mjs':'6d18d3665766a312ab71a7af2572f1f604db67b74b7f529ec2f0f73289437319',
  'build-clay-canary.mjs':'bfd8d2f35059e5cc2c5921846c671c9cbf554975bfe99fba46266f84659ccc5c',
- 'clay-canary-operator.mjs':'2d107ef203aeea427d339923e23b64666077c97da16579b0b6281c23772db9f4',
+ 'clay-canary-operator.mjs':'e5ba4bad5e2ba9a202e9fea0d172247be6d331164fa22a7c2c4e034d11f417ce',
+ 'n8n-contabo-transport.mjs':'998f3790923bc6f896e5fd81ed28d2338206c524056728dfa764e35ad50b3d1d',
 });
 async function download(url){
  const r=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(20000)});
@@ -26,7 +27,7 @@ async function preserve(file,bytes){
  try{const s=await lstat(file);must(s.isFile()&&!s.isSymbolicLink()&&s.uid===process.getuid()&&(s.mode&511)===384,'PRIVATE_PACKAGE_FILE_REQUIRED');must(sha(await readFile(file))===sha(bytes),'PINNED_PACKAGE_CHANGED_NO_OVERWRITE');}
  catch(e){if(e.code!=='ENOENT')throw e;await writeFile(file,bytes,{mode:0o600,flag:'wx'});}
 }
-export async function launchCanary({release,projectId,googleId,spreadsheetId,root=path.join(homedir(),'.local/state/shadowbridge-sourcing-v1/deploy-packages'),get=download,run}={}){
+export async function launchCanary({release,projectId,googleId,spreadsheetId,sshTarget,root=path.join(homedir(),'.local/state/shadowbridge-sourcing-v1/deploy-packages'),get=download,run}={}){
  must(hostname()!=='vmi3682957'&&process.env.NODE_TLS_REJECT_UNAUTHORIZED!=='0','OWNER_COMPUTER_AND_TLS_REQUIRED');
  must(/^[a-f0-9]{40}$/.test(release||''),'FULL_SOURCE_RELEASE_REQUIRED');
  must([projectId,googleId].every(v=>/^[A-Za-z0-9_-]{1,100}$/.test(v||''))&&/^[A-Za-z0-9_-]{20,100}$/.test(spreadsheetId||''),'PRIVATE_EXISTING_BINDINGS_REQUIRED');
@@ -43,12 +44,13 @@ export async function launchCanary({release,projectId,googleId,spreadsheetId,roo
  for(const n of template.nodes)if(n.credentials?.googleSheetsOAuth2Api)n.credentials.googleSheetsOAuth2Api.name='Google Sheets account';
  const bytes=Buffer.from(JSON.stringify(template,null,2)+'\n'),file=path.join(dir,'private-workflow.json');await preserve(file,bytes);
  const args=['--install','--workflow='+file,'--sha256='+sha(bytes),'--project='+projectId];
+ if(sshTarget)args.push('--ssh='+sshTarget);
  if(run)return run({dir,args});
  const {main}=await import(pathToFileURL(path.join(dir,'clay-canary-operator.mjs')));return main(args);
 }
 if(process.argv[1]&&pathToFileURL(path.resolve(process.argv[1])).href===import.meta.url){
  const args=process.argv.slice(2),arg=k=>args.find(a=>a.startsWith('--'+k+'='))?.slice(k.length+3);
- launchCanary({release:arg('release'),projectId:arg('project'),googleId:arg('google'),spreadsheetId:arg('crm')}).catch(e=>{
+ launchCanary({release:arg('release'),projectId:arg('project'),googleId:arg('google'),spreadsheetId:arg('crm'),sshTarget:arg('ssh')}).catch(e=>{
   console.error(JSON.stringify({status:'BLOCKED',reason:/^[A-Z0-9_]{4,120}$/.test(e.message||'')?e.message:'CANARY_INTERRUPTED_CHECK_PRIVATE_CHECKPOINT',stage:/^[a-z.]{4,70}$/.test(e.stage||'')?e.stage:'operator',httpStatus:e.httpStatus??null,...(/^[A-Za-z0-9_-]{1,100}$/.test(e.workflowId||'')?{workflowId:e.workflowId,workflowUrl:'https://automation.shadow-bridge.eu/workflow/'+e.workflowId}:{}),checkpointRetained:true,automaticRetry:false,noLiveSourcingClaimed:true}));process.exitCode=1;
  });
 }
