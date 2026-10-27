@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {spawnSync} from 'node:child_process';
-import {remoteN8nHttp,safeApiEvidence,diagnoseN8nAccess,remoteJson,rpcCommand} from './n8n-contabo-transport.mjs';
+import {remoteN8nHttp,safeApiEvidence,diagnoseN8nAccess,remoteJson,rpcCommand,readRpcInput} from './n8n-contabo-transport.mjs';
 const config={key:'FICTIONAL_SAME_PRIVATE_API_KEY',projectId:'project1',googleId:'google1'};
 const response=(status,data)=>({status,data,bodyKind:'json',contentType:'application/json',serverHint:'unidentified',viaPresent:false,cfRayPresent:false});
 function fixture(){const calls=[];return{calls,request:async q=>{calls.push(q);if(q.route==='/healthz')return response(200,{status:'ok'});if(q.route.startsWith('/api/v1/workflows?'))return response(200,{data:[]});if(q.route==='/api/v1/credentials/google1')return response(200,{id:'google1',name:'Fictional Google Sheets',type:'googleSheetsOAuth2Api'});return response(200,{data:[{id:'google1',name:'Fictional Google Sheets',type:'googleSheetsOAuth2Api',shared:[{id:'project1'}]}]});}};}
@@ -26,4 +26,11 @@ test('SSH RPC accepts stdin JSON but blocks arbitrary hosts/routes and never put
 });
 test('remote JSON wrapper keeps native authorization errors and never falls back to another identity',async()=>{
  let count=0;await assert.rejects(remoteJson(async()=>{count++;return response(403,{message:config.key});},'/api/v1/credentials?limit=100'),e=>e.message==='CANARY_HTTP_403'&&e.httpStatus===403);assert.equal(count,1);
+});
+test('RPC preserves international names across fragmented UTF-8 chunks and bounds stdin size',async()=>{
+ const value={company:'FIKCYJNA spółka 日本',key:config.key},bytes=Buffer.from(JSON.stringify(value));
+ async function* fragmented(){for(const b of bytes)yield Buffer.from([b]);}
+ assert.deepEqual(await readRpcInput(fragmented()),value);
+ async function* excessive(){yield Buffer.alloc(2097153);}
+ await assert.rejects(readRpcInput(excessive()),/INPUT_TOO_LARGE/);
 });

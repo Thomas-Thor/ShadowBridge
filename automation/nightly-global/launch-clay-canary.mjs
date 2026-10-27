@@ -11,7 +11,7 @@ export const assets=Object.freeze({
  'clay-sheets-canary.mjs':'6d18d3665766a312ab71a7af2572f1f604db67b74b7f529ec2f0f73289437319',
  'build-clay-canary.mjs':'bfd8d2f35059e5cc2c5921846c671c9cbf554975bfe99fba46266f84659ccc5c',
  'clay-canary-operator.mjs':'e5ba4bad5e2ba9a202e9fea0d172247be6d331164fa22a7c2c4e034d11f417ce',
- 'n8n-contabo-transport.mjs':'998f3790923bc6f896e5fd81ed28d2338206c524056728dfa764e35ad50b3d1d',
+ 'n8n-contabo-transport.mjs':'416c84b0e9b1e70ff9cb355a6ad6c8bd78ee91837cf903b7552f379c6daccdcb',
 });
 async function download(url){
  const r=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(20000)});
