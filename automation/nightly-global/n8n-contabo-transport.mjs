@@ -1,6 +1,6 @@
 // Authenticated operator transport. No tunnels, sudo, DB access, secrets on disk
 // or fallback around API authorization. The SAME n8n API key reaches n8n.
-import {execFile,execFileSync} from 'node:child_process';
+import {execFile,execFileSync,spawn} from 'node:child_process';
 import {mkdtemp,rmdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';import path from 'node:path';
 const must=(v,c)=>{if(!v)throw Error(c);};
@@ -67,6 +67,13 @@ export async function diagnoseN8nAccess({request,key,projectId,googleId,ownerPro
 const quote=s=>"'"+s.replaceAll("'","'\\''")+"'";
 export async function readRpcInput(stream){const chunks=[];let size=0;for await(const b of stream){const chunk=Buffer.from(b);size+=chunk.length;if(size>2097152)throw Error('INPUT_TOO_LARGE');chunks.push(chunk);}return JSON.parse(Buffer.concat(chunks).toString('utf8'));}
 export function rpcCommand(){return 'node --input-type=module -e '+quote('try{const input=await ('+readRpcInput.toString()+')(process.stdin);process.stdout.write(JSON.stringify(await ('+remoteN8nHttp.toString()+')(input)));}catch{process.stdout.write(JSON.stringify({transportError:"REMOTE_REQUEST_REJECTED"}));process.exitCode=1;}');}
+export function extractPermissionMetadata(output){
+ for(const line of output.replaceAll('\r','').split('\n').reverse()){
+  const start=line.indexOf('{"kind":"shadowbridge-n8n-credential-create-permission-metadata"');
+  if(start>=0)try{const r=JSON.parse(line.slice(start));if(r.kind==='shadowbridge-n8n-credential-create-permission-metadata')return r;}catch{}
+ }
+ throw Error('READ_ONLY_ADMIN_METADATA_RESULT_MISSING');
+}
 export async function openContaboTransport(target){
  must(/^[a-z][a-z0-9_-]{0,31}@[A-Za-z0-9.-]{1,253}$/.test(target||''),'AUTHORIZED_SSH_TARGET_REQUIRED');
  const dir=await mkdtemp(path.join(tmpdir(),'sb-n8n-ssh-')),socket=path.join(dir,'cm');
@@ -75,6 +82,18 @@ export async function openContaboTransport(target){
  catch{throw Error('AUTHORIZED_OPERATOR_SSH_FAILED');}
  let closed=false;
  return{
+  operatorJson:(source,input)=>new Promise((resolve,reject)=>{
+   must(!closed,'OPERATOR_SSH_CLOSED');const command='node --input-type=module -e '+quote(source);
+   const child=execFile('ssh',['-S',socket,'-o','ClearAllForwardings=yes','-o','BatchMode=yes',target,command],{maxBuffer:1048576,timeout:30000},(error,stdout)=>{if(error){reject(Error('READ_ONLY_OPERATOR_SETUP_FAILED'));return;}try{resolve(JSON.parse(stdout));}catch{reject(Error('READ_ONLY_OPERATOR_RESPONSE_INVALID'));}});child.stdin.on('error',()=>{});child.stdin.end(JSON.stringify(input));
+  }),
+  operatorInteractiveMetadata:command=>new Promise((resolve,reject)=>{
+   must(!closed,'OPERATOR_SSH_CLOSED');let output='';
+   const child=spawn('ssh',['-S',socket,'-o','ClearAllForwardings=yes','-tt',target,command],{stdio:['inherit','pipe','inherit']});
+   const timer=setTimeout(()=>{child.kill('SIGTERM');},180000);
+   child.stdout.setEncoding('utf8');child.stdout.on('data',b=>{if(output.length+b.length>1048576){child.kill('SIGTERM');return;}output+=b;process.stdout.write(b);});
+   child.on('error',()=>{clearTimeout(timer);reject(Error('READ_ONLY_ADMIN_METADATA_FAILED'));});
+   child.on('close',code=>{clearTimeout(timer);if(code!==0){reject(Error('READ_ONLY_ADMIN_METADATA_FAILED'));return;}try{resolve(extractPermissionMetadata(output));}catch(e){reject(e);}});
+  }),
   request:input=>new Promise((resolve,reject)=>{
    must(!closed,'OPERATOR_SSH_CLOSED');
    const child=execFile('ssh',['-S',socket,'-o','ClearAllForwardings=yes','-o','BatchMode=yes','-o','ControlMaster=no',target,rpcCommand()],{maxBuffer:12582912,timeout:45000},(error,stdout)=>{

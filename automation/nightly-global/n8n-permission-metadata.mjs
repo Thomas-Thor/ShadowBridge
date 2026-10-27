@@ -1,6 +1,6 @@
 // Administrative READ ONLY diagnosis of an already refused credential POST.
 // Never imports, changes scopes, reads/decrypts credential data or retries writes.
-import {execFileSync} from 'node:child_process';import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';import {createHash} from 'node:crypto';import {lstat,realpath,readFile} from 'node:fs/promises';
 import {hostname} from 'node:os';import {createInterface} from 'node:readline/promises';import path from 'node:path';import {fileURLToPath} from 'node:url';
 
 export async function inspectN8nPermissionMetadata({keyHash,googleId,projectId},{env=process.env,loadPg}={}){
@@ -53,6 +53,12 @@ async function hidden(){
  try{let key=(await rl.question('Istniejący klucz n8n, tylko do identyfikacji metadanych (ukryty): ')).trim();if(key.startsWith('\x1b[200~')&&key.endsWith('\x1b[201~'))key=key.slice(6,-6).trim();if(!key||key.length>8192||/[\x00-\x1f\x7f-\x9f]/.test(key))throw Error('KEY_INPUT_INVALID');return createHash('sha256').update(key).digest('hex');}
  finally{rl.close();execFileSync('stty',['echo'],{stdio:['inherit','ignore','ignore']});process.stdout.write('\n');process.stdin.pause();}
 }
+export async function readPrivateMetadataRequest(file,uid){
+ if(!Number.isSafeInteger(uid)||uid<0||!path.isAbsolute(file)||path.basename(file)!=='request.json')throw Error('PRIVATE_METADATA_REQUEST_REQUIRED');
+ const dir=path.dirname(file),d=await lstat(dir),s=await lstat(file);
+ if(!/^\/tmp\/shadowbridge-n8n-reconcile\.[A-Za-z0-9]+$/.test(dir)||!d.isDirectory()||d.isSymbolicLink()||d.uid!==uid||(d.mode&511)!==448||!s.isFile()||s.isSymbolicLink()||s.uid!==uid||(s.mode&511)!==384||s.size>16384||await realpath(file)!==file)throw Error('PRIVATE_METADATA_REQUEST_REQUIRED');
+ const input=JSON.parse(await readFile(file,'utf8'));if(!/^[a-f0-9]{64}$/.test(input.keyHash||'')||!/^[a-f0-9-]{36}$/.test(input.requestId||'')||![input.googleId,input.projectId].every(v=>/^[A-Za-z0-9_-]{1,100}$/.test(v||'')))throw Error('PRIVATE_METADATA_REQUEST_INVALID');return input;
+}
 async function main(args=process.argv.slice(2)){
  const arg=k=>args.find(a=>a.startsWith('--'+k+'='))?.slice(k.length+3),expected=arg('host'),operator=arg('operator');
  if(!args.includes('--read-only')||!expected||hostname()!==expected||process.geteuid()!==0||!operator||process.env.SUDO_USER!==operator)throw Error('AUTHORIZED_READ_ONLY_OPERATOR_REQUIRED');
@@ -60,8 +66,10 @@ async function main(args=process.argv.slice(2)){
  const docker=(a,input)=>execFileSync('docker',['--context','default',...a],{input,encoding:'utf8',stdio:['pipe','pipe','pipe'],timeout:45000,maxBuffer:1048576}).trim();
  const endpoint=JSON.parse(docker(['context','inspect','default','--format','{{json .Endpoints.docker}}']));if(!['unix:///var/run/docker.sock','unix:///run/docker.sock'].includes(endpoint.Host))throw Error('LOCAL_DOCKER_REQUIRED');
  const container='shadowbridge-automation-n8n-1';if(docker(['inspect','--format','{{json .State.Running}}',container])!=='true')throw Error('EXISTING_N8N_REQUIRED');
- const keyHash=await hidden();const code='let raw="";for await(const b of process.stdin){raw+=b;if(raw.length>16384)throw Error("INPUT_TOO_LARGE");}console.log(JSON.stringify(await ('+inspectN8nPermissionMetadata.toString()+')(JSON.parse(raw))));';
+ const requestFile=arg('request-file'),request=requestFile?await readPrivateMetadataRequest(requestFile,Number(process.env.SUDO_UID)):null;
+ if(request&&(request.googleId!==googleId||request.projectId!==projectId))throw Error('PRIVATE_METADATA_BINDING_MISMATCH');
+ const keyHash=request?request.keyHash:await hidden();const code='let raw="";for await(const b of process.stdin){raw+=b;if(raw.length>16384)throw Error("INPUT_TOO_LARGE");}console.log(JSON.stringify(await ('+inspectN8nPermissionMetadata.toString()+')(JSON.parse(raw))));';
  const result=JSON.parse(docker(['exec','-i',container,'node','--input-type=module','-e',code],JSON.stringify({keyHash,googleId,projectId})));
- console.log(JSON.stringify({kind:'shadowbridge-n8n-credential-create-permission-metadata',observedAt:new Date().toISOString(),readOnly:true,checkpointChanged:false,rawKeySentToContainer:false,keyFingerprintDisclosed:false,...result}));if(result.status!=='METADATA_READ_ONLY_CONFIRMED')process.exitCode=2;
+ console.log(JSON.stringify({kind:'shadowbridge-n8n-credential-create-permission-metadata',observedAt:new Date().toISOString(),readOnly:true,checkpointChanged:false,rawKeySentToContainer:false,keyFingerprintDisclosed:false,targetProjectId:projectId,...(request?{operatorRequestId:request.requestId}:{}),...result}));if(result.status!=='METADATA_READ_ONLY_CONFIRMED')process.exitCode=2;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(()=>{console.error(JSON.stringify({status:'BLOCKED',reason:'READ_ONLY_PERMISSION_METADATA_FAILED',changesMade:false,checkpointChanged:false,secretsDisclosed:false}));process.exitCode=2;});

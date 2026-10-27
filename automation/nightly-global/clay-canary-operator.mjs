@@ -2,6 +2,7 @@
 // Clay is never called. Google tokens remain in n8n. Private files are not Git.
 import {readFile,writeFile,mkdir,lstat,realpath,rename,open,unlink} from 'node:fs/promises';import {homedir,hostname} from 'node:os';import path from 'node:path';import {createHash,randomBytes,randomUUID} from 'node:crypto';import {execFileSync} from 'node:child_process';import {createInterface} from 'node:readline/promises';import {fileURLToPath} from 'node:url';
 import {openContaboTransport,diagnoseN8nAccess,remoteJson} from './n8n-contabo-transport.mjs';
+import {legacyRejectedMarker,authorizeRejectedIngress,validateRetryAuthorization,freshPermissionEvidence} from './n8n-reconcile-ingress.mjs';
 const origin='https://automation.shadow-bridge.eu',name='ShadowBridge Global B2B Sourcing V1',must=(v,c)=>{if(!v)throw Error(c);},hash=v=>createHash('sha256').update(v).digest('hex');
 const sorted=v=>Array.isArray(v)?v.map(sorted):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,sorted(v[k])])):v;
 const stableHash=v=>hash(JSON.stringify(sorted(v)));
@@ -10,7 +11,7 @@ async function atStage(stage,fn){try{return await fn();}catch(e){e.stage=stage;t
 async function privateRead(file){const s=await lstat(file);must(s.isFile()&&!s.isSymbolicLink()&&(s.mode&511)===384&&s.uid===process.getuid(),'PRIVATE_OWNER_FILE_REQUIRED');return readFile(file,'utf8');}
 async function input(label,hidden=false){must(process.stdin.isTTY,'PRIVATE_INTERACTIVE_TERMINAL_REQUIRED');if(hidden)execFileSync('stty',['-echo'],{stdio:['inherit','ignore','ignore']});const rl=createInterface({input:process.stdin,output:process.stdout,terminal:false});try{let s=(await rl.question(label)).trim();if(s.startsWith('\x1b[200~')&&s.endsWith('\x1b[201~'))s=s.slice(6,-6).trim();must(s.length<=8192&&!/[\x00-\x1f\x7f-\x9f]/.test(s),'TERMINAL_INPUT_INVALID');return s;}finally{rl.close();if(hidden){execFileSync('stty',['echo'],{stdio:['inherit','ignore','ignore']});process.stdout.write('\n');}process.stdin.pause();}}
 async function jsonRequest(url,{method='GET',headers={},body}={}){const r=await fetch(url,{method,headers:{Accept:'application/json',...headers,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(60000)});if(r.status===204)return{};const chunks=[];let size=0;for await(const b of r.body){size+=b.length;must(size<=(r.ok?8388608:32768),'CANARY_RESPONSE_TOO_LARGE');chunks.push(Buffer.from(b));}let data;try{data=JSON.parse(Buffer.concat(chunks).toString());}catch{throw Error('CANARY_RESPONSE_JSON_INVALID');}if(!r.ok){const code=/^(?:CANARY_|CRM_|GOOGLE_SHEETS_)[A-Z0-9_]{1,110}$/.test(data?.reason||'')?data.reason:'CANARY_HTTP_'+r.status;const e=Error(code);e.httpStatus=r.status;throw e;}return data;}
-export async function installCanary({api,template,googleCredentialId,projectId,profile,state,save,ownerProvidedBinding=false}){
+export async function installCanary({api,template,googleCredentialId,projectId,profile,state,save,ownerProvidedBinding=false,ingressRetryAuthorization}){
  must(template.name===name&&template.active===false&&!template.nodes.some(n=>/schedule|sendEmail|whatsapp/i.test(n.type)),'CANARY_TEMPLATE_INVALID');must(/^[A-Za-z0-9_-]{1,100}$/.test(googleCredentialId),'GOOGLE_CREDENTIAL_ID_REQUIRED');
  must(/^[A-Za-z0-9_-]{1,100}$/.test(projectId||''),'CANARY_EXISTING_PROJECT_REQUIRED');
  must(!state.projectId||state.projectId===projectId,'CANARY_PROJECT_CHANGED');state.projectId=projectId;await save(state);
@@ -29,7 +30,14 @@ export async function installCanary({api,template,googleCredentialId,projectId,p
  // project permissions and resolves bindings. Verify EVERY binding in GET below
  // before publishing; never reattach credentials removed by n8n validation.
  const all=[];let cursor;for(let i=0;i<20;i++){const r=await api('GET','/workflows?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''));must(Array.isArray(r.data),'CANARY_WORKFLOW_LIST_INVALID');all.push(...r.data);cursor=r.nextCursor;if(!cursor)break;}must(!cursor,'CANARY_WORKFLOW_LIST_INCOMPLETE');const matches=all.filter(w=>w.name===name);must(matches.length<=1,'CANARY_DUPLICATE_WORKFLOW_NAME');must(!matches.length||state.workflowId===matches[0].id,'EXISTING_WORKFLOW_REQUIRES_REVIEW_NO_OVERWRITE');
- const postOnce=async(key,route,payload)=>{if(state[key]?.id)return state[key].id;must(!state[key],'CANARY_PREVIOUS_POST_UNCERTAIN_NO_RETRY');state[key]={sending:true};await save(state);const r=await api('POST',route,payload);must(typeof r.id==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(r.id),'CANARY_POST_RECEIPT_REQUIRED');state[key]={id:r.id};await save(state);return r.id;};
+ const postOnce=async(key,route,payload)=>{
+  if(state[key]?.id)return state[key].id;const retry=key==='ingestCredential'&&route==='/credentials'&&state[key]&&ingressRetryAuthorization;
+  if(state[key]){if(!retry)throw Error('CANARY_PREVIOUS_POST_UNCERTAIN_NO_RETRY');validateRetryAuthorization(state,ingressRetryAuthorization);}
+  if(retry)state.ingressRejectedHistory=[{...ingressRetryAuthorization,previousAttempt:structuredClone(state[key]),recordedAt:new Date().toISOString()}];
+  state[key]={sending:true,...(retry?{retryOf:ingressRetryAuthorization.approvalId}:{})};await save(state);
+  const r=await api('POST',route,payload);must(typeof r.id==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(r.id),'CANARY_POST_RECEIPT_REQUIRED');
+  state[key]={id:r.id,...(retry?{retryOf:ingressRetryAuthorization.approvalId}:{})};await save(state);return r.id;
+ };
  if(!ownerProvidedBinding)await api('GET','/credentials/schema/httpHeaderAuth');
  const credentialId=await postOnce('ingestCredential','/credentials',{name:'ShadowBridge private Clay intake',type:'httpHeaderAuth',projectId,data:{name:'Authorization',value:profile.headerValue}});
  const w=structuredClone(template);for(const n of w.nodes){if(n.credentials?.googleSheetsOAuth2Api)n.credentials.googleSheetsOAuth2Api.id=googleCredentialId;if(n.credentials?.httpHeaderAuth)n.credentials.httpHeaderAuth.id=credentialId;}
@@ -89,7 +97,17 @@ export async function main(args=process.argv.slice(2)){
     const diagnosticFile=dir+'/access-'+nonce+'.json';await writeFile(diagnosticFile,JSON.stringify(diagnostic,null,2)+'\n',{mode:0o600,flag:'wx'});console.log(JSON.stringify({...diagnostic,privateDiagnostic:diagnosticFile}));
     if(!diagnostic.canResumeImport){const e=Error('N8N_ACCESS_DIAGNOSTIC_BLOCKED');e.stage='access.diagnostic';throw e;}
    }
-   result=await installCanary({api:(method,route,body)=>atStage(route.startsWith('/credentials?')?'credential.metadata.read':route.startsWith('/credentials/schema/')?'credential.schema.read':route.startsWith('/credentials/')?'credential.target.read':route==='/credentials'?'ingest.credential.create':route==='/workflows'?'workflow.create':route.endsWith('/activate')?'receiver.activate':'workflow.read',()=>transport?remoteJson(transport.request,'/api/v1'+route,{method,headers:{'X-N8N-API-KEY':key},body}):jsonRequest(origin+'/api/v1'+route,{method,headers:{'X-N8N-API-KEY':key},body})),template,googleCredentialId:googleId,projectId,profile,state,save,ownerProvidedBinding});
+   let ingressRetryAuthorization;
+   if(args.includes('--resume-rejected-ingress403')&&!state.ingestCredential?.id){
+    must(transport&&ownerProvidedBinding,'AUTHORIZED_SSH_KNOWN_BINDING_REQUIRED');must(legacyRejectedMarker(state),'ONLY_LEGACY_REJECTED_INGRESS_MAY_BE_RECONCILED');
+    const before=await privateRead(file),fresh=await atStage('ingress.reconciliation.readonly',()=>freshPermissionEvidence({transport,key,projectId,googleId,sshTarget}));
+    ingressRetryAuthorization=authorizeRejectedIngress({state,evidence:fresh.evidence,requestId:fresh.requestId,ownerApproval:true});
+    must(await privateRead(file)===before,'CANARY_CHECKPOINT_CHANGED');
+    const backup=dir+'/install.before-rejected-ingress-'+nonce+'.json',evidenceFile=dir+'/ingress-retry-evidence-'+nonce+'.json';
+    await writeFile(backup,before,{mode:0o600,flag:'wx'});await writeFile(evidenceFile,JSON.stringify(fresh.evidence),{mode:0o600,flag:'wx'});
+    ingressRetryAuthorization={...ingressRetryAuthorization,checkpointBeforeHash:hash(before),checkpointBackupCreated:true,checkpointBackup:backup,evidenceFile};
+   }
+   result=await installCanary({api:(method,route,body)=>atStage(route.startsWith('/credentials?')?'credential.metadata.read':route.startsWith('/credentials/schema/')?'credential.schema.read':route.startsWith('/credentials/')?'credential.target.read':route==='/credentials'?'ingest.credential.create':route==='/workflows'?'workflow.create':route.endsWith('/activate')?'receiver.activate':'workflow.read',()=>transport?remoteJson(transport.request,'/api/v1'+route,{method,headers:{'X-N8N-API-KEY':key},body}):jsonRequest(origin+'/api/v1'+route,{method,headers:{'X-N8N-API-KEY':key},body})),template,googleCredentialId:googleId,projectId,profile,state,save,ownerProvidedBinding,ingressRetryAuthorization});
    const inspection=await atStage('crm.read.only',()=>inspectCanary({call:webhook,batchId:randomUUID()}));state.latestInspection=inspection;await save(state);result={...result,crmInspection:inspection,googleCredentialPermissionVerified:true,operatorTransport:transport?'SSH_AUTHENTICATED_CONTABO_LOOPBACK':'PUBLIC_HTTPS'};
   }else if(mode==='--inspect'){
    result=await inspectCanary({call:webhook,batchId:randomUUID()});state.latestInspection=result;await save(state);
