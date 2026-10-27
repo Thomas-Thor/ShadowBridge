@@ -10,7 +10,8 @@ test('sign-in keeps useful application links without the removed artwork on desk
     await page.goto('/member-sign-in/');
     await expect(page.locator('figure.member-threshold')).toHaveCount(0);
     await expect(page.locator('img[src$="member-entry-gate.svg"], img[src$="member-entry-seal.svg"]')).toHaveCount(0);
-    await expect(page.getByText('A considered way forward.', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'A considered way forward.', exact: true })).toBeVisible();
+    await expect(page.locator('.member-entry-message p')).toHaveText('One secure entry for buyers, suppliers and B2B partners. Cooperation begins with individual approval.');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `no overflow at ${width}px`).toBe(true);
     const panel = await page.locator('.entry-panel').boundingBox();
     const aside = await page.locator('.entry-aside').boundingBox();
