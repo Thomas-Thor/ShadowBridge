@@ -10,7 +10,7 @@ const sha=v=>createHash('sha256').update(v).digest('hex');
 export const assets=Object.freeze({
  'clay-sheets-canary.mjs':'6d18d3665766a312ab71a7af2572f1f604db67b74b7f529ec2f0f73289437319',
  'build-clay-canary.mjs':'bfd8d2f35059e5cc2c5921846c671c9cbf554975bfe99fba46266f84659ccc5c',
- 'clay-canary-operator.mjs':'0f1086d3eb47444d2321edae54d1481f2f6c2ddc96bceb2be2dc2b0e8f550cf0',
+ 'clay-canary-operator.mjs':'2d107ef203aeea427d339923e23b64666077c97da16579b0b6281c23772db9f4',
 });
 async function download(url){
  const r=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(20000)});

@@ -18,7 +18,8 @@ export async function installCanary({api,template,googleCredentialId,projectId,p
  const credentials=[];let credentialCursor;
  for(let i=0;i<20;i++){const r=await api('GET','/credentials?limit=100'+(credentialCursor?'&cursor='+encodeURIComponent(credentialCursor):''));must(Array.isArray(r.data),'CANARY_CREDENTIAL_METADATA_INVALID');must(r.data.every(c=>!Object.hasOwn(c,'data')),'CANARY_UNEXPECTED_CREDENTIAL_DATA');credentials.push(...r.data);credentialCursor=r.nextCursor;if(!credentialCursor)break;}
  must(!credentialCursor,'CANARY_CREDENTIAL_LIST_INCOMPLETE');const google=credentials.filter(c=>c.id===googleCredentialId);must(google.length===1&&google[0].type==='googleSheetsOAuth2Api','GOOGLE_CREDENTIAL_METADATA_NOT_CONFIRMED');
- must(google[0].shared?.some(s=>s.projectId===projectId),'GOOGLE_CREDENTIAL_NOT_IN_TARGET_PROJECT');
+ // CredentialListSharedItem uses `id` for the project (unlike workflow shares).
+ must(google[0].shared?.some(s=>s.id===projectId),'GOOGLE_CREDENTIAL_NOT_IN_TARGET_PROJECT');
  const all=[];let cursor;for(let i=0;i<20;i++){const r=await api('GET','/workflows?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''));must(Array.isArray(r.data),'CANARY_WORKFLOW_LIST_INVALID');all.push(...r.data);cursor=r.nextCursor;if(!cursor)break;}must(!cursor,'CANARY_WORKFLOW_LIST_INCOMPLETE');const matches=all.filter(w=>w.name===name);must(matches.length<=1,'CANARY_DUPLICATE_WORKFLOW_NAME');must(!matches.length||state.workflowId===matches[0].id,'EXISTING_WORKFLOW_REQUIRES_REVIEW_NO_OVERWRITE');
  const postOnce=async(key,route,payload)=>{if(state[key]?.id)return state[key].id;must(!state[key],'CANARY_PREVIOUS_POST_UNCERTAIN_NO_RETRY');state[key]={sending:true};await save(state);const r=await api('POST',route,payload);must(typeof r.id==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(r.id),'CANARY_POST_RECEIPT_REQUIRED');state[key]={id:r.id};await save(state);return r.id;};
  await api('GET','/credentials/schema/httpHeaderAuth');
