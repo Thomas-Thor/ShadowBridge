@@ -26,6 +26,19 @@ test('target-only metadata never permits publishing a graph whose Google binding
  f.api=async(m,p,b)=>{if(p.startsWith('/credentials?'))throw Object.assign(Error('FORBIDDEN'),{httpStatus:403});if(p==='/credentials/google1')return{id:'google1',name:'Fictional Sheets',type:'googleSheetsOAuth2Api'};const r=await real(m,p,b);if(p==='/workflows/workflow1')delete r.nodes.find(n=>n.credentials?.googleSheetsOAuth2Api).credentials;return r;};
  await assert.rejects(installCanary(f),/GRAPH_DRIFT/);assert.ok(!f.calls.some(c=>c.route.endsWith('/activate')));
 });
+test('explicit OWNER-provided binding uses no denied metadata endpoints and preserves native project and graph validation',async()=>{
+ const f=installFixture();f.ownerProvidedBinding=true;for(const n of f.template.nodes)if(n.credentials?.googleSheetsOAuth2Api)n.credentials.googleSheetsOAuth2Api.id='google1';const real=f.api;
+ f.api=async(m,p,b)=>{assert.ok(!(m==='GET'&&p.startsWith('/credentials')),'No credential GET required');return real(m,p,b);};
+ const r=await installCanary(f);assert.equal(r.googleCredentialMetadataVerified,false);assert.equal(r.googleMetadataReadMode,'OWNER_PROVIDED_ID_NATIVE_PROJECT_AND_GRAPH_VERIFIED');assert.equal(r.googleCredentialPermissionVerified,false);assert.equal(r.projectId,'project1');
+ const posts=f.calls.filter(c=>c.method==='POST').length;await installCanary(f);assert.equal(f.calls.filter(c=>c.method==='POST').length,posts);
+});
+test('known binding never weakens native rejection, accepts a placeholder or activates a credential stripped by n8n',async()=>{
+ for(const failure of ['placeholder','native403','stripped','project']){
+  const f=installFixture();f.ownerProvidedBinding=true;if(failure!=='placeholder')for(const n of f.template.nodes)if(n.credentials?.googleSheetsOAuth2Api)n.credentials.googleSheetsOAuth2Api.id='google1';const real=f.api;
+  f.api=async(m,p,b)=>{if(failure==='native403'&&m==='POST'&&p==='/workflows')throw Object.assign(Error('Forbidden'),{httpStatus:403});const r=await real(m,p,b);if(p==='/workflows/workflow1'){if(failure==='stripped')delete r.nodes.find(n=>n.credentials?.googleSheetsOAuth2Api).credentials;if(failure==='project')r.shared[0].projectId='other';}return r;};
+  await assert.rejects(installCanary(f));assert.ok(!f.calls.some(c=>c.route.endsWith('/activate')));
+ }
+});
 test('read-only inspection returns aggregates and rejects spending, leaked fields, impossible counts and forged schema-ready',async()=>{
  const batchId='fixture-read-only-0001',good={status:'CRM_READ_CONFIRMED',batchId,crmWrites:0,clayApiCalls:0,dataCreditsUsedByBridge:0,emailWritingSupported:false,sourcingScheduled:false,existingRows:3,legacyRows:0,duplicateIds:0,missingFields:[],ambiguousFields:[],canarySchemaReady:true,emailColumnPresent:true};
  const sent=[],r=await inspectCanary({batchId,call:async body=>{sent.push(body);return{...good,privateData:'FICTIONAL_NOT_RETURNED'};}});assert.deepEqual(sent,[{mode:'inspect',batchId,rows:[]}]);assert.equal(r.liveReadPerformed,true);assert.ok(!JSON.stringify(r).includes('FICTIONAL_NOT_RETURNED'));

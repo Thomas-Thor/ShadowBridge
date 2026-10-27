@@ -34,3 +34,8 @@ test('RPC preserves international names across fragmented UTF-8 chunks and bound
  async function* excessive(){yield Buffer.alloc(2097153);}
  await assert.rejects(readRpcInput(excessive()),/INPUT_TOO_LARGE/);
 });
+test('explicit known binding preflight does not repeat established credential denials or claim metadata authorization',async()=>{
+ const f=fixture();const r=await diagnoseN8nAccess({...config,ownerProvidedBinding:true,request:async q=>{assert.ok(!q.route.startsWith('/api/v1/credentials'));return f.request(q);}});
+ assert.equal(f.calls.length,4);assert.equal(r.canResumeImport,true);assert.equal(r.credentialMetadataRequests,0);assert.equal(r.googleMetadataVerified,false);assert.equal(r.evidence.internal.selectedCredential.skipped,true);assert.equal(r.diagnosis,'WORKFLOW_ACCESS_PASS_NATIVE_BINDING_VALIDATION_REQUIRED');
+ const blocked=await diagnoseN8nAccess({...config,ownerProvidedBinding:true,request:async q=>q.route.startsWith('/api/v1/workflows')?response(403,{message:'Forbidden'}):f.request(q)});assert.equal(blocked.canResumeImport,false);
+});

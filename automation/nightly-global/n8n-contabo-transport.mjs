@@ -39,14 +39,14 @@ export function safeApiEvidence(response){
  const code=d?.code??d?.error?.code,safeCode=[400,401,403,404,'FORBIDDEN','UNAUTHORIZED','INSUFFICIENT_SCOPE','INSUFFICIENT_PERMISSIONS','FEATURE_NOT_LICENSED','ACCESS_DENIED','INVALID_API_KEY'].includes(code)?code:null;
  return{status:response.status,bodyKind:response.bodyKind,contentType:response.contentType,serverHint:response.serverHint,viaPresent:response.viaPresent,cfRayPresent:response.cfRayPresent,errorCategory,apiErrorCode:safeCode,errorMentionsScopes:scopes.filter(s=>raw.includes(s)),...(response.errorDigest?{errorDigest:response.errorDigest}:{}),...(/^(Forbidden|Unauthorized)\.?$/i.test(raw.trim())?{message:raw.trim()}:{}),rawBodyDisclosed:false};
 }
-export async function diagnoseN8nAccess({request,key,projectId,googleId}){
+export async function diagnoseN8nAccess({request,key,projectId,googleId,ownerProvidedBinding=false}){
  must(typeof key==='string'&&key.length>0&&!/[\r\n]/.test(key),'EXISTING_N8N_KEY_REQUIRED');
  must([projectId,googleId].every(v=>/^[A-Za-z0-9_-]{1,100}$/.test(v||'')),'ACCESS_BINDINGS_INVALID');
  const routes={health:'/healthz',workflows:'/api/v1/workflows?limit=1&projectId='+projectId,credentialList:'/api/v1/credentials?limit=100',selectedCredential:'/api/v1/credentials/'+googleId};
  const results={};
  for(const origin of ['internal','public']){
   results[origin]={};
-  for(const [name,route]of Object.entries(routes))results[origin][name]=await request({origin,method:'GET',route,headers:name==='health'?{}:{'X-N8N-API-KEY':key}});
+  for(const [name,route]of Object.entries(routes))results[origin][name]=ownerProvidedBinding&&['credentialList','selectedCredential'].includes(name)?{skipped:true}:await request({origin,method:'GET',route,headers:name==='health'?{}:{'X-N8N-API-KEY':key}});
  }
  const native=results.internal,edge=results.public;
  const nativeHealthy=native.health.status===200;
@@ -60,7 +60,8 @@ export async function diagnoseN8nAccess({request,key,projectId,googleId}){
  const n8nDenied=nativeHealthy&&[native.credentialList,direct,native.workflows].some(r=>r.status===403);
  const edgeOnly=nativeHealthy&&native.credentialList.status===200&&edge.credentialList.status===403;
  const metadataOnlyDenied=nativeHealthy&&native.credentialList.status===403&&direct.status===200&&native.workflows.status===200;
- const canResume=nativeHealthy&&native.workflows.status===200&&selected?.type==='googleSheetsOAuth2Api'&&((native.credentialList.status===200&&projectProven&&shared)||metadataOnlyDenied);
+ const canResume=nativeHealthy&&native.workflows.status===200&&(ownerProvidedBinding||selected?.type==='googleSheetsOAuth2Api'&&((native.credentialList.status===200&&projectProven&&shared)||metadataOnlyDenied));
+ if(ownerProvidedBinding)return{kind:'shadowbridge-n8n-known-binding-preflight',observedAt:new Date().toISOString(),readOnly:true,changesMade:false,authorizationHeader:'X-N8N-API-KEY',googleBindingSource:'OWNER_PROVIDED_PINNED_TEMPLATE',googleMetadataVerified:false,credentialMetadataRequests:0,projectId,googleCredentialId:googleId,evidence:Object.fromEntries(Object.entries(results).map(([o,rs])=>[o,Object.fromEntries(Object.entries(rs).map(([n,r])=>[n,r.skipped?{skipped:true,reason:'KNOWN_METADATA_DENIAL_NOT_RETRIED'}:safeApiEvidence(r)]))])),diagnosis:canResume?'WORKFLOW_ACCESS_PASS_NATIVE_BINDING_VALIDATION_REQUIRED':'WORKFLOW_ACCESS_NOT_PROVEN',canResumeImport:canResume,providerCalls:0,crmWrites:0,secretsDisclosed:false};
  return{kind:'shadowbridge-n8n-access-evidence',observedAt:new Date().toISOString(),readOnly:true,changesMade:false,authorizationHeader:'X-N8N-API-KEY',sameKeyUsedForBothPaths:true,scopeAuthorizationNotInferredFromRecentUse:true,internalOrigin:'http://127.0.0.1:5678 (Contabo loopback only)',publicOrigin:'https://automation.shadow-bridge.eu',endpoints:routes,evidence:Object.fromEntries(Object.entries(results).map(([o,rs])=>[o,Object.fromEntries(Object.entries(rs).map(([n,r])=>[n,safeApiEvidence(r)]))])),selectedCredential:selected,credentialProjectAccess:projectProven?(shared?'CONFIRMED':'NOT_SHARED_WITH_TARGET'):'UNPROVEN_NATIVE_CREATE_AND_GRAPH_CHECK_REQUIRED',projectWorkflowListAccepted:native.workflows.status===200,diagnosis:metadataOnlyDenied?'GLOBAL_LIST_DENIED_TARGET_READ_ALLOWED':canResume?'AUTHENTICATED_INTERNAL_PREFLIGHT_PASS':n8nDenied?'DIRECT_N8N_API_DENIAL_PROVEN':!nativeHealthy?'DIRECT_N8N_HEALTH_NOT_PROVEN':'ACCESS_NOT_PROVEN',publicPathSpecificDenial:edgeOnly,public403Source:edgeOnly?'PUBLIC_PATH_DENIAL_NATIVE_API_ACCEPTS_SAME_KEY':edge.credentialList.status===403?'NOT_ATTRIBUTABLE_FROM_PUBLIC_RESPONSE_ALONE':'NO_PUBLIC_403_OBSERVED',canResumeImport:canResume,providerCalls:0,crmWrites:0,secretsDisclosed:false};
 }
 const quote=s=>"'"+s.replaceAll("'","'\\''")+"'";
