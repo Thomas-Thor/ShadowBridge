@@ -29,6 +29,9 @@ checkpoint. It does not create another CRM, credentials or n8n installation.
   Replays the first committed batch and requires zero additional writes before
   continuing. An uncertain write is reconciled by read-only verification; it is
   never automatically sent again. Recovery retains the original audit counts.
+- Starts new batches no faster than once every eight seconds to limit Google
+  read traffic; completed checkpoint batches are reused immediately. Large
+  backups can take several minutes. Progress contains counts only.
 - Saves skipped source rows and reasons to a private review report. It does not
   attempt new searches, enrichment, email discovery, or message sending.
 

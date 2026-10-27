@@ -242,10 +242,18 @@ export async function main({release, projectId, googleId, spreadsheetId, sshTarg
     }
     must(hash(await privateRead(state.crmBackup.file)) === state.crmBackup.hash, 'CRM_SYNC_CRM_BACKUP_CHANGED');
     const totals = {sourceRows: 0, newCompanies: 0, newContacts: 0, duplicateContacts: 0, reviewRequired: 0, reviewReasons: {}};
+    let lastBatchStart = 0;
     for (let offset = 0; offset < rows.length; offset += 5) {
       const batchId = 'sb_clay_' + backupSource.commit.slice(0, 12) + '_' + String(offset / 5).padStart(4, '0');
       state.batches[batchId] ||= {};
       const batchState = state.batches[batchId], batchRows = rows.slice(offset, offset + 5);
+      // Preview + append use six Google read requests. Eight seconds per new
+      // batch keeps this writer below the usual per-user read quota, with margin.
+      if (!['VERIFIED', 'SKIPPED'].includes(batchState.phase)) {
+        const remaining = 8000 - (Date.now() - lastBatchStart);
+        if (remaining > 0) await new Promise(resolve => setTimeout(resolve, remaining));
+        lastBatchStart = Date.now();
+      }
       const receipt = await synchronizeBatch({rows: batchRows, batchId, call, state: batchState, save});
       if (!state.canaryReplayVerified && batchState.phase === 'VERIFIED') {
         const replay = validateReceipt(await call({mode: 'append', batchId, rows: batchRows}), batchRows, batchId);
@@ -255,7 +263,7 @@ export async function main({release, projectId, googleId, spreadsheetId, sshTarg
       }
       for (const name of ['sourceRows', 'newCompanies', 'newContacts', 'duplicateContacts', 'reviewRequired']) totals[name] += receipt[name];
       for (const [reason, count] of Object.entries(receipt.reviewReasons || {})) totals.reviewReasons[reason] = (totals.reviewReasons[reason] || 0) + count;
-      if ((offset / 5 + 1) % 25 === 0) console.log(JSON.stringify({status: 'CRM_SYNC_PROGRESS', processed: Math.min(offset + 5, rows.length), total: rows.length, newContacts: totals.newContacts, reviewRequired: totals.reviewRequired}));
+      if ((offset / 5 + 1) % 5 === 0) console.log(JSON.stringify({status: 'CRM_SYNC_PROGRESS', processed: Math.min(offset + 5, rows.length), total: rows.length, newContacts: totals.newContacts, reviewRequired: totals.reviewRequired}));
     }
     const byId = new Map(rows.map(row => [row.sourceId, row]));
     const review = Object.entries(state.batches).flatMap(([batch, value]) => (value.receipt?.reviewItems || []).map(item => ({batchId: batch, reason: item.reason, row: byId.get(item.sourceId)})));

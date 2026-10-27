@@ -12,7 +12,7 @@ export const assets=Object.freeze({
   'build-central-crm-sync.mjs': 'b25a6c9c5fbbd1a3983c7df31afa0c6c8d639166043c9583bdc01c74476f3dce',
   'central-crm-sync-transport.mjs': '2e17bcf4c4fee9319ecc281ded431ba0366f418da0d3ef4ca3b4f720a8c6fe4b',
   'central-crm-backup-input.mjs': '07c0d1e83adc334128d01e56da797c720e4100da3a7f91cac748d8cdd739b769',
-  'central-crm-sync-operator.mjs': '3a7a9b75fb562e4a613aebb0aea0aff310273aec9e3a13cd7a5c2873f99ae1b5',
+  'central-crm-sync-operator.mjs': '28ef28443c3bf712cace96a5cc6a12526fc212325aca81201cc54a02bded7e33',
   'build-clay-canary.mjs': 'bfd8d2f35059e5cc2c5921846c671c9cbf554975bfe99fba46266f84659ccc5c',
   'clay-sheets-canary.mjs': '6d18d3665766a312ab71a7af2572f1f604db67b74b7f529ec2f0f73289437319',
   'n8n-workflow-graph.mjs': 'c511e17824d792fb9325773c61bb969e872d2671c8ffa291a0d51fe1ab77d47a',
