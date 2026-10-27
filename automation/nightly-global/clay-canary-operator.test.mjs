@@ -40,6 +40,15 @@ test('known binding never weakens native rejection, accepts a placeholder or act
   await assert.rejects(installCanary(f));assert.ok(!f.calls.some(c=>c.route.endsWith('/activate')));
  }
 });
+test('native normalization of the known header credential label resumes the same workflow without recreating or updating it',async()=>{
+ const f=installFixture(),real=f.api;f.api=async(m,p,b)=>{const r=await real(m,p,b);if(m==='POST'&&p==='/workflows')f.current().nodes[0].credentials.httpHeaderAuth.name='ShadowBridge private Clay intake';return r;};
+ await installCanary(f);assert.equal(f.state.graphComparison.knownDisplayLabelNormalizations.length,1);assert.equal(f.state.graphComparison.differenceCount,0);const originalHash=f.state.expectedWorkflowHash;
+ const before=f.calls.filter(c=>c.method==='POST'&&['/credentials','/workflows'].includes(c.route)).length;await installCanary(f);assert.equal(f.calls.filter(c=>c.method==='POST'&&['/credentials','/workflows'].includes(c.route)).length,before);assert.equal(f.state.expectedWorkflowHash,originalHash);assert.ok(!f.calls.some(c=>c.method==='PUT'||c.method==='PATCH'));assert.equal(f.current().nodes[0].credentials.httpHeaderAuth.name,'ShadowBridge private Clay intake');
+});
+test('unapproved server changes still stop before activation and failure includes only redacted graph evidence',async()=>{
+ const f=installFixture(),real=f.api;f.api=async(m,p,b)=>{const r=await real(m,p,b);if(m==='POST'&&p==='/workflows'){f.current().nodes[0].credentials.httpHeaderAuth.name='ShadowBridge private Clay intake';f.current().nodes[1].parameters.jsCode='PRIVATE_CHANGED_CODE';}return r;};
+ let failure;try{await installCanary(f);}catch(e){failure=e;}assert.equal(failure.message,'CANARY_GRAPH_DRIFT_NO_UPDATE');assert.equal(failure.stage,'workflow.graph.verify');const r=reportFailure(failure);assert.equal(r.graphDiff.redacted,true);assert.ok(!JSON.stringify(r).includes('PRIVATE_CHANGED_CODE'));assert.ok(r.graphDiff.differenceCount>0);assert.ok(!f.calls.some(c=>c.route.endsWith('/activate')));
+});
 function rejectedFixture(){
  const f=installFixture();f.ownerProvidedBinding=true;for(const n of f.template.nodes)if(n.credentials?.googleSheetsOAuth2Api)n.credentials.googleSheetsOAuth2Api.id='google1';Object.assign(f.state,{templateSha:'a'.repeat(64),projectId:'project1',googleCredentialId:'google1',ingestCredential:{sending:true}});
  const requestId='12345678-1234-1234-1234-123456789abc',evidence={kind:'shadowbridge-n8n-credential-create-permission-metadata',status:'METADATA_READ_ONLY_CONFIRMED',readOnly:true,changesMade:false,apiWrites:0,providerCalls:0,crmWrites:0,operatorRequestId:requestId,observedAt:new Date().toISOString(),exactExistingKeyIdentified:true,keyOwnerDisabled:false,configuredScopeChecks:Object.fromEntries(['credential:create','workflow:list','workflow:read','workflow:create','workflow:activate'].map(s=>[s,true])),targetProjectId:'project1',selectedGoogleCredential:{id:'google1',type:'googleSheetsOAuth2Api'},googleCredentialSharedWithTarget:true,keyOwnerTargetProjectMembershipExists:true,keyOwnerTargetProjectRole:'project:personalOwner',matchingIngressCredentials:0,matchingWorkflowCount:0};

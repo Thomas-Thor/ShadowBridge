@@ -10,10 +10,11 @@ const sha=v=>createHash('sha256').update(v).digest('hex');
 export const assets=Object.freeze({
  'clay-sheets-canary.mjs':'6d18d3665766a312ab71a7af2572f1f604db67b74b7f529ec2f0f73289437319',
  'build-clay-canary.mjs':'bfd8d2f35059e5cc2c5921846c671c9cbf554975bfe99fba46266f84659ccc5c',
- 'clay-canary-operator.mjs':'9bf4ad79218d69a2309c09639da38df646ed8d9b3c8b9ac26a8945c7f562e33e',
+ 'clay-canary-operator.mjs':'0c7ac861846aa1c461525a3aa270184634232d2c4a32e2252d65f3e7fe1eccc4',
  'n8n-contabo-transport.mjs':'50946f6c5196cca0dac81342bae2d661923834850f18cfee62e8c3002a1f602b',
  'n8n-reconcile-ingress.mjs':'f7f23b2c01fadeb549e6c0d2e429e540ef6785462a70b013a1944da845366e03',
  'n8n-permission-metadata.mjs':'62e7c5b9afc7ee5556f68bf9ac486cb2f7fec4542152d13077101c38fa917de2',
+ 'n8n-workflow-graph.mjs':'c511e17824d792fb9325773c61bb969e872d2671c8ffa291a0d51fe1ab77d47a',
 });
 async function download(url){
  const r=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(20000)});
@@ -55,6 +56,6 @@ export async function launchCanary({release,projectId,googleId,spreadsheetId,ssh
 if(process.argv[1]&&pathToFileURL(path.resolve(process.argv[1])).href===import.meta.url){
  const args=process.argv.slice(2),arg=k=>args.find(a=>a.startsWith('--'+k+'='))?.slice(k.length+3);
  launchCanary({release:arg('release'),projectId:arg('project'),googleId:arg('google'),spreadsheetId:arg('crm'),sshTarget:arg('ssh'),ownerProvidedBinding:args.includes('--known-google-binding'),resumeRejectedIngress403:args.includes('--resume-rejected-ingress403')}).catch(e=>{
-  console.error(JSON.stringify({status:'BLOCKED',reason:/^[A-Z0-9_]{4,120}$/.test(e.message||'')?e.message:'CANARY_INTERRUPTED_CHECK_PRIVATE_CHECKPOINT',stage:/^[a-z.]{4,70}$/.test(e.stage||'')?e.stage:'operator',httpStatus:e.httpStatus??null,...(/^[A-Za-z0-9_-]{1,100}$/.test(e.workflowId||'')?{workflowId:e.workflowId,workflowUrl:'https://automation.shadow-bridge.eu/workflow/'+e.workflowId}:{}),checkpointRetained:true,automaticRetry:false,noLiveSourcingClaimed:true}));process.exitCode=1;
+  console.error(JSON.stringify({status:'BLOCKED',reason:/^[A-Z0-9_]{4,120}$/.test(e.message||'')?e.message:'CANARY_INTERRUPTED_CHECK_PRIVATE_CHECKPOINT',stage:/^[a-z.]{4,70}$/.test(e.stage||'')?e.stage:'operator',httpStatus:e.httpStatus??null,...(/^[A-Za-z0-9_-]{1,100}$/.test(e.workflowId||'')?{workflowId:e.workflowId,workflowUrl:'https://automation.shadow-bridge.eu/workflow/'+e.workflowId}:{}),...(e.graphDiff?.redacted===true?{graphDiff:e.graphDiff}:{}),checkpointRetained:true,automaticRetry:false,noLiveSourcingClaimed:true}));process.exitCode=1;
  });
 }

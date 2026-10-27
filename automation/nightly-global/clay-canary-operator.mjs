@@ -3,10 +3,11 @@
 import {readFile,writeFile,mkdir,lstat,realpath,rename,open,unlink} from 'node:fs/promises';import {homedir,hostname} from 'node:os';import path from 'node:path';import {createHash,randomBytes,randomUUID} from 'node:crypto';import {execFileSync} from 'node:child_process';import {createInterface} from 'node:readline/promises';import {fileURLToPath} from 'node:url';
 import {openContaboTransport,diagnoseN8nAccess,remoteJson} from './n8n-contabo-transport.mjs';
 import {legacyRejectedMarker,authorizeRejectedIngress,validateRetryAuthorization,freshPermissionEvidence} from './n8n-reconcile-ingress.mjs';
+import {compareCanaryGraph} from './n8n-workflow-graph.mjs';
 const origin='https://automation.shadow-bridge.eu',name='ShadowBridge Global B2B Sourcing V1',must=(v,c)=>{if(!v)throw Error(c);},hash=v=>createHash('sha256').update(v).digest('hex');
 const sorted=v=>Array.isArray(v)?v.map(sorted):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,sorted(v[k])])):v;
 const stableHash=v=>hash(JSON.stringify(sorted(v)));
-function reportFailure(e){return{status:'BLOCKED',reason:/^[A-Z0-9_]{4,120}$/.test(e.message||'')?e.message:'CANARY_INTERRUPTED_CHECK_PRIVATE_CHECKPOINT',stage:/^[a-z.]{4,70}$/.test(e.stage||'')?e.stage:'operator',httpStatus:e.httpStatus??null,...(/^[A-Za-z0-9_-]{1,100}$/.test(e.workflowId||'')?{workflowId:e.workflowId,workflowUrl:origin+'/workflow/'+e.workflowId}:{}),checkpointRetained:true,automaticRetry:false,noLiveSourcingClaimed:true};}
+function reportFailure(e){return{status:'BLOCKED',reason:/^[A-Z0-9_]{4,120}$/.test(e.message||'')?e.message:'CANARY_INTERRUPTED_CHECK_PRIVATE_CHECKPOINT',stage:/^[a-z.]{4,70}$/.test(e.stage||'')?e.stage:'operator',httpStatus:e.httpStatus??null,...(/^[A-Za-z0-9_-]{1,100}$/.test(e.workflowId||'')?{workflowId:e.workflowId,workflowUrl:origin+'/workflow/'+e.workflowId}:{}),...(e.graphDiff?.redacted===true?{graphDiff:e.graphDiff}:{}),checkpointRetained:true,automaticRetry:false,noLiveSourcingClaimed:true};}
 async function atStage(stage,fn){try{return await fn();}catch(e){e.stage=stage;throw e;}}
 async function privateRead(file){const s=await lstat(file);must(s.isFile()&&!s.isSymbolicLink()&&(s.mode&511)===384&&s.uid===process.getuid(),'PRIVATE_OWNER_FILE_REQUIRED');return readFile(file,'utf8');}
 async function input(label,hidden=false){must(process.stdin.isTTY,'PRIVATE_INTERACTIVE_TERMINAL_REQUIRED');if(hidden)execFileSync('stty',['-echo'],{stdio:['inherit','ignore','ignore']});const rl=createInterface({input:process.stdin,output:process.stdout,terminal:false});try{let s=(await rl.question(label)).trim();if(s.startsWith('\x1b[200~')&&s.endsWith('\x1b[201~'))s=s.slice(6,-6).trim();must(s.length<=8192&&!/[\x00-\x1f\x7f-\x9f]/.test(s),'TERMINAL_INPUT_INVALID');return s;}finally{rl.close();if(hidden){execFileSync('stty',['echo'],{stdio:['inherit','ignore','ignore']});process.stdout.write('\n');}process.stdin.pause();}}
@@ -41,13 +42,16 @@ export async function installCanary({api,template,googleCredentialId,projectId,p
  if(!ownerProvidedBinding)await api('GET','/credentials/schema/httpHeaderAuth');
  const credentialId=await postOnce('ingestCredential','/credentials',{name:'ShadowBridge private Clay intake',type:'httpHeaderAuth',projectId,data:{name:'Authorization',value:profile.headerValue}});
  const w=structuredClone(template);for(const n of w.nodes){if(n.credentials?.googleSheetsOAuth2Api)n.credentials.googleSheetsOAuth2Api.id=googleCredentialId;if(n.credentials?.httpHeaderAuth)n.credentials.httpHeaderAuth.id=credentialId;}
- const body={name:w.name,nodes:w.nodes,connections:w.connections,settings:w.settings};state.expectedWorkflowHash=stableHash(body);await save(state);
+ const body={name:w.name,nodes:w.nodes,connections:w.connections,settings:w.settings};must(!state.expectedWorkflowHash||state.expectedWorkflowHash===stableHash(body),'CANARY_EXPECTED_GRAPH_CHANGED');state.expectedWorkflowHash=stableHash(body);await save(state);
  const workflowId=await postOnce('createdWorkflow','/workflows',{...body,projectId});state.workflowId=workflowId;await save(state);
- const current=await api('GET','/workflows/'+workflowId),view={name:current.name,nodes:current.nodes,connections:current.connections,settings:current.settings};
+ const current=await api('GET','/workflows/'+workflowId);
  // n8n may add harmless settings defaults; compare every requested setting and
  // the complete graph, never replace an edited existing workflow.
- must(current.name===body.name&&stableHash(current.nodes)===stableHash(body.nodes)&&stableHash(current.connections)===stableHash(body.connections)&&Object.entries(body.settings).every(([k,v])=>current.settings?.[k]===v),'CANARY_GRAPH_DRIFT_NO_UPDATE');must(!current.settings?.errorWorkflow,'CANARY_EXTERNAL_ERROR_FORWARDING_BLOCKED');
+ const comparison=compareCanaryGraph(body,current);
+ if(!comparison.graphMatches){const e=Error('CANARY_GRAPH_DRIFT_NO_UPDATE');e.stage='workflow.graph.verify';e.graphDiff=comparison;throw e;}
+ must(!current.settings?.errorWorkflow,'CANARY_EXTERNAL_ERROR_FORWARDING_BLOCKED');
  must(current.shared?.some(s=>s.projectId===projectId&&s.role==='workflow:owner'),'CANARY_WORKFLOW_PROJECT_NOT_CONFIRMED');
+ if(comparison.knownDisplayLabelNormalizations.length){state.graphComparison=comparison;await save(state);}
  if(current.active!==true){must(!state.activationPending,'CANARY_ACTIVATION_OUTCOME_UNCERTAIN');state.activationPending=true;await save(state);await api('POST','/workflows/'+workflowId+'/activate');}
  const live=await api('GET','/workflows/'+workflowId);must(live.active===true,'CANARY_RECEIVER_ACTIVATION_NOT_PROVEN');state.activationPending=false;state.receiverActive=true;await save(state);
  return{status:'CANARY_RECEIVER_ACTIVE_NOT_SOURCING_VERIFIED',workflowName:name,workflowId,workflowUrl:origin+'/workflow/'+workflowId,projectId,maximumRowsPerRequest:5,sourceApiCalls:0,sourcingScheduled:false,crmWrites:0,googleCredentialMetadataVerified:!ownerProvidedBinding,googleCredentialName:google[0].name,googleMetadataReadMode:ownerProvidedBinding?'OWNER_PROVIDED_ID_NATIVE_PROJECT_AND_GRAPH_VERIFIED':targetedOnly?'TARGET_ID_WITH_NATIVE_PROJECT_AND_GRAPH_CHECK':'GLOBAL_METADATA_LIST',googleCredentialPermissionVerified:false,clayCredentialCandidates:targetedOnly?null:credentials.filter(c=>/clay/i.test(c.name+' '+c.type)).length,clayAuthorizationVerified:false};
@@ -107,6 +111,7 @@ export async function main(args=process.argv.slice(2)){
     await writeFile(backup,before,{mode:0o600,flag:'wx'});await writeFile(evidenceFile,JSON.stringify(fresh.evidence),{mode:0o600,flag:'wx'});
     ingressRetryAuthorization={...ingressRetryAuthorization,checkpointBeforeHash:hash(before),checkpointBackupCreated:true,checkpointBackup:backup,evidenceFile};
    }
+   if(state.workflowId&&!state.receiverActive){const backup=dir+'/install.before-graph-check-'+nonce+'.json';await writeFile(backup,await privateRead(file),{mode:0o600,flag:'wx'});state.graphCheckpointBackup=backup;await save(state);}
    result=await installCanary({api:(method,route,body)=>atStage(route.startsWith('/credentials?')?'credential.metadata.read':route.startsWith('/credentials/schema/')?'credential.schema.read':route.startsWith('/credentials/')?'credential.target.read':route==='/credentials'?'ingest.credential.create':route==='/workflows'?'workflow.create':route.endsWith('/activate')?'receiver.activate':'workflow.read',()=>transport?remoteJson(transport.request,'/api/v1'+route,{method,headers:{'X-N8N-API-KEY':key},body}):jsonRequest(origin+'/api/v1'+route,{method,headers:{'X-N8N-API-KEY':key},body})),template,googleCredentialId:googleId,projectId,profile,state,save,ownerProvidedBinding,ingressRetryAuthorization});
    const inspection=await atStage('crm.read.only',()=>inspectCanary({call:webhook,batchId:randomUUID()}));state.latestInspection=inspection;await save(state);result={...result,crmInspection:inspection,googleCredentialPermissionVerified:true,operatorTransport:transport?'SSH_AUTHENTICATED_CONTABO_LOOPBACK':'PUBLIC_HTTPS'};
   }else if(mode==='--inspect'){
