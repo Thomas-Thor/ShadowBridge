@@ -1,0 +1,111 @@
+/* Policy-only layout; colours, typography and shared components come from styles.css. */
+.privacy-page .site-header {
+  height: auto;
+}
+.privacy-header {
+  min-height: var(--header-height);
+  flex-wrap: wrap;
+  padding-block: 18px;
+  gap: 12px 24px;
+}
+.privacy-main {
+  padding-block: clamp(48px, 7vw, 96px);
+}
+.privacy-intro {
+  max-width: 820px;
+}
+.privacy-intro h1 {
+  font-size: clamp(52px, 7vw, 88px);
+}
+.privacy-summary {
+  margin-block: 26px 20px;
+  max-width: 650px;
+}
+.privacy-intro strong,
+.privacy-copy strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+.privacy-draft {
+  margin-top: 28px;
+  background: var(--panel);
+  font-size: 14px;
+}
+.privacy-draft p {
+  margin-top: 8px;
+}
+.privacy-contents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding-block: 28px;
+  margin-block: 20px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.privacy-contents a {
+  padding-block: 4px;
+  color: var(--bronze-light);
+  font-size: 13px;
+}
+.privacy-copy {
+  max-width: 820px;
+  overflow-wrap: anywhere;
+}
+.privacy-copy section {
+  padding-block: 40px;
+  border-bottom: 1px solid var(--line);
+  scroll-margin-top: 10rem;
+}
+.privacy-copy section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.privacy-copy h2 {
+  font-size: clamp(32px, 4vw, 44px);
+  line-height: 1.12;
+  margin-block: 14px 24px;
+}
+.privacy-copy h3 {
+  margin-block: 28px 14px;
+  font-size: 18px;
+}
+.privacy-copy p + p {
+  margin-top: 16px;
+}
+.privacy-copy a {
+  color: var(--bronze-light);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.privacy-contents a:hover,
+.privacy-copy a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.privacy-pending {
+  padding: 16px 20px;
+  border-left: 2px solid var(--bronze);
+  background: var(--panel);
+  font-size: 14px;
+}
+.privacy-footer {
+  padding-block: 28px;
+}
+@media (max-width: 700px) {
+  .privacy-header .brand-type {
+    font-size: 14px;
+  }
+  .privacy-header .brand-type > span {
+    font-size: 5px;
+  }
+  .privacy-header .text-link {
+    font-size: 11px;
+  }
+  .privacy-copy section {
+    padding-block: 32px;
+  }
+  .privacy-pending {
+    padding: 14px;
+  }
+}
