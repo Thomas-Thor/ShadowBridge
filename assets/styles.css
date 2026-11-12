@@ -355,17 +355,42 @@ p {
   align-self: center;
   z-index: -1;
 }
+.hero-art picture {
+  display: block;
+}
 .global-bridge {
+  display: block;
   width: 100%;
   height: auto;
   animation: globe-entrance 1s ease-out both;
+  /* Soft edges so the artwork's own dark backdrop meets the page background without a visible box. */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent),
+    linear-gradient(to bottom, transparent, #000 6%, #000 94%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent),
+    linear-gradient(to bottom, transparent, #000 6%, #000 94%, transparent);
+  mask-composite: intersect;
+}
+.site-banner {
+  background: #010607;
+  border-bottom: 1px solid var(--line);
+}
+.site-banner picture {
+  display: block;
+  max-width: 2000px;
+  margin-inline: auto;
+}
+.site-banner img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 .hero-art figcaption {
   font-size: 7px;
   letter-spacing: 0.24em;
   color: #a39b86;
   text-align: center;
-  margin-top: -25px;
+  margin-top: 6px;
   padding-left: 34px;
 }
 .hero-art figcaption span {
@@ -1213,8 +1238,9 @@ p {
     font-size: 7px;
   }
   .hero-art {
-    margin-left: -80px;
-    width: calc(100% + 112px);
+    /* The raster globe is wider than the old SVG: keep it clear of the hero copy. */
+    margin-left: -8px;
+    width: calc(100% + 40px);
   }
   .hero-art figcaption {
     display: none;
@@ -1415,7 +1441,7 @@ p {
     display: block;
     font-size: 5.5px;
     padding-left: 10px;
-    margin-top: -35px;
+    margin-top: 2px;
     letter-spacing: 0.16em;
   }
   .discover {
