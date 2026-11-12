@@ -77,6 +77,33 @@
       </div>
     </header>
     <main id="main" tabindex="-1">
+      <section class="site-banner" aria-label="ShadowBridge">
+        <picture>
+          <source
+            media="(max-width: 640px)"
+            type="image/webp"
+            width="1130"
+            height="414"
+            srcset="assets/hero/sb-banner-mobile-760.webp 760w, assets/hero/sb-banner-mobile-1130.webp 1130w"
+            sizes="100vw"
+          />
+          <source
+            type="image/webp"
+            width="2000"
+            height="414"
+            srcset="assets/hero/sb-banner-1000.webp 1000w, assets/hero/sb-banner-1400.webp 1400w, assets/hero/sb-banner-2000.webp 2000w"
+            sizes="(min-width: 2000px) 2000px, 100vw"
+          />
+          <img
+            src="assets/hero/sb-banner-2000.jpg"
+            width="2000"
+            height="414"
+            alt="ShadowBridge: global trade, sourcing and connections."
+            fetchpriority="high"
+            decoding="async"
+          />
+        </picture>
+      </section>
       <section id="home" class="hero shell" aria-labelledby="hero-title">
         <div class="hero-copy">
           <p class="eyebrow">
@@ -111,13 +138,21 @@
           </div>
         </div>
         <figure class="hero-art">
-          <img
-            class="global-bridge"
-            src="assets/global-bridge.svg"
-            width="760"
-            height="680"
-            alt="An original suspension bridge spanning a globe, a symbol of connections between continents."
-          />
+          <picture>
+            <source
+              type="image/webp"
+              srcset="assets/hero/global-bridge-640.webp 640w, assets/hero/global-bridge-953.webp 953w"
+              sizes="(max-width: 700px) min(100vw, 530px), 50vw"
+            />
+            <img
+              class="global-bridge"
+              src="assets/hero/global-bridge-953.jpg"
+              width="953"
+              height="685"
+              alt="A golden suspension bridge spanning a glowing globe, a symbol of connections between continents."
+              decoding="async"
+            />
+          </picture>
           <figcaption>
             <span aria-hidden="true">01 /</span> A WORLD OF OPPORTUNITY. A
             BRIDGE BETWEEN.
