@@ -9,6 +9,9 @@ test('sign-in keeps useful application links without the removed artwork on desk
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/member-sign-in/');
     await expect(page.locator('figure.member-threshold')).toHaveCount(0);
+    await expect(page).toHaveTitle('Member Access | ShadowBridge');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Member Access');
+    await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
     await expect(page.locator('img[src$="member-entry-gate.svg"], img[src$="member-entry-seal.svg"]')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'A considered way forward.', exact: true })).toBeVisible();
     await expect(page.locator('.member-entry-message p')).toHaveText('One secure entry for buyers, suppliers and B2B partners. Cooperation begins with individual approval.');
