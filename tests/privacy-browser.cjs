@@ -41,8 +41,11 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
       });
       const page = await context.newPage();
       page.on('pageerror', error => failures.push(error.message));
-      page.on('console', message => { if (message.type() === 'error') failures.push(message.text()); });
-      page.on('response', response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
+      // Integrated release: without the secure backend the homepage probes GET /api/config once and
+      // locks its enquiry queue. Only that same-origin 404 is tolerated; everything else still fails.
+      const probe = url => { const u = new URL(url); return u.origin === origin && u.pathname === '/api/config' && !u.search; };
+      page.on('console', message => { if (message.type() === 'error' && !(probe(message.location()?.url || origin + '/x') && /status of 404/.test(message.text()))) failures.push(message.text()); });
+      page.on('response', response => { if (response.status() >= 400 && !(response.status() === 404 && response.request().method() === 'GET' && probe(response.url()))) failures.push(`${response.status()} ${response.url()}`); });
       await page.goto(origin, { waitUntil: 'networkidle' });
       await page.locator('footer a', { hasText: 'Privacy Policy' }).click();
       assert.equal(new URL(page.url()).pathname, '/privacy/');
@@ -65,21 +68,12 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
       await page.getByRole('link', { name: 'Back to home', exact: true }).click();
       assert.equal(new URL(page.url()).pathname, '/');
       if (width === 1440) {
-        await page.locator('#enquiry-name').fill('Privacy Test');
-        await page.locator('#enquiry-email').fill('privacy-test@example.invalid');
-        await page.locator('#enquiry-role').selectOption('buyer');
-        await page.locator('#enquiry-message').fill('A test enquiry to verify the existing browser-only brief generator.');
-        const downloadEvent = page.waitForEvent('download');
-        await page.getByRole('button', { name: 'Download enquiry brief' }).click();
-        assert.equal((await downloadEvent).suggestedFilename(), 'shadowbridge-enquiry.txt');
-        await page.evaluate(() => document.addEventListener('click', event => {
-          if (event.target.closest('a[href^="mailto:"]')) event.preventDefault();
-        }, true));
-        await page.getByRole('button', { name: 'Prepare email', exact: true }).click();
-        const draft = await page.locator('#email-draft-link').getAttribute('href');
-        assert(draft.startsWith('mailto:shadowbridge.trade@gmail.com?'));
-        assert(decodeURIComponent(draft).includes('Privacy Test'));
-        assert((await page.locator('#enquiry-status').innerText()).includes('It has not been sent'));
+        // The release replaced the browser-only brief/mailto generator with the private enquiry queue.
+        // Without the backend it must stay locked and offer no mailto draft.
+        const status = page.locator('#enquiry-status');
+        await status.filter({ hasText: 'Nothing can be submitted.' }).waitFor();
+        for (const field of await page.locator('#enquiry-form').locator('input, select, textarea, button').all()) assert(await field.isDisabled(), 'Enquiry control unexpectedly enabled');
+        assert.equal(await page.locator('#enquiry-form a[href^="mailto:"]').count(), 0);
       }
       if (screenshots) {
         await page.goto(`${origin}/privacy/`, { waitUntil: 'networkidle' });

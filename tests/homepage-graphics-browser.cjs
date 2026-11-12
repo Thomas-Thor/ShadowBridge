@@ -25,7 +25,8 @@ const viewports = [['desktop', 1440, 900, 'sb-banner-2000.webp', 2000 / 414], ['
       const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' });
       const problems = [];
       page.on('pageerror', e => problems.push(e.message));
-      page.on('response', r => { if (r.status() >= 400) problems.push(`${r.status()} ${r.url()}`); });
+      // Integrated release: tolerate only the fail-closed GET /api/config 404 probe.
+      page.on('response', r => { const u = new URL(r.url()); if (r.status() >= 400 && !(r.status() === 404 && r.request().method() === 'GET' && u.origin === origin && u.pathname === '/api/config' && !u.search)) problems.push(`${r.status()} ${r.url()}`); });
       page.on('requestfailed', r => problems.push(`failed ${r.url()}`));
       await page.goto(origin + '/', { waitUntil: 'networkidle' });
       const m = await page.evaluate(() => {
