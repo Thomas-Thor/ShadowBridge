@@ -132,3 +132,25 @@
 .entry-network-policy { margin-top: 14px; }
 @media (max-width: 650px) { .entry-footer .entry-cartel-network { margin-inline: auto; } }
 @media (prefers-reduced-motion: reduce) { .entry-cartel-network img { transition: none; } }
+
+/* Member Access: minimal sign-in presentation (gate illustration removed). Scoped to this page only. */
+.entry-auth .entry-intro { padding-block: 64px 44px; align-items: center; }
+.entry-auth .entry-intro h1 { font-size: clamp(54px, 6vw, 86px); margin: 18px 0 22px; letter-spacing: -0.03em; }
+.entry-auth .entry-intro h1::after { content: ""; display: block; width: 56px; height: 1px; margin-top: 26px; background: var(--bronze); }
+.entry-auth .entry-lead { color: var(--muted); }
+.entry-auth .entry-panel h2 { font-size: 34px; }
+.entry-auth .entry-aside { padding-top: 30px; }
+.entry-auth .entry-aside > p { font-size: 13px; line-height: 1.8; color: var(--muted); margin-top: 8px; }
+.entry-auth .member-entry-message { padding-bottom: 26px; margin-bottom: 26px; border-bottom: 1px solid var(--line); }
+.entry-auth .member-entry-message h2 { font-family: var(--serif); font-size: 30px; font-weight: 400; line-height: 1.15; color: var(--ink); }
+.entry-auth .member-entry-message p { font-size: 13px; line-height: 1.8; color: var(--muted); margin-top: 12px; }
+.entry-auth .entry-aside nav { margin-top: 14px; }
+.entry-auth .entry-aside nav p { margin: 0; }
+.entry-auth .entry-aside .member-entry-link { margin-left: 0; }
+@media (max-width: 650px) {
+  .entry-auth .entry-intro { padding-block: 40px 28px; }
+  .entry-auth .entry-intro h1 { font-size: 54px; }
+  .entry-auth .entry-intro h1::after { margin-top: 20px; }
+  .entry-auth .entry-panel h2 { font-size: 30px; }
+  .entry-auth .member-entry-message h2 { font-size: 26px; }
+}
